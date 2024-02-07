@@ -43,6 +43,7 @@ class Window:
 
         #Add an ImagePreview to the preview frame
         self.previewImage = PreviewImage(self.preview)
+        self.previewImage.loadImage(r"Slideshow-Project\ball.jpg")
         
 
         #DEBUG STUFF REMOVE LATER

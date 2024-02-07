@@ -2,8 +2,6 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import ImageSupport as IS
 
-
-
 class PreviewImage:
     #PreviewImage is essentially a canvas that holds an image.
     def __init__(self, parent):
@@ -20,7 +18,6 @@ class PreviewImage:
         self.imagePIL = None
         self.image = None
         self.canvasImage = None
-
 
 
     def loadImage(self, imagePath:str):
@@ -69,21 +66,43 @@ class PreviewImage:
         print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
 
 
+class FileList:
+    def __init__(self, parent):
+        self.frame = tk.Frame(parent)
+        self.frame.pack(fill=tk.BOTH, expand=True)
 
+    def addFile(self, file:str):
+        pass
 
-# Create the root window for testing
-# root = tk.Tk()
-# root.title("Test window")
-# screen_width = root.winfo_screenwidth()
-# screen_height = root.winfo_screenheight()
-# root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
-# print(f"{screen_width//2}x{screen_height//2}")
+class PhotoIcon:
+    def __init__(self, parent, imagePath:str):
+        self.frame = tk.Frame(parent, width=100, height=100)
+        self.frame.pack(fill=tk.NONE, expand=False)
 
+        self.frame.update()
+        #Canvas to hold the image
+        self.canvas = tk.Canvas(self.frame, width=self.frame.winfo_width(), height=self.frame.winfo_height())
+        self.canvas.pack(fill=tk.BOTH, expand=False)
 
-# #Create the preview image
-# pi = PreviewImage(root)
-# pi.loadImage(r"Slideshow-Project\ball.jpg")
+        self.name = IS.removePath([imagePath])[0]
+        self.fileLabel = tk.Label(self.frame, text=self.name)
+        self.fileLabel.pack(fill=tk.BOTH, expand=True)
 
+        #Load the image
+        try:
+            img = Image.open(imagePath)
+            self.imagePath = imagePath
+            self.imagePIL = img
+        except:
+            print(f"{imagePath} is not a valid image file.")
+            self.imagePath = r"Slideshow-Project\MissingImage.png"
+            img = Image.open(self.imagePath)
+            self.imagePIL = img
+        
+        #Resize the image while using the aspect ratio
+        self.imagePIL.thumbnail((self.frame.winfo_width(), self.frame.winfo_height()))
+        self.image = ImageTk.PhotoImage(self.imagePIL)
+        self.canvasImage = self.canvas.create_image(self.frame.winfo_width()//2, self.frame.winfo_height()//2, image=self.image, anchor=tk.CENTER)
+        return
 
-
-# root.mainloop()
+        
