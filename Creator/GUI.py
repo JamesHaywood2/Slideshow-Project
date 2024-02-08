@@ -22,15 +22,24 @@ class Window:
         self.top = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
         self.base.add(self.top)
 
-        #Bottom frame that takes up 1/3 of the window
-        self.reel = tk.Frame(self.base, bg="green")
-        self.base.add(self.reel)
-
         #Create left and right labels for the top paned window
         self.media = tk.Frame(self.top)
         self.top.add(self.media)
         self.preview = tk.Frame(self.top)
         self.top.add(self.preview)
+
+        #Bottom frame that takes up 1/3 of the window
+        self.bottom = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
+        self.base.add(self.bottom)
+
+        #Slide information
+        self.slideInfo = tk.Frame(self.bottom, bg="blue")
+        self.bottom.add(self.slideInfo)
+
+        #Slide Reel
+        self.slideReel = tk.Frame(self.bottom, bg="red")
+        self.bottom.add(self.slideReel)
+
         
         #Get the size of the window
         self.root.update()
@@ -38,10 +47,12 @@ class Window:
         self.win_height = self.root.winfo_height()
 
         #Sets the initial size of the PanedWindows
-        self.base.paneconfigure(self.top, height=self.win_height//3*2, minsize=self.win_height//3)
-        self.base.paneconfigure(self.reel, height=self.win_height//3, minsize=self.win_height//4)
+        self.base.paneconfigure(self.top, height=self.win_height//10*7, minsize=self.win_height//10*3)
+        self.base.paneconfigure(self.bottom, height=self.win_height//10*3, minsize=self.win_height//10*3)
         self.top.paneconfigure(self.preview, width=self.win_width//10*6, minsize=self.win_width//10*3)
         self.top.paneconfigure(self.media, width=self.win_width//10*4, minsize=self.win_width//10*3)
+        self.bottom.paneconfigure(self.slideInfo, width=self.win_width//10*3, minsize=self.win_width//10*3)
+        self.bottom.paneconfigure(self.slideReel, width=self.win_width//10*7, minsize=self.win_width//10*3)
 
         #Add an ImagePreview to the preview frame
         self.previewImage = PreviewImage(self.preview)
@@ -51,19 +62,6 @@ class Window:
         self.fileViewer.pack(fill=tk.BOTH, expand=True)
         self.fileViewer.linkPreviewer(self.previewImage)
 
-        #DEBUG STUFF REMOVE LATER
-        printCanvasSize = tk.Button(self.reel, text="Print Canvas Size", command=self.previewImage.printCanvasSize)
-        printCanvasSize.pack()
-        redrawImage = tk.Button(self.reel, text="Redraw Image", command=self.previewImage.redrawImage)
-        redrawImage.pack()
-        #get size of media frame
-        printSize = tk.Button(self.reel, text="Print media size", command=lambda: print(f"Media Size: {self.media.winfo_width()}x{self.media.winfo_height()}"))
-        printSize.pack()
-        #get size of window
-        printSize = tk.Button(self.reel, text="Print window size", command=lambda: print(f"Window Size: {self.root.winfo_width()}x{self.root.winfo_height()}"))
-        printSize.pack()
-
-        #DEBUG STUFF REMOVE LATER
 
         #Get the position of the window
         self.win_xPos = self.root.winfo_x()
@@ -76,7 +74,7 @@ class Window:
         self.root.bind("<Configure>", self.on_resize)
 
         #MENU BAR
-        self.menubar = MenuBar(self.root)
+        self.menubar = MenuBar(self.root, self)
 
         self.root.config(menu=self.menubar)
         self.root.mainloop()
