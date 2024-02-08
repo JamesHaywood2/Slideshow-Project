@@ -1,7 +1,6 @@
 import tkinter as tk
 import ImageSupport as IS
-from Widgets import PreviewImage
-
+from Widgets import *
 
 
 #Create the root window
@@ -28,9 +27,9 @@ class Window:
         self.base.add(self.reel)
 
         #Create left and right labels for the top paned window
-        self.media = tk.Frame(self.top, bg="yellow")
+        self.media = tk.Frame(self.top)
         self.top.add(self.media)
-        self.preview = tk.Frame(self.top, bg="pink")
+        self.preview = tk.Frame(self.top)
         self.top.add(self.preview)
         
         #Get the size of the window
@@ -39,18 +38,31 @@ class Window:
         self.win_height = self.root.winfo_height()
 
         #Sets the initial size of the PanedWindows
-        self.__sizeConfig()
+        self.base.paneconfigure(self.top, height=self.win_height//3*2, minsize=self.win_height//3)
+        self.base.paneconfigure(self.reel, height=self.win_height//3, minsize=self.win_height//4)
+        self.top.paneconfigure(self.preview, width=self.win_width//10*6, minsize=self.win_width//10*3)
+        self.top.paneconfigure(self.media, width=self.win_width//10*4, minsize=self.win_width//10*3)
 
         #Add an ImagePreview to the preview frame
         self.previewImage = PreviewImage(self.preview)
-        self.previewImage.loadImage(r"Slideshow-Project\ball.jpg")
         
+        #Add a FileViewer to the media frame
+        self.fileViewer = FileViewer(self.media)
+        self.fileViewer.pack(fill=tk.BOTH, expand=True)
+        self.fileViewer.linkPreviewer(self.previewImage)
 
         #DEBUG STUFF REMOVE LATER
         printCanvasSize = tk.Button(self.reel, text="Print Canvas Size", command=self.previewImage.printCanvasSize)
         printCanvasSize.pack()
         redrawImage = tk.Button(self.reel, text="Redraw Image", command=self.previewImage.redrawImage)
         redrawImage.pack()
+        #get size of media frame
+        printSize = tk.Button(self.reel, text="Print media size", command=lambda: print(f"Media Size: {self.media.winfo_width()}x{self.media.winfo_height()}"))
+        printSize.pack()
+        #get size of window
+        printSize = tk.Button(self.reel, text="Print window size", command=lambda: print(f"Window Size: {self.root.winfo_width()}x{self.root.winfo_height()}"))
+        printSize.pack()
+
         #DEBUG STUFF REMOVE LATER
 
         #Get the position of the window
@@ -60,9 +72,19 @@ class Window:
         #resize after call variable.
         self.resize_after = None
 
-
         #Bind the resize event to the on_resize function
         self.root.bind("<Configure>", self.on_resize)
+
+        #MENU BAR
+        self.menubar = tk.Menu(self.root)
+        self.menubar.config(bg="white", fg="black", activebackground="whitesmoke", activeforeground="black", activeborderwidth=1)
+        self.fileMenu = tk.Menu(self.menubar, tearoff=False)
+        self.fileMenu.add_command(label="Open", command=self.openFile())
+        self.fileMenu.add_command(label="Save", command=self.saveFile())
+
+        self.menubar.add_cascade(label="File", menu=self.fileMenu)
+
+        self.root.config(menu=self.menubar)
         self.root.mainloop()
 
     #Debounce function. On_resize() gets called every <configure> event and creates a new after event.
@@ -72,46 +94,36 @@ class Window:
     def on_resize(self, event):
         if self.resize_after:
             self.root.after_cancel(self.resize_after)
-        self.resize_after = self.root.after(50, self.resize, event)
+        self.resize_after = self.root.after(100, self.resize, event)
         
     def resize(self, event):
         print("Resizing")
+        self.root.update()
         self.win_width = self.root.winfo_width()
         self.win_height = self.root.winfo_height()
 
         
-        #This is to prevetn an infinite loop of resizing. pane.configure() ends up triggering the on_resize event, which triggers the pane.configure() event, etc.
-        #This snippet of code will only run if the window itself has changed size, not any of the PanedWindows.
-        if (self.win_width == event.width) and (self.win_height == event.height):
-            # print(f"Current Window Size: {event.width}x{event.height}")
-            self.__sizeConfig()
-            # print(f"Window Size: {self.win_width}x{self.win_height}")
-
         #If canvas size has changed, redraw the image
         if self.previewImage.canvas.winfo_width() != self.previewImage.canvasWidth or self.previewImage.canvas.winfo_height() != self.previewImage.canvasHeight:
             self.previewImage.redrawImage()
-                
-        return
+
+        #If media has changed size update the file viewer
+        if self.fileViewer.parentHeight != self.media.winfo_height() or self.fileViewer.parentWidth != self.media.winfo_width():
+            self.fileViewer.propogateList()
+            self.fileViewer.parentHeight = self.media.winfo_height()
+            self.fileViewer.parentWidth = self.media.winfo_width()
+
+    def openFile(self):
+        print("Open File")
+
+    def saveFile(self):
+        print("Save File")
+    
 
     
-    def __sizeConfig(self):
-        #Top PanedWindow should take up 2/3 of the window
-        self.base.paneconfigure(self.top, height=self.win_height//3*2, minsize=self.win_height//3)
-
-        #Bottom frame should take up 1/3 of the window
-        self.base.paneconfigure(self.reel, height=self.win_height//3, minsize=self.win_height//4)
-
-        #Preview should take up 2/3 of the top PanedWindow
-        self.top.paneconfigure(self.preview, width=self.win_width//3*2, minsize=self.win_width//3)
-
-        #Media bucket should take up 1/3 of the top PanedWindow
-        self.top.paneconfigure(self.media, width=self.win_width//3, minsize=self.win_width//4)
-        return
-
-
-
-
-
 #Create the window
 root = tk.Tk()
+#Change the icon
+root.iconbitmap("clapperboard.ico")
+
 app = Window(root)

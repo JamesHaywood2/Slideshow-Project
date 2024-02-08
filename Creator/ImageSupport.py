@@ -26,4 +26,8 @@ def randomImage(files):
     """Returns a random image from a list of file paths."""
     return random.choice(files)
 
+def removeExtension(files):
+    """Removes the file extension from a list of file paths."""
+    return [os.path.splitext(f)[0] for f in files]
+
 

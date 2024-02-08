@@ -1,6 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import ImageSupport as IS
+import os
 
 class PreviewImage:
     #PreviewImage is essentially a canvas that holds an image.
@@ -30,7 +31,7 @@ class PreviewImage:
             self.imagePIL = img
         except:
             print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"Slideshow-Project\MissingImage.png"
+            self.imagePath = r"..\Slideshow-Project\MissingImage.png"
             img = Image.open(self.imagePath)
             self.imagePIL = img
 
@@ -66,29 +67,100 @@ class PreviewImage:
         print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
 
 
-class FileList:
-    def __init__(self, parent):
-        self.frame = tk.Frame(parent)
-        self.frame.pack(fill=tk.BOTH, expand=True)
+
+class FileViewer(tk.Frame):
+    def __init__(self, parent, files:list=[]):
+        tk.Frame.__init__(self, parent)
+        self.imageList = files
+        #if there are no files, put MissingImage.png in the list as a placeholder.
+        if len(self.imageList) == 0:
+            self.imageList.append(r"..\Slideshow-Project\MissingImage.png")
+
+        self.parent = parent #The parent of the FileViewer. media in GUA.py
+        self.previewer = None #The previewer that the FileViewer is linked to. previewImage in GUI.py
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_propagate(False)
+
+        #Add canvas to the frame
+        self.canvas = tk.Canvas(self)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        #Add a scrollbar to the frame
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.canvas.configure(yscrollcommand=scrollbar.set) 
+
+        self.fileContainer = tk.Frame(self.canvas)
+        self.canvas.create_window((0,0), window=self.fileContainer, anchor="nw")
+
+
+        #Print the size of the canvas
+        self.parent.update()
+        # print(f"parent Size: {self.parent.winfo_width()}x{self.parent.winfo_height()}")
+        self.parentHeight = self.parent.winfo_height()
+        self.parentWidth = self.parent.winfo_width()
+
+        self.propogateList()
+
+    def propogateList(self):
+        #Clear the file container
+        for widget in self.fileContainer.winfo_children():
+            widget.destroy()
+        #Get the size of parent container
+        self.parent.update()
+        parentWidth = self.parent.winfo_width()
+        parentHeight = self.parent.winfo_height()
+        # print(f"Parent Size: {parentWidth}x{parentHeight}")
+
+        #Icons are like 110 pixels wide. 
+        iconPerRow = parentWidth//110
+        # print(f"Icons per row: {iconPerRow}")
+        i=0
+        j=0
+        for file in self.imageList:
+            #Create a PhotoIcon and place it in the fileContainer
+            PhotoIcon(self.fileContainer, file).grid(row=i, column=j, sticky="nsew", padx=5, pady=5)
+            j+=1
+            if j == iconPerRow:
+                j=0
+                i+=1
+
+        self.fileContainer.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        for icon in self.fileContainer.winfo_children():
+            icon.linkPreviewer(self.previewer)
+        return
 
     def addFile(self, file:str):
-        pass
+        self.imageList.append(file)
+        self.propogateList()
+        return
+    
+    def linkPreviewer(self, previewer):
+        self.previewer = previewer
+        for icon in self.fileContainer.winfo_children():
+            icon.linkPreviewer(previewer)
+        return
 
-class PhotoIcon:
+
+class PhotoIcon(tk.Frame):
     def __init__(self, parent, imagePath:str):
-        self.frame = tk.Frame(parent, width=100, height=100)
-        self.frame.pack(fill=tk.NONE, expand=False)
+        tk.Frame.__init__(self, parent, relief=tk.FLAT, borderwidth=2)
+        self.width = 100
+        self.height = 100
+        self.previewer = None
 
-        self.frame.update()
-        #Canvas to hold the image
-        self.canvas = tk.Canvas(self.frame, width=self.frame.winfo_width(), height=self.frame.winfo_height())
-        self.canvas.pack(fill=tk.BOTH, expand=False)
+        self.canvas = tk.Canvas(self, width=100, height=100)
+        self.canvas.pack(fill=tk.NONE, expand=False, side=tk.TOP)
+  
+        self.fileName = IS.removeExtension(IS.removePath([imagePath]))[0]
+        fn = self.fileName[:10] + "..." if len(self.fileName) > 10 else self.fileName
+        self.nameLabel = tk.Label(self, text=fn, font=("Arial", 12))
+        self.nameLabel.pack(fill=tk.NONE, expand=False)
 
-        self.name = IS.removePath([imagePath])[0]
-        self.fileLabel = tk.Label(self.frame, text=self.name)
-        self.fileLabel.pack(fill=tk.BOTH, expand=True)
-
-        #Load the image
+        #Test if the file is a valid image file
         try:
             img = Image.open(imagePath)
             self.imagePath = imagePath
@@ -98,11 +170,64 @@ class PhotoIcon:
             self.imagePath = r"Slideshow-Project\MissingImage.png"
             img = Image.open(self.imagePath)
             self.imagePIL = img
-        
+        # print(f"Image Path: {self.imagePath}")
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.frame.winfo_width(), self.frame.winfo_height()))
+        self.imagePIL.thumbnail((self.width, self.height))
         self.image = ImageTk.PhotoImage(self.imagePIL)
-        self.canvasImage = self.canvas.create_image(self.frame.winfo_width()//2, self.frame.winfo_height()//2, image=self.image, anchor=tk.CENTER)
+        self.canvasImage = self.canvas.create_image(self.width//2, self.height//2, image=self.image, anchor=tk.CENTER)
+
+        self.canvas.bind("<Double-Button-1>", self.openImage)
+
+        self.canvas.bind("<Enter>", self.sinkIcon)
+        self.canvas.bind("<Leave>", self.riseIcon)
+        self.hover = False
+
+        self.canvas.bind("<ButtonRelease-1>", self.selectIcon)
+        
+
+    def sinkIcon(self, event):
+        print("Sinking")
+        self.hover = True
+        self.config(relief=tk.SUNKEN)
+
+    def riseIcon(self, event):
+        print("Rising")
+        self.hover = False
+        self.config(relief=tk.FLAT)
+
+    def selectIcon(self, event):
+        print("Selecting")
+        if self.hover:
+            self.previewer.loadImage(self.imagePath)
+            self.previewer.redrawImage()
+            
+    def openImage(self, event):
+        os.startfile(self.imagePath)
+
+    def linkPreviewer(self, previewer):
+        self.previewer = previewer
         return
+                
+class MenuBar(tk.Menu):
+    def __init__(self, parent):
+        tk.Menu.__init__(self, parent)
+        self.parent = parent
+        self.fileMenu = tk.Menu(self, tearoff=0)
+        self.fileMenu.add_command(label="Open", command=self.openFile)
+        self.fileMenu.add_command(label="Save", command=self.saveFile)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Exit", command=self.parent.quit)
+        self.add_cascade(label="File", menu=self.fileMenu)
+
+    def openFile(self):
+        print("Open File")
+
+    def saveFile(self):
+        print("Save File")
+
+
+    
+
+
 
         
