@@ -1,6 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-import ImageSupport as IS
+import FileSupport as FP
 import os
 from tkinter import filedialog
 
@@ -34,7 +34,7 @@ class PreviewImage:
             self.imagePath = imagePath
             self.imagePIL = img
             #Delete & replace old label
-            self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=IS.removeExtension(IS.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
+            self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
         except:
             # print(f"{imagePath} is not a valid image file.")
             self.imagePath = r"..\Slideshow-Project\MissingImage.png"
@@ -65,7 +65,7 @@ class PreviewImage:
         self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=IS.removeExtension(IS.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
+        self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
         return
 
     def printCanvasSize(self):
@@ -162,7 +162,7 @@ class PhotoIcon(tk.Frame):
         self.canvas = tk.Canvas(self, width=100, height=100)
         self.canvas.pack(fill=tk.NONE, expand=False, side=tk.TOP)
   
-        self.fileName = IS.removeExtension(IS.removePath([imagePath]))[0]
+        self.fileName = FP.removeExtension(FP.removePath([imagePath]))[0]
         fn = self.fileName[:10] + "..." if len(self.fileName) > 10 else self.fileName
         self.nameLabel = tk.Label(self, text=fn, font=("Arial", 12))
         self.nameLabel.pack(fill=tk.NONE, expand=False)
@@ -231,75 +231,5 @@ class SlideInfo(tk.Frame):
     
 
                 
-class MenuBar(tk.Menu):
-    def __init__(self, parent, GUI):
-        tk.Menu.__init__(self, parent)
-        self.parent = parent
-        self.GUI = GUI
-        fileMenu = tk.Menu(self, tearoff=0)
-        self.add_cascade(label="File", menu=fileMenu)
-        fileMenu.add_command(label="New", command=self.newFile)
-        fileMenu.add_command(label="Open", command=self.openFile)
-        fileMenu.add_command(label="Save", command=self.saveFile)
-        fileMenu.add_command(label="Save As", command=self.saveAsFile)
-        fileMenu.add_separator()
-        fileMenu.add_command(label="Exit", command=self.winfo_toplevel().quit)
 
-        projectMenu = tk.Menu(self, tearoff=0)
-        self.add_cascade(label="Project", menu=projectMenu)
-        projectMenu.add_command(label="Add Image", command=self.addImage)
-        projectMenu.add_command(label="Save and Export to Viewer", command=self.saveAndExport)
-
-        #Debug Menu
-        debugMenu = tk.Menu(self, tearoff=0)
-        self.add_cascade(label="Debug", menu=debugMenu)
-        debugMenu.add_command(label="Print Preview Slide", command=self.printPreviewSize)
-        debugMenu.add_command(label="Redraw Image", command=self.redrawImage)
-        debugMenu.add_command(label="Print Media Size", command=self.printMediaSize)
-        debugMenu.add_command(label="Print Window Size", command=self.printWindowSize)
-        debugMenu.add_command(label="Print Slide Info Size", command=self.printSlideInfoSize)
-        debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
-
-
-    def newFile(self):
-        print("New Project")
-
-    def openFile(self):
-        print("Open Project")
-        file = filedialog.askopenfilenames()
-        print(f"File: {file}")
-            
-
-    def saveFile(self):
-        print("Save Project")
-
-    def saveAsFile(self):
-        print("Save Project As...")
-
-    def addImage(self):
-        print("Add Image")
-        file = filedialog.askopenfilenames()
-        print(f"File: {file}")
-
-    def saveAndExport(self):
-        print("Save and Export")
-
-    #Debug Functions
-    def printPreviewSize(self):
-        print(f"Preview Size: {self.GUI.preview.winfo_width()}x{self.GUI.preview.winfo_height()}")
-
-    def redrawImage(self):
-        self.GUI.previewImage.redrawImage()
-    
-    def printMediaSize(self):
-        print(f"Media Size: {self.GUI.media.winfo_width()}x{self.GUI.media.winfo_height()}")
-
-    def printWindowSize(self):
-        print(f"Window Size: {self.parent.winfo_width()}x{self.parent.winfo_height()}")
-
-    def printSlideInfoSize(self):
-        print(f"Slide Info Size: {self.GUI.slideInfo.winfo_width()}x{self.GUI.slideInfo.winfo_height()}")
-    
-    def printSlideReelSize(self):
-        print(f"Slide Reel Size: {self.GUI.slideReel.winfo_width()}x{self.GUI.slideReel.winfo_height()}")
 

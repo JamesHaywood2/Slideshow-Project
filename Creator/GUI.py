@@ -1,5 +1,5 @@
 import tkinter as tk
-import ImageSupport as IS
+import FileSupport as IS
 from Widgets import *
 
 
@@ -22,13 +22,13 @@ class Window:
         self.top = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
         self.base.add(self.top)
 
-        #Create left and right labels for the top paned window
+        #Create the media and preview frames
         self.media = tk.Frame(self.top)
         self.top.add(self.media)
         self.preview = tk.Frame(self.top)
         self.top.add(self.preview)
 
-        #Bottom frame that takes up 1/3 of the window
+        #Bottom frame that houses slide information and slide reel
         self.bottom = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
         self.base.add(self.bottom)
 
@@ -68,16 +68,18 @@ class Window:
         self.win_yPos = self.root.winfo_y()
 
         #resize after call variable.
-        self.resize_after = None
+        self.__resize_after = None
 
         #Bind the resize event to the on_resize function
         self.root.bind("<Configure>", self.on_resize)
 
         #MENU BAR
         self.menubar = MenuBar(self.root, self)
-
+        
         self.root.config(menu=self.menubar)
         self.root.mainloop()
+
+
 
 
 
@@ -86,16 +88,15 @@ class Window:
     #If it doesn't it then calls the resize function.
     #This prevents the resize function from being spam and causing lag.
     def on_resize(self, event):
-        if self.resize_after:
-            self.root.after_cancel(self.resize_after)
-        self.resize_after = self.root.after(100, self.resize, event)
+        if self.__resize_after:
+            self.root.after_cancel(self.__resize_after)
+        self.__resize_after = self.root.after(100, self.resize, event)
         
     def resize(self, event):
         # print("Resizing")
         self.root.update()
         self.win_width = self.root.winfo_width()
         self.win_height = self.root.winfo_height()
-
         
         #If canvas size has changed, redraw the image
         if self.previewImage.canvas.winfo_width() != self.previewImage.canvasWidth or self.previewImage.canvas.winfo_height() != self.previewImage.canvasHeight:
@@ -106,13 +107,82 @@ class Window:
             self.fileViewer.propogateList()
             self.fileViewer.parentHeight = self.media.winfo_height()
             self.fileViewer.parentWidth = self.media.winfo_width()
-    
-    
 
+class MenuBar(tk.Menu):
+    def __init__(self, parent, GUI):
+        tk.Menu.__init__(self, parent)
+        self.parent = parent
+        self.GUI = GUI
+        fileMenu = tk.Menu(self, tearoff=0)
+        self.add_cascade(label="File", menu=fileMenu)
+        fileMenu.add_command(label="New", command=self.newFile)
+        fileMenu.add_command(label="Open", command=self.openFile)
+        fileMenu.add_command(label="Save", command=self.saveFile)
+        fileMenu.add_command(label="Save As", command=self.saveAsFile)
+        fileMenu.add_separator()
+        fileMenu.add_command(label="Exit", command=self.winfo_toplevel().quit)
+
+        projectMenu = tk.Menu(self, tearoff=0)
+        self.add_cascade(label="Project", menu=projectMenu)
+        projectMenu.add_command(label="Add Image", command=self.addImage)
+        projectMenu.add_command(label="Save and Export to Viewer", command=self.saveAndExport)
+
+        #Debug Menu
+        debugMenu = tk.Menu(self, tearoff=0)
+        self.add_cascade(label="Debug", menu=debugMenu)
+        debugMenu.add_command(label="Print Preview Slide", command=self.printPreviewSize)
+        debugMenu.add_command(label="Redraw Image", command=self.redrawImage)
+        debugMenu.add_command(label="Print Media Size", command=self.printMediaSize)
+        debugMenu.add_command(label="Print Window Size", command=self.printWindowSize)
+        debugMenu.add_command(label="Print Slide Info Size", command=self.printSlideInfoSize)
+        debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
+
+    def newFile(self):
+        print("New Project")
+
+    def openFile(self):
+        print("Open Project")
+        file = filedialog.askopenfilenames()
+        print(f"File: {file}")
+            
+
+    def saveFile(self):
+        print("Save Project")
+
+    def saveAsFile(self):
+        print("Save Project As...")
+
+    def addImage(self):
+        print("Add Image")
+        file = filedialog.askopenfilenames()
+        print(f"File: {file}")
+
+    def saveAndExport(self):
+        print("Save and Export")
+
+    #Debug Functions
+    def printPreviewSize(self):
+        print(f"Preview Size: {self.GUI.preview.winfo_width()}x{self.GUI.preview.winfo_height()}")
+
+    def redrawImage(self):
+        self.GUI.previewImage.redrawImage()
     
+    def printMediaSize(self):
+        print(f"Media Size: {self.GUI.media.winfo_width()}x{self.GUI.media.winfo_height()}")
+
+    def printWindowSize(self):
+        print(f"Window Size: {self.parent.winfo_width()}x{self.parent.winfo_height()}")
+
+    def printSlideInfoSize(self):
+        print(f"Slide Info Size: {self.GUI.slideInfo.winfo_width()}x{self.GUI.slideInfo.winfo_height()}")
+    
+    def printSlideReelSize(self):
+        print(f"Slide Reel Size: {self.GUI.slideReel.winfo_width()}x{self.GUI.slideReel.winfo_height()}")
+
+
 #Create the window
 root = tk.Tk()
 #Change the icon
-root.iconbitmap("clapperboard.ico")
+root.iconbitmap("Slideshow-Project\clapperboard.ico")
 
 app = Window(root)
