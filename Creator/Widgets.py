@@ -2,6 +2,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import ImageSupport as IS
 import os
+from tkinter import filedialog
 
 class PreviewImage:
     #PreviewImage is essentially a canvas that holds an image.
@@ -212,18 +213,43 @@ class MenuBar(tk.Menu):
     def __init__(self, parent):
         tk.Menu.__init__(self, parent)
         self.parent = parent
-        self.fileMenu = tk.Menu(self, tearoff=0)
-        self.fileMenu.add_command(label="Open", command=self.openFile)
-        self.fileMenu.add_command(label="Save", command=self.saveFile)
-        self.fileMenu.add_separator()
-        self.fileMenu.add_command(label="Exit", command=self.parent.quit)
-        self.add_cascade(label="File", menu=self.fileMenu)
+        fileMenu = tk.Menu(self, tearoff=0)
+        self.add_cascade(label="File", menu=fileMenu)
+        fileMenu.add_command(label="New", command=self.newFile)
+        fileMenu.add_command(label="Open", command=self.openFile)
+        fileMenu.add_command(label="Save", command=self.saveFile)
+        fileMenu.add_command(label="Save As", command=self.saveAsFile)
+        fileMenu.add_separator()
+        fileMenu.add_command(label="Exit", command=self.winfo_toplevel().quit)
+
+        projectMenu = tk.Menu(self, tearoff=0)
+        self.add_cascade(label="Project", menu=projectMenu)
+        projectMenu.add_command(label="Add Image", command=self.addImage)
+        projectMenu.add_command(label="Save and Export to Viewer", command=self.saveAndExport)
+
+    def newFile(self):
+        print("New Project")
 
     def openFile(self):
-        print("Open File")
+        print("Open Project")
+        file = filedialog.askopenfilenames()
+        print(f"File: {file}")
+            
 
     def saveFile(self):
-        print("Save File")
+        print("Save Project")
+
+    def saveAsFile(self):
+        print("Save Project As...")
+
+    def addImage(self):
+        print("Add Image")
+        file = filedialog.askopenfilenames()
+        print(f"File: {file}")
+
+    def saveAndExport(self):
+        print("Save and Export")
+
 
 
     

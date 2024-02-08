@@ -76,16 +76,12 @@ class Window:
         self.root.bind("<Configure>", self.on_resize)
 
         #MENU BAR
-        self.menubar = tk.Menu(self.root)
-        self.menubar.config(bg="white", fg="black", activebackground="whitesmoke", activeforeground="black", activeborderwidth=1)
-        self.fileMenu = tk.Menu(self.menubar, tearoff=False)
-        self.fileMenu.add_command(label="Open", command=self.openFile())
-        self.fileMenu.add_command(label="Save", command=self.saveFile())
-
-        self.menubar.add_cascade(label="File", menu=self.fileMenu)
+        self.menubar = MenuBar(self.root)
 
         self.root.config(menu=self.menubar)
         self.root.mainloop()
+
+
 
     #Debounce function. On_resize() gets called every <configure> event and creates a new after event.
     #If it gets called again, the after event gets cancelled and a new one is created.
@@ -97,7 +93,7 @@ class Window:
         self.resize_after = self.root.after(100, self.resize, event)
         
     def resize(self, event):
-        print("Resizing")
+        # print("Resizing")
         self.root.update()
         self.win_width = self.root.winfo_width()
         self.win_height = self.root.winfo_height()
@@ -112,12 +108,7 @@ class Window:
             self.fileViewer.propogateList()
             self.fileViewer.parentHeight = self.media.winfo_height()
             self.fileViewer.parentWidth = self.media.winfo_width()
-
-    def openFile(self):
-        print("Open File")
-
-    def saveFile(self):
-        print("Save File")
+    
     
 
     
