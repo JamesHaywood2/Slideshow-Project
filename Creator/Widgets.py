@@ -40,7 +40,7 @@ class PreviewImage:
             self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
         except:
             # print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"Creator\MissingImage.png"
+            self.imagePath = FP.MissingImage
             img = Image.open(self.imagePath)
             self.imagePIL = img
 
@@ -70,7 +70,7 @@ class PreviewImage:
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
 
-        if self.imagePath == r"Creator\MissingImage.png":
+        if self.imagePath == FP.MissingImage:
             self.canvas.after(3000, self.setBlankImage)
         return
 
@@ -129,11 +129,11 @@ class FileViewer(tk.Frame):
 
     def propogateList(self):
         #If the file list has at least one file, remove the placeholder.
-        if len(self.imageList) > 1 and self.imageList[0] == r"Creator\MissingImage.png":
-            self.imageList.remove(r"Creator\MissingImage.png")
+        if len(self.imageList) > 1 and self.imageList[0] == FP.MissingImage:
+            self.imageList.remove(FP.MissingImage)
         #If the file list is empty, add the placeholder.
         if len(self.imageList) == 0:
-            self.imageList.append(r"Creator\MissingImage.png")
+            self.imageList.append(FP.MissingImage)
 
         #Remove any duplicate items in the file list
         self.removeDuplicates()
@@ -148,7 +148,7 @@ class FileViewer(tk.Frame):
         # print(f"Parent Size: {parentWidth}x{parentHeight}")
 
         #Icons are like 110 pixels wide. 
-        iconPerRow = parentWidth//110
+        iconPerRow = parentWidth//125
         # print(f"Icons per row: {iconPerRow}")
         i=0
         j=0
@@ -301,7 +301,7 @@ class PhotoIcon(tk.Frame):
             self.imagePIL = img
         except:
             print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"Creator\MissingImage.png"
+            self.imagePath = FP.MissingImage
             img = Image.open(self.imagePath)
             self.imagePIL = img
         # print(f"Image Path: {self.imagePath}")
@@ -328,7 +328,7 @@ class PhotoIcon(tk.Frame):
         self.startX = event.x
         self.startY = event.y
         #If missing file, don't allow dragging
-        if self.imagePath != r"Creator\MissingImage.png":
+        if self.imagePath != FP.MissingImage:
             self.canvas.bind("<B1-Motion>", self.dragging)
             print("Picking Up: ", self.fileName)
             return

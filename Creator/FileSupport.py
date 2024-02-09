@@ -3,6 +3,10 @@ import random
 from PIL import Image
 import json
 
+MissingImage = r"Slideshow-Project\Creator\MissingImage.png"
+
+ProgramIcon = r"Slideshow-Project\Creator\Icon.ico"
+
 def getJPEG(folderPath:str, recursive:bool=False):
     """
     Get all the JPEG files in the folder and its subfolders
@@ -51,7 +55,7 @@ class Slide:
             self.imageName = removePath([self.imagePath])[0]
         except:
             # print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"..\Slideshow-Project\MissingImage.png"
+            self.imagePath = MissingImage
             self.imageName = "Error: Missing Image"
 
 

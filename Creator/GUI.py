@@ -8,6 +8,7 @@ class app(tk.Tk):
     def __init__(self, slideshowPath:str="New Project"):
         tk.Tk.__init__(self)
         self.title("Resizable Window")
+        self.iconbitmap(IS.ProgramIcon)
         #Get the size of the screen
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -15,7 +16,7 @@ class app(tk.Tk):
         self.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
 
         #Project file stuff
-        self.projectFile: FP.Slideshow = FP.Slideshow()
+        self.projectFile: FP.Slideshow = FP.Slideshow(slideshowPath)
         
         #Base PanedWindow that holds everything. Takes up the whole window and should always be the same size as the window
         self.base = tk.PanedWindow(self, orient=tk.VERTICAL, bd=1, sashwidth=10)
