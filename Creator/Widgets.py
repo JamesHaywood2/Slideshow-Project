@@ -3,6 +3,8 @@ from PIL import Image, ImageTk
 import FileSupport as FP
 import os
 from tkinter import filedialog
+from tkinter import dnd
+
 
 class PreviewImage:
     #PreviewImage is essentially a canvas that holds an image.
@@ -226,6 +228,7 @@ class PhotoIcon(tk.Frame):
         self.width = 100
         self.height = 100
         self.previewer = None
+        self.parent = parent
 
         self.canvas = tk.Canvas(self, width=100, height=100)
         self.canvas.pack(fill=tk.NONE, expand=False, side=tk.TOP)
@@ -251,7 +254,7 @@ class PhotoIcon(tk.Frame):
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.width//2, self.height//2, image=self.image, anchor=tk.CENTER)
 
-        # self.canvas.bind("<Double-Button-1>", self.openImage)
+        self.canvas.bind("<Double-Button-1>", self.openImage)
 
         self.canvas.bind("<Enter>", self.sinkIcon)
         self.canvas.bind("<Leave>", self.riseIcon)
@@ -259,9 +262,66 @@ class PhotoIcon(tk.Frame):
 
         self.canvas.bind("<ButtonRelease-1>", self.selectIcon)
 
-        #Drag and drop to another widget
-        
+    
+        self.canvas.bind("<Button-1>", self.pickup)
+        self.startX = 0
+        self.startY = 0
+        self.popup = None #This is a borderless, transparent top level window that contains the image. It follows the mouse when the user drags the icon.
 
+
+    def pickup(self, event):
+        #Save the initial click location of the move
+        print(f"Click: {event.x}, {event.y}")
+        self.startX = event.x
+        self.startY = event.y
+        self.canvas.bind("<B1-Motion>", self.dragStart)
+
+    def dragStart(self, event):
+        #If the user has dragged the icon a certain distance, change the event to a drag event.
+        if abs(event.x - self.startX) > 15 or abs(event.y - self.startY) > 15:
+            print("Begin Dragging")
+            self.canvas.unbind("<Button-1>")
+            self.canvas.bind("<B1-Motion>", self.dragging)
+
+    def dragging(self, event):
+        #Check if the popup exists. If it does, move it to the new location.
+        if self.popup:
+            self.popup.geometry(f"+{event.x_root-50}+{event.y_root-50}")
+        else:
+            #Create the popup if it doesn't exist.
+            self.popup = tk.Toplevel()
+            self.popup.overrideredirect(True)
+            self.popup.geometry(f"{self.width}x{self.height}+{event.x_root-50}+{event.y_root-50}")
+            self.popup.wm_attributes("-transparentcolor", "white")
+            self.popup.wm_attributes("-topmost", 1)
+            self.popup.wm_attributes("-alpha", 0.8)
+            self.popupCanvas = tk.Canvas(self.popup, width=self.width, height=self.height)
+            self.popupCanvas.pack(fill=tk.BOTH, expand=True)
+            self.popupImage = ImageTk.PhotoImage(self.imagePIL)
+            self.popupCanvas.create_image(self.width//2, self.height//2, image=self.popupImage)
+            self.popup.bind("<B1-Motion>", self.dragging)
+            self.canvas.bind("<ButtonRelease-1>", self.drop)
+
+    def drop(self, event):
+        #Revert everything back to normal.
+        print(f"Dropped at: {event.x}, {event.y}")
+        self.popup.destroy()
+        self.popup = None
+        self.canvas.bind("<Button-1>", self.pickup)
+        self.canvas.unbind("<B1-Motion>")
+        self.canvas.bind("<ButtonRelease-1>", self.selectIcon)
+        #Check if the user has dropped the icon on the previewer. If they have, load the image.
+        if self.previewer:
+            x = self.previewer.canvas.winfo_rootx()
+            y = self.previewer.canvas.winfo_rooty()
+            w = self.previewer.canvas.winfo_width()
+            h = self.previewer.canvas.winfo_height()
+            if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                self.previewer.loadImage(self.imagePath)
+                self.previewer.redrawImage()
+        return
+        
+        
     def sinkIcon(self, event):
         # print("Sinking")
         self.hover = True
@@ -271,6 +331,7 @@ class PhotoIcon(tk.Frame):
         # print("Rising")
         self.hover = False
         self.config(relief=tk.FLAT)
+        self.canvas.bind("<Leave>", self.riseIcon)
 
     def selectIcon(self, event):
         # print("Selecting")
@@ -284,8 +345,6 @@ class PhotoIcon(tk.Frame):
     def linkPreviewer(self, previewer):
         self.previewer = previewer
         return
-    
-
     
 
 class SlideInfo(tk.Frame):
