@@ -1,6 +1,7 @@
 import os
 import random
 from PIL import Image
+import json
 
 def getJPEG(folderPath:str, recursive:bool=False):
     """
@@ -63,19 +64,20 @@ class transitionType:
     WIPERIGHT = "Wipe_Right"
 
 class Slideshow:
-    def __init__(self, filePath:str=None):
+    def __init__(self, filePath:str="New Project"):
         #Check if file exists
         if not os.path.exists(filePath):
-            raise FileNotFoundError(f"File {filePath} not found.")
+            self.name = "Missing Path"
         self.__filePath: str = filePath #The file path of the slideshow file
-        self.name = getBaseName([self.filePath])[0]
+        self.name = getBaseName([self.__filePath])[0]
         self.__slides: list[Slide] = []
         self.__count: int = 0
-        self.__playlist: Playlist = Playlist()
+        # self.__playlist: Playlist = Playlist()
         self.manual: bool = False
         self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
         self.loop: bool = False
+        self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
 
 
     #Add a slide at an index
@@ -83,27 +85,54 @@ class Slideshow:
         """Will insert a slide at the index, then push the rest of the slides down one index.
         If the index is -1, it will append the slide to the end of the list."""
         if index == -1:
-            self.slides.append(slide)
+            self.__slides.append(slide)
         else:
-            self.slides.insert(index, slide)
-        self.count += 1
+            self.__slides.insert(index, slide)
+        self.__count += 1
     
     def removeSlide(self, slide:Slide):
-        self.slides.remove(slide)
-        self.count -= 1
+        self.__slides.remove(slide)
+        self.__count -= 1
 
     def getSlide(self, index:int):
-        return self.slides[index]
+        return self.__slides[index]
     
     def getSlides(self):
-        return self.slides
+        return self.__slides
     
     def getSlideCount(self):
-        return self.count
+        return self.__count
     
     def getPlaylist(self):
-        return self.playlist
+        return self.__playlist
     
+    def getSaveLocation(self):
+        return self.__filePath
+    
+    def setSaveLocation(self, filePath:str):
+        self.__filePath = filePath
+        self.name = getBaseName([self.__filePath])[0]
+    
+    #Save the slideshow to a file
+    def save(self):
+        print(self)
+        with open(self.__filePath, 'w') as f:
+            json.dump(self.__dict__, f, indent=4)
+
+    def load(self):
+        try:
+            with open(self.__filePath, 'r') as f:
+                data = json.load(f)
+                self.__dict__.update(data)
+        except Exception as e:
+            print(f"Error loading file: {str(e)}")
+            #Re initialize the slideshow
+            self.__init__()
+    
+    def __str__(self) -> str:
+        #Print __dict__ for debugging
+        return str(self.__dict__)
+
 
 class Song:
     def __init__(self, songPath:str):
@@ -127,8 +156,7 @@ class Song:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
             self.name = "Error: Missing Song"
-
-        
+    
 class Playlist:
     def __init__(self):
         self.name: str = None
@@ -142,14 +170,14 @@ class Playlist:
         """Will insert a song at the index, then push the rest of the songs down one index.
         If the index is -1, it will append the song to the end of the list."""
         if index == -1:
-            self.songs.append(song)
+            self.__songs.append(song)
         else:
-            self.songs.insert(index, song)
-        self.count += 1
+            self.__songs.insert(index, song)
+        self.__count += 1
         #Update the duration
 
     def removeSong(self, song:Song):
-        self.songs.remove(song)
-        self.count -= 1
+        self.__songs.remove(song)
+        self.__count -= 1
         #Update the duration
     

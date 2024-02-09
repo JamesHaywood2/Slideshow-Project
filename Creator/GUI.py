@@ -5,7 +5,10 @@ from Widgets import *
 
 #Create the root window
 class Window:
-    def __init__(self, root):
+    def __init__(self, root, slideshowPath:str="New Project"):
+        #Project file stuff
+        self.projectFile: FP.Slideshow = FP.Slideshow()
+
         self.root = root
         self.root.title("Resizable Window")
         #Get the size of the screen
@@ -20,7 +23,7 @@ class Window:
 
         #Top PanedWindow that houses media bucket and preview. 
         self.top = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
-        self.base.add(self.top)
+        self.base.add(self.top, stretch="first")
 
         #Create the media and preview frames
         self.media = tk.Frame(self.top)
@@ -57,6 +60,12 @@ class Window:
         #Add an ImagePreview to the preview frame
         self.previewImage = PreviewImage(self.preview)
         
+        #Label frame
+        self.titleFrame = tk.Frame(self.media, bg="grey")
+        self.titleFrame.pack(fill=tk.X)
+        #Add a label in the media frame that lists the Project Title
+        self.projectTitle = tk.Label(self.titleFrame, text=self.projectFile.name, font=("Arial", 12), bg="grey")
+        self.projectTitle.pack(fill=tk.NONE, anchor="w")
         #Add a FileViewer to the media frame
         self.fileViewer = FileViewer(self.media)
         self.fileViewer.pack(fill=tk.BOTH, expand=True)
@@ -75,12 +84,24 @@ class Window:
 
         #MENU BAR
         self.menubar = MenuBar(self.root, self)
-        
         self.root.config(menu=self.menubar)
+
+
         self.root.mainloop()
 
 
+    #Redraw the window when you open a SlideShow project
+    def redrawWindow(self):
+        #Update the project title
+        self.projectTitle.config(text=self.projectFile.name)
+        #Update the fileViewer
+        self.fileViewer.imageList = self.projectFile.filesInProject
 
+        #Redraw the file viewer
+        self.fileViewer.propogateList()
+        #Redraw the preview image
+        self.previewImage.redrawImage()
+        #Here we would also redraw the slideInfo and slideReel
 
 
     #Debounce function. On_resize() gets called every <configure> event and creates a new after event.
@@ -104,6 +125,7 @@ class Window:
 
         #If media has changed size update the file viewer
         if self.fileViewer.parentHeight != self.media.winfo_height() or self.fileViewer.parentWidth != self.media.winfo_width():
+            #Check and remove any duplicate items in the fileViewer
             self.fileViewer.propogateList()
             self.fileViewer.parentHeight = self.media.winfo_height()
             self.fileViewer.parentWidth = self.media.winfo_width()
@@ -125,6 +147,8 @@ class MenuBar(tk.Menu):
         projectMenu = tk.Menu(self, tearoff=0)
         self.add_cascade(label="Project", menu=projectMenu)
         projectMenu.add_command(label="Add Image", command=self.addImage)
+        projectMenu.add_command(label="Add Folder", command=self.addFolder)
+        projectMenu.add_command(label="Revert add", command=self.GUI.fileViewer.revertList)
         projectMenu.add_command(label="Save and Export to Viewer", command=self.saveAndExport)
 
         #Debug Menu
@@ -136,27 +160,67 @@ class MenuBar(tk.Menu):
         debugMenu.add_command(label="Print Window Size", command=self.printWindowSize)
         debugMenu.add_command(label="Print Slide Info Size", command=self.printSlideInfoSize)
         debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
+        debugMenu.add_command(label="Print Slideshow Info", command=self.printSlideshowInfo)
 
     def newFile(self):
         print("New Project")
+        self.GUI.projectFile = FP.Slideshow()
+        self.GUI.redrawWindow()
+
 
     def openFile(self):
         print("Open Project")
-        file = filedialog.askopenfilenames()
+        file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
         print(f"File: {file}")
+        if file:
+            self.GUI.projectFile = FP.Slideshow(file[0])
+            self.GUI.projectFile.load()
+            self.GUI.redrawWindow()
             
 
     def saveFile(self):
         print("Save Project")
+        self.GUI.projectFile.filesInProject = self.GUI.fileViewer.imageList
+        #All other attributes should already be part of the object
+        #Check if the project has a save location
+        if self.GUI.projectFile.getSaveLocation() == "New Project":
+            self.saveAsFile()
+        else:
+            self.GUI.projectFile.save()
 
     def saveAsFile(self):
         print("Save Project As...")
+        #Select a folder to save the project to
+        path = filedialog.asksaveasfilename(initialfile="New Project", filetypes=[("SlideShow Files", "*.pyslide")], defaultextension=".pyslide")
+        self.GUI.projectFile.name = FP.getBaseName([path])[0]
+        #Append .pyslide to the end of the file
+        print(f"Path: {path}")
+        self.GUI.projectFile.filesInProject = self.GUI.fileViewer.imageList
+        self.GUI.projectFile.setSaveLocation(path)
+        #Save the project to the file
+        self.GUI.projectFile.save()
+        #redraw the window
+        self.GUI.redrawWindow()
+
 
     def addImage(self):
         print("Add Image")
-        file = filedialog.askopenfilenames()
-        print(f"File: {file}")
+        file = filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
+        #Check if the file is valid
+        if file:
+            print(f"File: {file}")
+            self.GUI.fileViewer.addFile(file)
+            self.GUI.projectFile.filesInProject = self.GUI.fileViewer.imageList
 
+    def addFolder(self):
+        print("Add Folder")
+        path = filedialog.askdirectory()
+        #Check if the path is valid
+        if path:
+            print(f"Path: {path}")
+            self.GUI.fileViewer.addFolder(path)
+            self.GUI.projectFile.filesInProject = self.GUI.fileViewer.imageList
+            
     def saveAndExport(self):
         print("Save and Export")
 
@@ -179,10 +243,13 @@ class MenuBar(tk.Menu):
     def printSlideReelSize(self):
         print(f"Slide Reel Size: {self.GUI.slideReel.winfo_width()}x{self.GUI.slideReel.winfo_height()}")
 
+    def printSlideshowInfo(self):
+        print(f"Slideshow Info: {self.GUI.projectFile.__dict__}")
+
 
 #Create the window
 root = tk.Tk()
 #Change the icon
-root.iconbitmap("Slideshow-Project\clapperboard.ico")
+root.iconbitmap(r"Creator\icon.ico")
 
 app = Window(root)

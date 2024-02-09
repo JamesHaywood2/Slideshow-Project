@@ -37,7 +37,7 @@ class PreviewImage:
             self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
         except:
             # print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"..\Slideshow-Project\MissingImage.png"
+            self.imagePath = r"Creator\MissingImage.png"
             img = Image.open(self.imagePath)
             self.imagePIL = img
 
@@ -81,7 +81,7 @@ class FileViewer(tk.Frame):
         self.imageList = files
         #if there are no files, put MissingImage.png in the list as a placeholder.
         if len(self.imageList) == 0:
-            self.imageList.append(r"..\Slideshow-Project\MissingImage.png")
+            self.imageList.append(r"Creator\MissingImage.png")
 
         self.parent = parent #The parent of the FileViewer. media in GUA.py
         self.previewer = None #The previewer that the FileViewer is linked to. previewImage in GUI.py
@@ -102,7 +102,6 @@ class FileViewer(tk.Frame):
         self.fileContainer = tk.Frame(self.canvas)
         self.canvas.create_window((0,0), window=self.fileContainer, anchor="nw")
 
-
         #Print the size of the canvas
         self.parent.update()
         # print(f"parent Size: {self.parent.winfo_width()}x{self.parent.winfo_height()}")
@@ -111,7 +110,25 @@ class FileViewer(tk.Frame):
 
         self.propogateList()
 
+        #Keep track of the previous file list so we can revert to it if needed.
+        self.addStack = []
+
+    def removeDuplicates(self):
+        self.imageList = list(dict.fromkeys(self.imageList))
+        return
+
     def propogateList(self):
+        #If the file list has at least one file, remove the placeholder.
+        if len(self.imageList) > 1 and self.imageList[0] == r"Creator\MissingImage.png":
+            self.imageList.remove(r"Creator\MissingImage.png")
+        #If the file list is empty, add the placeholder.
+        if len(self.imageList) == 0:
+            self.imageList.append(r"Creator\MissingImage.png")
+
+        #Remove any duplicate items in the file list
+        self.removeDuplicates()
+        #Print imageList
+        print(self.imageList)
         #Clear the file container
         for widget in self.fileContainer.winfo_children():
             widget.destroy()
@@ -140,8 +157,51 @@ class FileViewer(tk.Frame):
             icon.linkPreviewer(self.previewer)
         return
 
-    def addFile(self, file:str):
-        self.imageList.append(file)
+    def addFile(self, file):
+        #Add file to the addStack
+        self.addStack.append(file)
+        #Sometimes the input is a list, sometimes it's a string. This will make sure it's a list.
+        if type(file) == str:
+            self.imageList.append(file)
+        elif type(file) == tuple:
+            for f in file:
+                self.imageList.append(f)
+        else:
+            raise TypeError(f"Expected string or list of strings. Got {type(file)}")
+        self.propogateList()
+        return
+    
+    def addFolder(self, folder):
+        # print(f"Adding folder: {folder}")
+        files = []
+        if type(folder) == str:
+            files = FP.getJPEG(folder, True)
+        elif type(folder) == tuple:
+            for f in folder:
+                files.extend(FP.getJPEG(f, True))
+        else:
+            raise TypeError(f"Expected string or list of strings. Got {type(folder)}")  
+        #Add files to the addStack
+        self.addStack.append(files)
+        # print(f"Files: {files}")
+        self.imageList.extend(files)
+        self.propogateList()
+        return
+    
+    def revertList(self):
+        #Pop the last item off the addStack and remove it from the imageList
+        if len(self.addStack) > 0:
+            last = self.addStack.pop()
+            if type(last) == str:
+                self.imageList.remove(last)
+            else:
+                for f in last:
+                    self.imageList.remove(f)
+        self.propogateList()
+        return
+    
+    def removeFile(self, file:str):
+        self.imageList.remove(file)
         self.propogateList()
         return
     
@@ -174,7 +234,7 @@ class PhotoIcon(tk.Frame):
             self.imagePIL = img
         except:
             print(f"{imagePath} is not a valid image file.")
-            self.imagePath = r"Slideshow-Project\MissingImage.png"
+            self.imagePath = r"Creator\MissingImage.png"
             img = Image.open(self.imagePath)
             self.imagePIL = img
         # print(f"Image Path: {self.imagePath}")
@@ -193,17 +253,17 @@ class PhotoIcon(tk.Frame):
         
 
     def sinkIcon(self, event):
-        print("Sinking")
+        # print("Sinking")
         self.hover = True
         self.config(relief=tk.SUNKEN)
 
     def riseIcon(self, event):
-        print("Rising")
+        # print("Rising")
         self.hover = False
         self.config(relief=tk.FLAT)
 
     def selectIcon(self, event):
-        print("Selecting")
+        # print("Selecting")
         if self.hover:
             self.previewer.loadImage(self.imagePath)
             self.previewer.redrawImage()
