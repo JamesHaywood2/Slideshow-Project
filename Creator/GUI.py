@@ -4,26 +4,38 @@ from Widgets import *
 
 
 #Create the root window
-class Window:
-    def __init__(self, root, slideshowPath:str="New Project"):
+class app(tk.Tk):
+    def __init__(self, slideshowPath:str="New Project"):
+        tk.Tk.__init__(self)
+        self.title("Resizable Window")
+        #Get the size of the screen
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        #Should make the window half the size of the screen and centered
+        self.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+
         #Project file stuff
         self.projectFile: FP.Slideshow = FP.Slideshow()
-
-        self.root = root
-        self.root.title("Resizable Window")
-        #Get the size of the screen
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        #Should make the window half the size of the screen and centered
-        self.root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
         
         #Base PanedWindow that holds everything. Takes up the whole window and should always be the same size as the window
-        self.base = tk.PanedWindow(self.root, orient=tk.VERTICAL, bd=1, sashwidth=10)
+        self.base = tk.PanedWindow(self, orient=tk.VERTICAL, bd=1, sashwidth=10)
         self.base.pack(expand=True, fill="both")
 
         #Top PanedWindow that houses media bucket and preview. 
         self.top = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
         self.base.add(self.top, stretch="first")
+
+        #Bottom frame that houses slide information and slide reel
+        self.bottom = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
+        self.base.add(self.bottom)
+
+        #Slide information
+        self.info = tk.Frame(self.bottom, bg="blue")
+        self.bottom.add(self.info)
+
+        #Slide Reel
+        self.reel = tk.Frame(self.bottom, bg="red")
+        self.bottom.add(self.reel)
 
         #Create the media and preview frames
         self.media = tk.Frame(self.top)
@@ -31,31 +43,18 @@ class Window:
         self.preview = tk.Frame(self.top)
         self.top.add(self.preview)
 
-        #Bottom frame that houses slide information and slide reel
-        self.bottom = tk.PanedWindow(self.base, orient=tk.HORIZONTAL, bd=1, sashwidth=10)
-        self.base.add(self.bottom)
-
-        #Slide information
-        self.slideInfo = tk.Frame(self.bottom, bg="blue")
-        self.bottom.add(self.slideInfo)
-
-        #Slide Reel
-        self.slideReel = tk.Frame(self.bottom, bg="red")
-        self.bottom.add(self.slideReel)
-
-        
         #Get the size of the window
-        self.root.update()
-        self.win_width = self.root.winfo_width()
-        self.win_height = self.root.winfo_height()
+        self.update()
+        self.win_width = self.winfo_width()
+        self.win_height = self.winfo_height()
 
         #Sets the initial size of the PanedWindows
         self.base.paneconfigure(self.top, height=self.win_height//10*7, minsize=self.win_height//10*3)
         self.base.paneconfigure(self.bottom, height=self.win_height//10*3, minsize=self.win_height//10*3)
         self.top.paneconfigure(self.preview, width=self.win_width//10*6, minsize=self.win_width//10*3)
         self.top.paneconfigure(self.media, width=self.win_width//10*4, minsize=self.win_width//10*3)
-        self.bottom.paneconfigure(self.slideInfo, width=self.win_width//10*3, minsize=self.win_width//10*3)
-        self.bottom.paneconfigure(self.slideReel, width=self.win_width//10*7, minsize=self.win_width//10*3)
+        self.bottom.paneconfigure(self.info, width=self.win_width//10*3, minsize=self.win_width//10*3)
+        self.bottom.paneconfigure(self.reel, width=self.win_width//10*7, minsize=self.win_width//10*3)
 
         #Add an ImagePreview to the preview frame
         self.previewImage = PreviewImage(self.preview)
@@ -68,26 +67,32 @@ class Window:
         self.projectTitle.pack(fill=tk.NONE, anchor="w")
         #Add a FileViewer to the media frame
         self.fileViewer = FileViewer(self.media)
+        #Add a SlideReel to the slideReel frame
+        self.slideReel = SlideReel(self.reel, self.projectFile)
+
+
         self.fileViewer.pack(fill=tk.BOTH, expand=True)
         self.fileViewer.linkPreviewer(self.previewImage)
+        self.fileViewer.linkSlideReel(self.slideReel)
+
+        self.slideReel.configure(bg="red")
+        self.slideReel.pack(fill=tk.BOTH, expand=True)
+        self.slideReel.linkPreviewer(self.previewImage)
 
 
         #Get the position of the window
-        self.win_xPos = self.root.winfo_x()
-        self.win_yPos = self.root.winfo_y()
+        self.win_xPos = self.winfo_x()
+        self.win_yPos = self.winfo_y()
 
         #resize after call variable.
         self.__resize_after = None
 
         #Bind the resize event to the on_resize function
-        self.root.bind("<Configure>", self.on_resize)
+        self.bind("<Configure>", self.on_resize)
 
         #MENU BAR
-        self.menubar = MenuBar(self.root, self)
-        self.root.config(menu=self.menubar)
-
-
-        self.root.mainloop()
+        self.menubar = MenuBar(self, self)
+        self.config(menu=self.menubar)
 
 
     #Redraw the window when you open a SlideShow project
@@ -101,7 +106,9 @@ class Window:
         self.fileViewer.propogateList()
         #Redraw the preview image
         self.previewImage.redrawImage()
-        #Here we would also redraw the slideInfo and slideReel
+        #Redraw the slideReel
+        self.slideReel.drawReel()
+        self.slideReel.project = self.projectFile
 
 
     #Debounce function. On_resize() gets called every <configure> event and creates a new after event.
@@ -110,14 +117,14 @@ class Window:
     #This prevents the resize function from being spam and causing lag.
     def on_resize(self, event):
         if self.__resize_after:
-            self.root.after_cancel(self.__resize_after)
-        self.__resize_after = self.root.after(100, self.resize, event)
+            self.after_cancel(self.__resize_after)
+        self.__resize_after = self.after(100, self.resize, event)
         
     def resize(self, event):
         # print("Resizing")
-        self.root.update()
-        self.win_width = self.root.winfo_width()
-        self.win_height = self.root.winfo_height()
+        self.update()
+        self.win_width = self.winfo_width()
+        self.win_height = self.winfo_height()
         
         #If canvas size has changed, redraw the image
         if self.previewImage.canvas.winfo_width() != self.previewImage.canvasWidth or self.previewImage.canvas.winfo_height() != self.previewImage.canvasHeight:
@@ -129,6 +136,12 @@ class Window:
             self.fileViewer.propogateList()
             self.fileViewer.parentHeight = self.media.winfo_height()
             self.fileViewer.parentWidth = self.media.winfo_width()
+
+    def openProject(self, path:str):
+        self.projectFile = FP.Slideshow(path)
+        self.projectFile.load()
+        self.redrawWindow()
+
 
 class MenuBar(tk.Menu):
     def __init__(self, parent, GUI):
@@ -162,8 +175,8 @@ class MenuBar(tk.Menu):
         debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
         debugMenu.add_command(label="Print Slideshow Info", command=self.printSlideshowInfo)
         debugMenu.add_command(label="Redraw Window", command=self.GUI.redrawWindow)
-        
 
+        
     def newFile(self):
         print("New Project")
         self.GUI.projectFile = FP.Slideshow()
@@ -173,7 +186,7 @@ class MenuBar(tk.Menu):
     def openFile(self):
         print("Open Project")
         file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
-        print(f"File: {file}")
+        # print(f"File: {file}")
         if file:
             self.GUI.projectFile = FP.Slideshow(file[0])
             self.GUI.projectFile.load()
@@ -225,6 +238,7 @@ class MenuBar(tk.Menu):
             
     def saveAndExport(self):
         print("Save and Export")
+        self.saveFile()
 
     #Debug Functions
     def printPreviewSize(self):
@@ -246,13 +260,6 @@ class MenuBar(tk.Menu):
         print(f"Slide Reel Size: {self.GUI.slideReel.winfo_width()}x{self.GUI.slideReel.winfo_height()}")
 
     def printSlideshowInfo(self):
-        print(f"Slideshow Info: {self.GUI.projectFile.__dict__}")
+        print(f"Slideshow Info: {self.GUI.projectFile.getSlides()} and count: {self.GUI.projectFile.getSlideCount()}")
 
 
-
-#Create the window
-root = tk.Tk()
-#Change the icon
-root.iconbitmap(r"Creator\icon.ico")
-
-app = Window(root)

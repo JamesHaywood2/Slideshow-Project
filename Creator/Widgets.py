@@ -4,6 +4,7 @@ import FileSupport as FP
 import os
 from tkinter import filedialog
 from tkinter import dnd
+import copy
 
 
 class PreviewImage:
@@ -48,10 +49,10 @@ class PreviewImage:
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
 
-
     def redrawImage(self):
         #Return early if there is no image
         if self.imagePath == None:
+            self.canvas.delete("all")
             return
 
         #Get the size of the canvas
@@ -68,6 +69,9 @@ class PreviewImage:
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.canvas.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
+
+        if self.imagePath == r"Creator\MissingImage.png":
+            self.canvas.after(3000, self.setBlankImage)
         return
 
     def printCanvasSize(self):
@@ -75,7 +79,10 @@ class PreviewImage:
         self.canvasHeight = self.canvas.winfo_height()
         print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
 
-
+    def setBlankImage(self):
+        print("Setting Blank Image")
+        self.imagePath = None
+        self.redrawImage()
 
 class FileViewer(tk.Frame):
     def __init__(self, parent, files:list=[]):
@@ -83,11 +90,10 @@ class FileViewer(tk.Frame):
         self.imageList = files
         self.iconList: list[PhotoIcon] = []
         #if there are no files, put MissingImage.png in the list as a placeholder.
-        if len(self.imageList) == 0:
-            self.imageList.append(r"Creator\MissingImage.png")
 
         self.parent = parent #The parent of the FileViewer. media in GUA.py
         self.previewer = None #The previewer that the FileViewer is linked to. previewImage in GUI.py
+        self.slideReel = None #The slide reel that the FileViewer is linked to. slideReel in GUI.py
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -116,10 +122,6 @@ class FileViewer(tk.Frame):
         #Keep track of the previous file list so we can revert to it if needed.
         self.addStack = []
 
-        
-
-    
-
 
     def removeDuplicates(self):
         self.imageList = list(dict.fromkeys(self.imageList))
@@ -135,8 +137,7 @@ class FileViewer(tk.Frame):
 
         #Remove any duplicate items in the file list
         self.removeDuplicates()
-        #Print imageList
-        print(self.imageList)
+        # print(self.imageList)
         #Clear the file container
         for widget in self.fileContainer.winfo_children():
             widget.destroy()
@@ -164,6 +165,7 @@ class FileViewer(tk.Frame):
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
         for icon in self.fileContainer.winfo_children():
             icon.linkPreviewer(self.previewer)
+            icon.linkSlideReel(self.slideReel)
         return
         
 
@@ -220,6 +222,59 @@ class FileViewer(tk.Frame):
         for icon in self.fileContainer.winfo_children():
             icon.linkPreviewer(previewer)
         return
+    
+    def linkSlideReel(self, slideReel):
+        self.slideReel = slideReel
+        for icon in self.fileContainer.winfo_children():
+            icon.linkSlideReel(slideReel)
+        return
+    
+class SlideReel(tk.Frame):
+    def __init__(self, parent, project:FP.Slideshow):
+        tk.Frame.__init__(self, parent)
+        self.slideList: list[FP.Slide] = []
+        self.iconList: list[SlideIcon] = []
+        self.drawReel()
+        self.previewer = None
+        self.project = project
+
+
+    def drawReel(self):
+        #Clear the frame
+        for widget in self.winfo_children():
+            widget.destroy()
+        for slide in self.slideList:
+            icon = SlideIcon(self, slide)
+            icon.pack(side=tk.LEFT)
+            self.iconList.append(icon)
+        for icon in self.iconList:
+            icon.linkPreviewer(self.previewer)
+        return
+    
+    #addIcon only gets called when you add from fileViewer.
+    def addIcon(self, file:str, previewer:PreviewImage):
+        #Create a slide from the file
+        slide = FP.Slide(file)
+        #Add the slide to the slideList
+        self.slideList.append(slide)
+
+        #Add the slide to the project
+        self.project.addSlide(slide)
+
+        self.drawReel()
+        return
+    
+    def removeIcon(self, file:str):
+        pass
+
+    def linkPreviewer(self, previewer:PreviewImage):
+        self.previewer = previewer
+        return
+    
+    def loadFromProject(self, project:FP.Slideshow):
+        self.slideList = project.getSlides()
+        self.drawReel()
+        return
 
 
 class PhotoIcon(tk.Frame):
@@ -227,7 +282,8 @@ class PhotoIcon(tk.Frame):
         tk.Frame.__init__(self, parent, relief=tk.FLAT, borderwidth=2)
         self.width = 100
         self.height = 100
-        self.previewer = None
+        self.previewer: PreviewImage = None
+        self.slideReel: SlideReel = None
         self.parent = parent
 
         self.canvas = tk.Canvas(self, width=100, height=100)
@@ -254,15 +310,12 @@ class PhotoIcon(tk.Frame):
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.width//2, self.height//2, image=self.image, anchor=tk.CENTER)
 
-        self.canvas.bind("<Double-Button-1>", self.openImage)
 
+        self.canvas.bind("<Double-Button-1>", self.openImage)
         self.canvas.bind("<Enter>", self.sinkIcon)
         self.canvas.bind("<Leave>", self.riseIcon)
         self.hover = False
-
         self.canvas.bind("<ButtonRelease-1>", self.selectIcon)
-
-    
         self.canvas.bind("<Button-1>", self.pickup)
         self.startX = 0
         self.startY = 0
@@ -274,7 +327,11 @@ class PhotoIcon(tk.Frame):
         print(f"Click: {event.x}, {event.y}")
         self.startX = event.x
         self.startY = event.y
-        self.canvas.bind("<B1-Motion>", self.dragStart)
+        #If missing file, don't allow dragging
+        if self.imagePath != r"Creator\MissingImage.png":
+            self.canvas.bind("<B1-Motion>", self.dragging)
+            print("Picking Up: ", self.fileName)
+            return
 
     def dragStart(self, event):
         #If the user has dragged the icon a certain distance, change the event to a drag event.
@@ -319,9 +376,17 @@ class PhotoIcon(tk.Frame):
             if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                 self.previewer.loadImage(self.imagePath)
                 self.previewer.redrawImage()
-        return
-        
-        
+
+        #Check if the user has dropped the icon on the slideReel. If they have, add the image to the slideReel.
+        if self.slideReel:
+            x = self.slideReel.winfo_rootx()
+            y = self.slideReel.winfo_rooty()
+            w = self.slideReel.winfo_width()
+            h = self.slideReel.winfo_height()
+            if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                #Add deep copy of the icon to the slideReel
+                self.slideReel.addIcon(self.imagePath, self.previewer)
+
     def sinkIcon(self, event):
         # print("Sinking")
         self.hover = True
@@ -342,25 +407,18 @@ class PhotoIcon(tk.Frame):
     def openImage(self, event):
         os.startfile(self.imagePath)
 
-    def linkPreviewer(self, previewer):
+    def linkPreviewer(self, previewer:PreviewImage):
         self.previewer = previewer
         return
-    
 
-class SlideInfo(tk.Frame):
-    def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-        self.parent = parent
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_propagate(False)
+    def linkSlideReel(self, slideReel:SlideReel):
+        self.slideReel = slideReel
+        return
 
-        self.canvas = tk.Canvas(self)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-
-        self.canvas.create_text(10, 10, text="Slide Info", anchor="nw", font=("Arial", 16))
-    
-
-                
+class SlideIcon(PhotoIcon):
+    def __init__(self, parent, slide:FP.Slide):
+        PhotoIcon.__init__(self, parent, slide.imagePath)
+        self.slide = slide
+        
 
 

@@ -84,11 +84,14 @@ class Slideshow:
     def addSlide(self, slide:Slide, index:int=-1):
         """Will insert a slide at the index, then push the rest of the slides down one index.
         If the index is -1, it will append the slide to the end of the list."""
+        print(f"Adding slide at index {index}")
         if index == -1:
             self.__slides.append(slide)
         else:
             self.__slides.insert(index, slide)
         self.__count += 1
+        print(f"Slide count: {self.__count}")
+        print(f"Slide list: {self.__slides}")
     
     def removeSlide(self, slide:Slide):
         self.__slides.remove(slide)
@@ -132,7 +135,6 @@ class Slideshow:
     def __str__(self) -> str:
         #Print __dict__ for debugging
         return str(self.__dict__)
-
 
 class Song:
     def __init__(self, songPath:str):
