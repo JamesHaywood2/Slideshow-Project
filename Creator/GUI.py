@@ -161,6 +161,8 @@ class MenuBar(tk.Menu):
         debugMenu.add_command(label="Print Slide Info Size", command=self.printSlideInfoSize)
         debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
         debugMenu.add_command(label="Print Slideshow Info", command=self.printSlideshowInfo)
+        debugMenu.add_command(label="Redraw Window", command=self.GUI.redrawWindow)
+        
 
     def newFile(self):
         print("New Project")
@@ -245,6 +247,7 @@ class MenuBar(tk.Menu):
 
     def printSlideshowInfo(self):
         print(f"Slideshow Info: {self.GUI.projectFile.__dict__}")
+
 
 
 #Create the window

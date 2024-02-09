@@ -79,6 +79,7 @@ class FileViewer(tk.Frame):
     def __init__(self, parent, files:list=[]):
         tk.Frame.__init__(self, parent)
         self.imageList = files
+        self.iconList: list[PhotoIcon] = []
         #if there are no files, put MissingImage.png in the list as a placeholder.
         if len(self.imageList) == 0:
             self.imageList.append(r"Creator\MissingImage.png")
@@ -113,6 +114,11 @@ class FileViewer(tk.Frame):
         #Keep track of the previous file list so we can revert to it if needed.
         self.addStack = []
 
+        
+
+    
+
+
     def removeDuplicates(self):
         self.imageList = list(dict.fromkeys(self.imageList))
         return
@@ -145,7 +151,8 @@ class FileViewer(tk.Frame):
         j=0
         for file in self.imageList:
             #Create a PhotoIcon and place it in the fileContainer
-            PhotoIcon(self.fileContainer, file).grid(row=i, column=j, sticky="nsew", padx=5, pady=5)
+            icon = PhotoIcon(self.fileContainer, file).grid(row=i, column=j, sticky="nsew", padx=5, pady=5)
+            self.iconList.append(icon)
             j+=1
             if j == iconPerRow:
                 j=0
@@ -156,6 +163,7 @@ class FileViewer(tk.Frame):
         for icon in self.fileContainer.winfo_children():
             icon.linkPreviewer(self.previewer)
         return
+        
 
     def addFile(self, file):
         #Add file to the addStack
@@ -243,13 +251,15 @@ class PhotoIcon(tk.Frame):
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.canvas.create_image(self.width//2, self.height//2, image=self.image, anchor=tk.CENTER)
 
-        self.canvas.bind("<Double-Button-1>", self.openImage)
+        # self.canvas.bind("<Double-Button-1>", self.openImage)
 
         self.canvas.bind("<Enter>", self.sinkIcon)
         self.canvas.bind("<Leave>", self.riseIcon)
         self.hover = False
 
         self.canvas.bind("<ButtonRelease-1>", self.selectIcon)
+
+        #Drag and drop to another widget
         
 
     def sinkIcon(self, event):
@@ -274,6 +284,8 @@ class PhotoIcon(tk.Frame):
     def linkPreviewer(self, previewer):
         self.previewer = previewer
         return
+    
+
     
 
 class SlideInfo(tk.Frame):
