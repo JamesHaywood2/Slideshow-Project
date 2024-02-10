@@ -76,13 +76,12 @@ class Slideshow:
         self.name = getBaseName([self.__filePath])[0]
         self.__slides: list[Slide] = []
         self.__count: int = 0
-        # self.__playlist: Playlist = Playlist()
+        self.__playlist: Playlist = Playlist()
         self.manual: bool = False
         self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
         self.loop: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
-
 
     #Add a slide at an index
     def addSlide(self, slide:Slide, index:int=-1):
@@ -124,7 +123,7 @@ class Slideshow:
     def save(self):
         print(self)
         with open(self.__filePath, 'w') as f:
-            json.dump(self.__dict__, f, indent=4)
+            json.dump(self.__dict__, f, default=lambda o: o.__dict__, indent=4)
 
     def load(self):
         try:

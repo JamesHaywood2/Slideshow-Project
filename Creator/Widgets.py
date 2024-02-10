@@ -243,10 +243,15 @@ class SlideReel(tk.Frame):
         #Clear the frame
         for widget in self.winfo_children():
             widget.destroy()
-        for slide in self.slideList:
-            icon = SlideIcon(self, slide)
-            icon.pack(side=tk.LEFT)
+    
+        i=0
+        for i in range(len(self.slideList)):
+            #Create a SlideIcon
+            icon = SlideIcon(self, self.slideList[i]['imagePath'])  # Access the 'imagePath' attribute of the dictionary object
+            #Place the icon in the frame using grid
+            icon.grid(row=0, column=i, padx=5, pady=5)
             self.iconList.append(icon)
+
         for icon in self.iconList:
             icon.linkPreviewer(self.previewer)
         return
@@ -417,7 +422,7 @@ class PhotoIcon(tk.Frame):
 
 class SlideIcon(PhotoIcon):
     def __init__(self, parent, slide:FP.Slide):
-        PhotoIcon.__init__(self, parent, slide.imagePath)
+        PhotoIcon.__init__(self, parent, slide)
         self.slide = slide
         
 

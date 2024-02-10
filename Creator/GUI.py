@@ -108,8 +108,9 @@ class app(tk.Tk):
         #Redraw the preview image
         self.previewImage.redrawImage()
         #Redraw the slideReel
-        self.slideReel.drawReel()
         self.slideReel.project = self.projectFile
+        self.slideReel.slideList = self.projectFile.getSlides()
+        self.slideReel.drawReel()
 
 
     #Debounce function. On_resize() gets called every <configure> event and creates a new after event.
@@ -176,6 +177,7 @@ class MenuBar(tk.Menu):
         debugMenu.add_command(label="Print Slide Reel Size", command=self.printSlideReelSize)
         debugMenu.add_command(label="Print Slideshow Info", command=self.printSlideshowInfo)
         debugMenu.add_command(label="Redraw Window", command=self.GUI.redrawWindow)
+        debugMenu.add_command(label="Print Slide Reel Info", command=self.printSlideReelInfo)
 
         
     def newFile(self):
@@ -261,6 +263,10 @@ class MenuBar(tk.Menu):
         print(f"Slide Reel Size: {self.GUI.slideReel.winfo_width()}x{self.GUI.slideReel.winfo_height()}")
 
     def printSlideshowInfo(self):
-        print(f"Slideshow Info: {self.GUI.projectFile.getSlides()} and count: {self.GUI.projectFile.getSlideCount()}")
+        # print(f"Slideshow Info: {self.GUI.projectFile.getSlides()} and count: {self.GUI.projectFile.getSlideCount()}")
+        print(self.GUI.projectFile)
+
+    def printSlideReelInfo(self):
+        print(self.GUI.slideReel.slideList)
 
 
