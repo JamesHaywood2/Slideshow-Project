@@ -3,9 +3,12 @@ import random
 from PIL import Image
 import json
 
-MissingImage = r"Slideshow-Project\Creator\MissingImage.png"
+MissingImage = r"..\Slideshow-Project\Creator\MissingImage.png"
 
-ProgramIcon = r"Slideshow-Project\Creator\Icon.ico"
+ProgramIcon = r"..\Slideshow-Project\Creator\Icon.ico"
+
+ball = r"..\Slideshow-Project\Creator\ball.jpg"
+ball2 = r"..\Slideshow-Project\Creator\ball2.png"
 
 def getJPEG(folderPath:str, recursive:bool=False):
     """
@@ -58,6 +61,11 @@ class Slide:
             self.imagePath = MissingImage
             self.imageName = "Error: Missing Image"
 
+    def __str__(self) -> str:
+        #Print __dict__ for debugging
+        return str(self.__dict__)
+        
+
 
 class transitionType:
     DEFAULT = "Default"
@@ -87,14 +95,26 @@ class Slideshow:
     def addSlide(self, slide:Slide, index:int=-1):
         """Will insert a slide at the index, then push the rest of the slides down one index.
         If the index is -1, it will append the slide to the end of the list."""
-        print(f"Adding slide at index {index}")
+        # print(f"Adding slide at index {index}")
+        
+        #convert Slide to dict
+        slide = slide.__dict__
+        #IMPORTANT: Basically, when it was adding new slides it was adding them as a Slide object. Pre-existing slides were as a dictionary.
+        #This caused a lot of issues. This should fix it by converting them all to dictionaries. Reference slides with subscript notation.
+
         if index == -1:
             self.__slides.append(slide)
         else:
             self.__slides.insert(index, slide)
         self.__count += 1
+        self.printSlides()
+
+    def printSlides(self):
         print(f"Slide count: {self.__count}")
-        print(f"Slide list: {self.__slides}")
+        print(f"Slide list:")
+        for slide in self.__slides:
+            print(slide)
+        print("\n")
     
     def removeSlide(self, slide:Slide):
         self.__slides.remove(slide)
@@ -138,8 +158,11 @@ class Slideshow:
     def __str__(self) -> str:
         #Print __dict__ for debugging
         return str(self.__dict__)
+    
 
 class Song:
+    #SEE SLIDE CLASS FOR REFERENCE.
+    #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.
     def __init__(self, songPath:str):
         self.filePath: str = None
         self.name: str = None
