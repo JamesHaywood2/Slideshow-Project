@@ -7,11 +7,13 @@ from tkinter import dnd
 
 
 class SlideshowCreatorStart(tb.Frame):
+    """Start window for the Slideshow Creator. This window will have two buttons: New Project and Open Project."""
     def __init__(self, master=None, **kw):
         super().__init__(master, **kw)
         self.create_widgets()
 
     def create_widgets(self):
+        """Creates the widgets for the start window."""
         self.label = tb.Label(self, text="Slideshow Creator", font=("Arial", 24))
         self.label.pack()
         self.newProjectButton = tb.Button(self, text="New Project", command=self.newProject)
@@ -20,12 +22,17 @@ class SlideshowCreatorStart(tb.Frame):
         self.openProjectButton.pack()
 
     def newProject(self):
+        """Loads the slideshow creator window without a project file. This will create a new project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
+        # folder = filedialog.askdirectory(mustexist=True)
+        # if not folder:
+        #     return
         self.destroy()
-        self.creator = SlideshowCreator(self.master)
+        self.creator: SlideshowCreator = SlideshowCreator(self.master)
         self.creator.pack(expand=True, fill="both")
 
     def openProject(self):
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
         projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")])
         if not projectPath:
@@ -33,19 +40,24 @@ class SlideshowCreatorStart(tb.Frame):
         self.destroy()
         self.creator = SlideshowCreator(self.master, projectPath=projectPath)
         self.creator.pack(expand=True, fill="both")
-
-    
-
-
+  
 class SlideshowCreator(tb.Frame):
+    """
+    The main application frame. Contains four main sections: MediaBucket, ImageViewer, SlideInfo, and SlideReel.\n
+    MediaBucket: Contains all the media files that are in the project folder or added later.\n
+    ImageViewer: Previews an image.\n
+    SlideInfo: Contains the slide information.\n
+    SlideReel: Contains all the slides in the project.
+
+    DebugWindow(): Creates a debug window that has a bunch of buttons that do debug stuff.
+    redraw(): Redraws the ImageViewer, MediaBucket, and SlideReel. 
+    """
     def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
         super().__init__(master, **kw)
         self.debug = debug
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         self.update()
-
-        
         ######################
         #LAYOUT SETUP
         ######################
@@ -82,8 +94,8 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*7, minsize=win_width_start//10*4)
 
         #Initialize these widgets. They will probably have to be redrawn later though.
-        self.slideInfoButton = tb.Button(self.slideInfoFrame, text="Slide Info")
-        self.slideInfoButton.pack()
+        self.slideInfoButton = InfoFrame(self.slideInfoFrame)
+        self.slideInfoButton.pack(expand=True, fill="both")
 
         #Create the ImageViewer object
         self.imageViewer = ImageViewer(self.imageFrame)
@@ -122,18 +134,19 @@ class SlideshowCreator(tb.Frame):
         self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
         self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
 
-
     def redraw(self):
+        """
+        Redraws the ImageViewer, MediaBucket, and SlideReel.\n
+        Basically the SlideshowCreator object gets made and creates all the other widgets, but it doesn't actually exist in a window yet.\n
+        This means all the widgets are sized to like 1x1 pixels. These functions will resize them to fit the new window properly.\n
+        Possibly not necesary as the widgets themselves should call their own redraw functions when they are resized. - James
+        """
         self.imageViewer.redrawImage()
         self.mediaBucket.fillBucket()
         self.slideReel.fillReel()
 
-    def AppStart(self):
-        app.mainloop()
 
     def DebugWindow(self):
-        if self.debug == False:
-            return
         self.debugWindow = tk.Toplevel()
         self.debugWindow.title("Debug Window")
         self.debugWindow.geometry("400x800")
@@ -204,8 +217,8 @@ class SlideshowCreator(tb.Frame):
             self.saveAs()
         else:
             self.slideshow.save()
+            self.redraw()
         
-
     def saveAs(self):
         print("Save As")
         path = filedialog.asksaveasfilename(defaultextension=".pyslide", filetypes=[("Slideshow Files", "*.pyslide")])
@@ -215,7 +228,7 @@ class SlideshowCreator(tb.Frame):
         self.slideshow.filesInProject = self.mediaBucket.files
         self.slideshow.setSaveLocation(path)
         self.slideshow.save()
-
+        self.redraw()
 
     def addFile(self):
         print("Adding Image")

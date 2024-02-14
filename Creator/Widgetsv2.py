@@ -8,8 +8,11 @@ from tkinter import dnd
 from PIL import Image, ImageTk
 import os
 
-#From https://blog.teclado.com/tkinter-scrollable-frames/
 class ScrollableFrame(tb.Frame):
+    """
+    A frame that can be scrolled vertically or horizontally.
+    From https://blog.teclado.com/tkinter-scrollable-frames/
+    """
     def __init__(self, container, *args, **kwargs):
         super().__init__(container, *args, **kwargs)
         canvas = tb.Canvas(self)
@@ -34,6 +37,12 @@ class ScrollableFrame(tb.Frame):
         canvas.pack(side="left", fill="both", expand=True)
 
 class ImageViewer(tb.Canvas):
+    """
+    ImageViewer is a canvas that resizes and displays an image. It also has a label that displays the name of the image.
+
+    loadImage(imagePath:str) - Loads an image into the ImageViewer
+    redrawImage() - Redraws the image on the canvas. Called when canvas is resized.
+    """
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.canvasWidth = self.winfo_width()
@@ -111,7 +120,38 @@ class ImageViewer(tb.Canvas):
         self.imagePath = None
         self.redrawImage()
 
+#Will contain info about the specific slide or image. For now it's just a button that says "Info"
+class InfoFrame(tb.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.slideInfoButton = tb.Button(self, text="Slide Info")
+        self.slideInfoButton.pack()
+
+
 class FileIcon(tk.Frame):
+    """
+    FileIcon is a frame that contains a canvas and a label. The canvas displays the image and the label displays the name of the image.\n
+    It has some drag and drop functionality.\n
+    NOTE:
+    --------------------
+    This is specifically for FILES in the media bucket. Intended functionality is to be able to drag and drop files into the ImageViewer and SlideReel.\n
+    In order for it to do that you currently need to link it to the ImageViewer and SlideReel.\n
+    This is done in the SlideshowCreator object when those things get created.\n
+    There may be a way to do this without linking them together using the drop coordinates, but idk how to do that and this works. - James\n
+
+    - openImage(event) - Opens the image set in the imagepath with the default program for that file type. Called when the user double clicks the icon.\n
+    - clickIcon(event) - Called when the user clicks the icon. If the icon is linked to an ImageViewer, it will load the image into the viewer.
+    Called specifically when you release the mouse button while on the icon.\n
+    - pickup(event) - Called when the user clicks the icon. Assuming the file is not missing, it will bind pressed mouse movement to dragIconStart.\n
+    - dragIconStart(event) - Called when the user moves the mouse while clicking the icon. If the mouse moves a certain distance away from initial click, it will bind the mouse movement to dragIcon.\n
+    - dragIcon(event) - Creates a borderless transparent TopLevel window containing the image and binds it to the mouse. \n
+    - dropIcon(event) - Called when the user releases the mouse button when dragging the icon. Will destroy the popup and reset the bindings.\n
+
+    Drag-and-drop flowchart:
+    --------------------
+    click on icon=pickup() -> move mouse a certain distance=dragIconStart() -> move mouse=dragIcon() -> release mouse=dropIcon()\n
+    
+    """
     def __init__(self, master, imagepath: str=None, **kwargs):
         super().__init__(master, **kwargs)
         self.width = 100
@@ -237,7 +277,7 @@ class FileIcon(tk.Frame):
             if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                 self.linkedViewer.loadImage(self.imagepath)
                 self.linkedViewer.redrawImage()
-        
+
         #If the user dropped the icon into the slide reel, add the image to the slideshow
         if self.linkedReel:
             x = self.linkedReel.winfo_rootx()
@@ -249,8 +289,12 @@ class FileIcon(tk.Frame):
                 self.linkedReel.addSlide(self.imagepath)
             return
         
-#Extend FileIcon to make SlideIcon
 class SlideIcon(FileIcon):
+    """
+    SlideIcon litteraly just a FileIcon but with the extra slide attribute. It's used in the SlideReel.\n
+    Will probably need to redo drag and drop functionality specifically for this depending on how we want to organize the slides.\n
+    Since it acts just like a FileIcon there is some wierd interactions with the SlideReel. Will fix later.\n
+    """
     def __init__(self, master, imgPath: str, **kwargs):
         super().__init__(master, imgPath, **kwargs)
         self.slide: FP.Slide = FP.Slide(imgPath)
@@ -258,9 +302,16 @@ class SlideIcon(FileIcon):
     def setSlide(self, slide: FP.Slide):
         self.slide = slide
         return
-
-
+    
 class SlideReel(tk.Frame):
+    """
+    SlideReel is a frame that contains the SlideReel widget. Consists of a scrollable frame that contains SlideIcons.\n
+    Must be initialized with a Slideshow object. SlideshowCreator object should give it one even if its a new project.\n
+    - loadProject(project: FP.Slideshow) - Loads a project into the SlideReel\n
+    - fillReel() - Should draw the slides from the project into SlideIcons. If called again will delete then redraw the icons. Use to update.\n
+    - addSlide(imagePath:str, index:int=-1) - Creates a slide object from the image path and adds it to the slideshow object by calling Slideshow.addSlide(). Will then redraw.\n
+
+    """
     def __init__(self, master, slideshow: FP.Slideshow, **kwargs):
         super().__init__(master, **kwargs)
         self.addStack = []
@@ -279,8 +330,7 @@ class SlideReel(tk.Frame):
     def afterEvent(self, event):
         if self.__after_id:
             self.after_cancel(self.__after_id)
-        self.__after_id = self.after(33, self.fillReel)
-
+        self.__after_id = self.after(1000, self.fillReel)
 
     def loadProject(self, project: FP.Slideshow):
         self.slideshow = project
@@ -310,12 +360,8 @@ class SlideReel(tk.Frame):
             slideIcon = SlideIcon(self.scrollFrame.scrollable_frame, imgPath)
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
-            slideIcon.pack(side="left", padx=3, pady=3)
-
-        
-    #Need these:
-    #Add slide
-    #Remove slide
+            slideIcon.pack(side="left", padx=30, pady=3, anchor=tk.CENTER)
+        return
 
     def addSlide(self, imagePath:str, index:int=-1):
         #First check if there is a slideshow object. If there isn't there isn't a point in adding a slide.
@@ -329,9 +375,23 @@ class SlideReel(tk.Frame):
         # print(f"Adding slide for {imagePath}")
         self.slideshow.addSlide(slide, index)
         self.fillReel()
-
+        return
 
 class MediaBucket(tk.Frame):
+    """
+    Media bucket is a frame that contains the media bucket widget. It basically consists of a scrollable frame from tkBootstrap that contains file icons.\n
+    In order to work properly, it needs to be linked to an ImageViewer and a SlideReel. This is done in the SlideshowCreator object when those things get created.\n
+    If called without a slideshow project as an input it should just default to a blank bucket.\n
+    There is functionality for a sort of undo feature? Basically when files get added to the bucket the entire addition is pushed onto a stack. When the undo is called it pops the last addition off the stack and removes it from the bucket.\n
+    
+    - fillBucket() - Fills the bucket with files stored in the files list. Effectively redraws the bucket.\n
+    - loadProject(project: FP.Slideshow) - Loads all images in a project into the bucket.\n
+    - addFile(file:str) - Adds a file to the bucket. Will then redraw the bucket.\n
+    - addFolder(folder:str) - Basically same functionality as addFile.\n
+    WARNING: Adds the files recursively meaning it will find all the images in a directory and subdirectories.\n
+    - undoAdd() - Removes the last addition from the bucket. Will then redraw the bucket.\n
+    - removeFile(file:str) - Removes a file from the bucket. Will then redraw the bucket.\n
+    """
     def __init__(self, master, slideshow: FP.Slideshow="New Project", **kwargs):
         super().__init__(master, **kwargs)
         self.files: list[str] = []
@@ -341,26 +401,27 @@ class MediaBucket(tk.Frame):
         self.previewer: ImageViewer = None
         self.reel: SlideReel = None
         self.project: FP.Slideshow = slideshow
-        self.loadProject(slideshow)
+        # self.files = self.project.filesInProject
 
         #Label for the project
-        self.projectLabel = tb.Label(self, text=self.project.name, font=("Arial", 16), background="white")
-        self.projectLabel.pack()
+        self.projectLabel = tb.Label(self, text=self.project.name, font=("Arial", 16), background="gray")
+        self.projectLabel.pack(fill="x", anchor="nw")
 
         #Frame for the icons
-        self.iconFrame = ScrolledFrame(self, autohide=True)
+        self.iconFrame: ScrolledFrame = ScrolledFrame(self, autohide=True)
         self.iconFrame.pack(expand=True, fill="both")
 
         #FileIcons are 100x130
         self.columnCount: int = 0
 
+        self.loadProject(slideshow) 
         self.__resizeAfter = None
         self.bind("<Configure>", self.resizeBucket)
     
     def resizeBucket(self, event):
         if self.__resizeAfter:
             self.after_cancel(self.__resizeAfter)
-        self.__resizeAfter = self.after(33, self.fillBucket)
+        self.__resizeAfter = self.after(200, self.fillBucket)
 
     def linkPreviewer(self, previewer: ImageViewer):
         self.previewer = previewer
@@ -376,6 +437,8 @@ class MediaBucket(tk.Frame):
 
     def fillBucket(self):
         # print("Filling Bucket")
+        # print(f"{self.project.name} has {len(self.files)} files in it.")
+        self.projectLabel.config(text=self.project.name)
 
         #Remove duplicates
         self.removeDuplicates()
@@ -385,8 +448,7 @@ class MediaBucket(tk.Frame):
         width = self.winfo_width()
         #Only even attempt to fill the bucket if the width is greater than like 10. If it's less than 10 the window probably doesn't exist yet.
         if width < 10:
-            print("Width too small")
-            print("\n")
+            print("Width too small\n")
             return
 
         #Icons should be 100 wide with 3 pixels of padding on each side
@@ -404,6 +466,19 @@ class MediaBucket(tk.Frame):
         for icon in self.iconFrame.winfo_children():
             icon.destroy()
 
+        #If there are no files, add buttons to add files
+        print(f"Files in bucket: {len(self.files)}")
+        if len(self.files) == 0:
+            print("No files in the bucket")
+            #Create buttons to add files
+            addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
+            addFileButton.pack()
+            addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
+            addFolderButton.pack()
+
+            return
+
+        #Create the icons
         i=0
         j=0
         for file in self.files:
@@ -416,23 +491,27 @@ class MediaBucket(tk.Frame):
             if j >= self.columnCount:
                 j = 0
                 i += 1
-        print("\n")
         return
           
     def loadProject(self, project: FP.Slideshow):
+        """Given a project object it will load all the files in the project into the bucket."""
         self.files = project.filesInProject
+        self.projectLabel.config(text=project.name)
         self.fillBucket()
         return
 
     def addFile(self, file):
+        """
+        Given an imagePath, it will add the image to the bucket.
+        """
         files = []
         #Sometimes the input is a string or like a tuple. This is to catch that.
         if type(file) == str:
-            print(f"Adding {file} to the bucket")
+            # print(f"Adding {file} to the bucket")
             self.files.append(file)
             files.append(file)
         elif type(file) == tuple:
-            print(f"Adding tuple {file} to the bucket")
+            # print(f"Adding tuple {file} to the bucket")
             for f in file:
                 print(f)
                 self.files.append(f)
@@ -446,6 +525,9 @@ class MediaBucket(tk.Frame):
         return
     
     def addFolder(self, folder):
+        """
+        Given a folderPath it will add all the images it finds within the folder and subfolders to the bucket.
+        """
         files = []
         if type(folder) == str:
             files = FP.getJPEG(folder, True) #Recursively get all the files in the folder
@@ -461,6 +543,7 @@ class MediaBucket(tk.Frame):
         return
     
     def undoAdd(self):
+        """Pops the last addition off the stack and removes it from the bucket."""
         if len(self.addStack) > 0:
             last = self.addStack.pop()
             if type(last) == str:
@@ -472,65 +555,11 @@ class MediaBucket(tk.Frame):
         return
     
     def removeFile(self, file):
+        """
+        Removes a file from the bucket.\n
+        """
+        #Removing a file from the bucket should also probably give a warning or something if the file is used in a slideshow.
         self.files.remove(file)
         self.fillBucket()
         return
     
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-        
-
-
-
-
-
-        
-
-
-        

@@ -3,12 +3,12 @@ import random
 from PIL import Image
 import json
 
-MissingImage = r"..\Slideshow-Project\Creator\MissingImage.png"
+MissingImage = r"Slideshow-Project\Creator\MissingImage.png"
 
-ProgramIcon = r"..\Slideshow-Project\Creator\Icon.ico"
+ProgramIcon = r"Slideshow-Project\Creator\Icon.ico"
 
-ball = r"..\Slideshow-Project\Creator\ball.jpg"
-ball2 = r"..\Slideshow-Project\Creator\ball2.png"
+ball = r"Slideshow-Project\Creator\ball.jpg"
+ball2 = r"Slideshow-Project\Creator\ball2.png"
 
 def getJPEG(folderPath:str, recursive:bool=False):
     """
@@ -43,7 +43,22 @@ def getBaseName(files):
     """Returns the base name of a list of file paths."""
     return [os.path.basename(f) for f in files]
 
+def getParentDir(files):
+    """Returns the parent directory of a list of file paths."""
+    return [os.path.dirname(f) for f in files]
+
 class Slide:
+    """
+    Slide class. Contains the image path, transition type, and transition speed.\n
+    WARNING:
+    ------------------
+    Be careful how you reference the contents of this class. Sometimes it is a dictionary, sometimes it is a Slide object.\n
+    Just be aware of this when you are working with it.\n
+    When accessing slides there's a difference between pre-existing slides loaded from a save and new slides created in the program with FP.Slide().\n
+    Pre-existing slides get treated as dictonaries and need subscript notation because they are like key:value. EX slide['imagePath']\n
+    New slides are treated as Slide objects and need dot notation because they are like objects. EX slide.imagePath\n
+    As of 2/14/2024 when slides get added to the slideshow they SHOULD be converted to dictionaries. So by default try subscript if dealing with slides from Slideshow object.\n
+    """
     def __init__(self, imagePath:str):
         self.slideID: int = None
         self.imagePath: str = None
@@ -65,9 +80,8 @@ class Slide:
         #Print __dict__ for debugging
         return str(self.__dict__)
         
-
-
 class transitionType:
+    '''Transition types enumeration for the slideshow'''
     DEFAULT = "Default"
     FADE = "Fade"
     WIPEUP = "Wipe_Up"
@@ -76,6 +90,13 @@ class transitionType:
     WIPERIGHT = "Wipe_Right"
 
 class Slideshow:
+    """
+    Slideshow class. Contains the file path, project name, list of slides, song playlist, etc. \n
+    WARNING:
+    ------------------
+    Be careful how you reference slides (and songs too I guess) from a Slideshow object. They can be a dictionary or a Slide object.\n
+    Just be aware of this when you are working with it. As of 2/14/2024 it should be a dictionary MOST of the time.\n
+    """
     def __init__(self, filePath:str="New Project"):
         #Check if file exists
         if not os.path.exists(filePath):
@@ -93,8 +114,13 @@ class Slideshow:
 
     #Add a slide at an index
     def addSlide(self, slide:Slide, index:int=-1):
-        """Will insert a slide at the index, then push the rest of the slides down one index.
-        If the index is -1, it will append the slide to the end of the list."""
+        """
+        Will insert a slide at the index, then push the rest of the slides down one index.
+        If the index is -1, it will append the slide to the end of the list.
+        NOTE:
+        ------------------
+        The slide object that gets added is a dictionary. Use subscript notation to access it. EX slide['imagePath']
+        """
         # print(f"Adding slide at index {index}")
         
         #convert Slide to dict
@@ -110,20 +136,26 @@ class Slideshow:
         self.printSlides()
 
     def printSlides(self):
+        """Just prints a list of slides in the slideshow. For debugging."""
         print(f"Slide count: {self.__count}")
         print(f"Slide list:")
         for slide in self.__slides:
             print(slide)
         print("\n")
     
+    #Haven't tested.
     def removeSlide(self, slide:Slide):
         self.__slides.remove(slide)
         self.__count -= 1
 
+    #Haven't tested. Should work
     def getSlide(self, index:int):
         return self.__slides[index]
     
     def getSlides(self):
+        """
+        Returns a list of slides. Use subscript notation to access the slides. EX slide['imagePath'] if dot notation doesn't work.
+        """
         return self.__slides
     
     def getSlideCount(self):
@@ -136,26 +168,43 @@ class Slideshow:
         return self.__filePath
     
     def setSaveLocation(self, filePath:str):
+        """
+        Used to set the file path of the slideshow. Only used when creating a new slideshow or saving as.
+        """
         self.__filePath = filePath
         self.name = getBaseName([self.__filePath])[0]
     
-    #Save the slideshow to a file
     def save(self):
-        print(self)
+        """
+        Save the slideshow to a file by dumping the __dict__ to a json file.
+        """
+        print(f"Saving slideshow to {self.__filePath}\n{self}")
         with open(self.__filePath, 'w') as f:
+            #Basically it's going to dump the __dict__ to a JSON file. If it encounters another object it's going to dump that object's __dict__ to the JSON file as well.
             json.dump(self.__dict__, f, default=lambda o: o.__dict__, indent=4)
 
     def load(self):
+        """
+        Loads data from the JSON file into the slideshow.
+        """
+        #This could probably just be in the __init__ method. I don't know why I made it seperate, but I don't want to change it and see if it breaks anything. - James
+        #If the slideshow is new just skip checking and seeing if you can load it.
+        if self.name == "New Project":
+            self.__init__()
+            return
+
+
         try:
             with open(self.__filePath, 'r') as f:
                 data = json.load(f)
                 self.__dict__.update(data)
         except Exception as e:
             print(f"Error loading file: {str(e)}")
-            #Re initialize the slideshow
+            #Basically if there is an error loading the file it's going to create a new slideshow.
             self.__init__()
     
     def __str__(self) -> str:
+        """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
     
