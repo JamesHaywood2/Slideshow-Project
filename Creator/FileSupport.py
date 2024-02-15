@@ -10,6 +10,7 @@ ProgramIcon = r"Slideshow-Project\Creator\Icon.ico"
 ball = r"Slideshow-Project\Creator\ball.jpg"
 ball2 = r"Slideshow-Project\Creator\ball2.png"
 
+
 def getJPEG(folderPath:str, recursive:bool=False):
     """
     Get all the JPEG files in the folder and its subfolders

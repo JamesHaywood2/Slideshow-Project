@@ -3,7 +3,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from Widgetsv2 import *
 from tkinter import filedialog
-from tkinter import dnd
+
 
 
 class SlideshowCreatorStart(tb.Frame):
@@ -62,25 +62,29 @@ class SlideshowCreator(tb.Frame):
         #LAYOUT SETUP
         ######################
         #The 3 PanedWindows that divide the window into 4 sections
-        self.PanedWindow_Base = tk.PanedWindow(self, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="black")
+        self.PanedWindow_Base = tk.PanedWindow(self, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="black", opaqueresize=False)
         self.PanedWindow_Base.pack(expand=True, fill=tk.BOTH)
 
-        self.PanedWindow_Top = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="red")
+        self.PanedWindow_Top = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="red", opaqueresize=False)
         self.PanedWindow_Base.add(self.PanedWindow_Top, stretch="first")
-        self.PanedWindow_Bottom = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="blue")
+        self.PanedWindow_Bottom = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="blue", opaqueresize=False)
         self.PanedWindow_Base.add(self.PanedWindow_Bottom, stretch="last")
 
         self.mediaFrame = tb.Frame(self.PanedWindow_Top)
         self.PanedWindow_Top.add(self.mediaFrame)
+        self.mediaBucket: MediaBucket = None
 
         self.imageFrame = tb.Frame(self.PanedWindow_Top)
         self.PanedWindow_Top.add(self.imageFrame)
+        self.imageViewer: ImageViewer = None
 
         self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.slideInfoFrame)
+        self.slideInfoButton: InfoFrame = None
 
         self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.reelFrame)
+        self.slideReel: SlideReel = None
 
         #Sets the initial sizes for the PanedWindows
         #Maybe this isn't the best method for setting the initial sizes? Idk. If yall have a better method, let me know. - James
@@ -102,14 +106,23 @@ class SlideshowCreator(tb.Frame):
         self.imageViewer.pack(expand=True, fill="both")
 
         self.slideReel = SlideReel(self.reelFrame, slideshow=self.slideshow)
-        self.slideReel.pack(expand=True, fill="both")
-        self.slideReel.linkPreviewer(self.imageViewer)
+        self.slideReel.pack(expand=True, fill="both", side="bottom")
+        try:
+            self.slideReel.linkPreviewer(self.imageViewer)
+        except:
+            print("No imageViewer to link to")
 
         #Mediabucket
         self.mediaBucket = MediaBucket(self.mediaFrame, slideshow=self.slideshow)
-        self.mediaBucket.linkPreviewer(self.imageViewer)
-        self.mediaBucket.linkReel(self.slideReel)
         self.mediaBucket.pack(expand=True, fill="both")
+        try:
+            self.mediaBucket.linkPreviewer(self.imageViewer)
+        except:
+            print("No imageViewer to link to")
+        try:
+            self.mediaBucket.linkReel(self.slideReel)
+        except:
+            print("No slideReel to link to")
 
         self.DebugWindow()
 
@@ -131,8 +144,13 @@ class SlideshowCreator(tb.Frame):
         self.fileMenu.add_command(label="Add file", command=self.addFile)
         self.fileMenu.add_command(label="Add folder", command=self.addFolder)
         self.fileMenu.add_separator()
-        self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
+        if self.mediaBucket:
+            self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
         self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
+
+        self.winWidth = self.master.winfo_width()
+        self.winHeight = self.master.winfo_height()
+
 
     def redraw(self):
         """
@@ -141,9 +159,16 @@ class SlideshowCreator(tb.Frame):
         This means all the widgets are sized to like 1x1 pixels. These functions will resize them to fit the new window properly.\n
         Possibly not necesary as the widgets themselves should call their own redraw functions when they are resized. - James
         """
-        self.imageViewer.redrawImage()
-        self.mediaBucket.fillBucket()
-        self.slideReel.fillReel()
+        print("\nWindow changed size")
+
+        if self.imageViewer:
+            self.imageViewer.redrawImage()
+
+        if self.mediaBucket:
+            self.mediaBucket.fillBucket()
+
+        if self.slideReel:
+            self.slideReel.fillReel()
 
 
     def DebugWindow(self):
@@ -161,12 +186,13 @@ class SlideshowCreator(tb.Frame):
 
         self.mediaFrameSizeButton = tb.Button(self.debugWindow, text="Print Media Frame Size", command=lambda: print(f"Media Frame size: {self.mediaFrame.winfo_width()}x{self.mediaFrame.winfo_height()}"))
         self.mediaFrameSizeButton.pack()
-        self.mediaBucketSizeButton = tb.Button(self.debugWindow, text="Print Media Bucket Size", command=lambda: print(f"Media Bucket size: {self.mediaBucket.winfo_width()}x{self.mediaBucket.winfo_height()}"))
-        self.mediaBucketSizeButton.pack()
-        self.mediaBucketFillButton = tb.Button(self.debugWindow, text="Fill Media Bucket", command=self.mediaBucket.fillBucket)
-        self.mediaBucketFillButton.pack()
-        self.mediaBucketContentButton = tb.Button(self.debugWindow, text="Print Media Bucket Content", command=lambda: print(self.mediaBucket.files))
-        self.mediaBucketContentButton.pack()
+        if self.mediaBucket:
+            self.mediaBucketSizeButton = tb.Button(self.debugWindow, text="Print Media Bucket Size", command=lambda: print(f"Media Bucket size: {self.mediaBucket.winfo_width()}x{self.mediaBucket.winfo_height()}"))
+            self.mediaBucketSizeButton.pack()
+            self.mediaBucketFillButton = tb.Button(self.debugWindow, text="Fill Media Bucket", command=self.mediaBucket.fillBucket)
+            self.mediaBucketFillButton.pack()
+            self.mediaBucketContentButton = tb.Button(self.debugWindow, text="Print Media Bucket Content", command=lambda: print(self.mediaBucket.files))
+            self.mediaBucketContentButton.pack()
 
 
         self.imageFrameSizeButton = tb.Button(self.debugWindow, text="Print Image Frame Size", command=lambda: print(f"Image Frame size: {self.imageFrame.winfo_width()}x{self.imageFrame.winfo_height()}"))
@@ -177,13 +203,14 @@ class SlideshowCreator(tb.Frame):
 
         self.reelFrameSizeButton = tb.Button(self.debugWindow, text="Print Reel Frame Size", command=lambda: print(f"Reel Frame size: {self.reelFrame.winfo_width()}x{self.reelFrame.winfo_height()}"))
         self.reelFrameSizeButton.pack()
-        self.reelSizeButton = tb.Button(self.debugWindow, text="Print Reel Size", command=lambda: print(f"Reel size: {self.slideReel.winfo_width()}x{self.slideReel.winfo_height()}"))
-        self.reelSizeButton.pack()
-        self.reelFillButton = tb.Button(self.debugWindow, text="Fill Reel", command=self.slideReel.fillReel)
-        self.reelFillButton.pack()
-        self.reelCountButton = tb.Button(self.debugWindow, text="Print Reel Count", command=lambda: print(f"Reel count: {len(self.slideReel.slides)}"))
-        self.slideListButton = tb.Button(self.debugWindow, text="Print Slide List", command=lambda: print(self.slideshow.printSlides()))
-        self.slideListButton.pack()
+        if self.slideReel:
+            self.reelSizeButton = tb.Button(self.debugWindow, text="Print Reel Size", command=lambda: print(f"Reel size: {self.slideReel.winfo_width()}x{self.slideReel.winfo_height()}"))
+            self.reelSizeButton.pack()
+            self.reelFillButton = tb.Button(self.debugWindow, text="Fill Reel", command=self.slideReel.fillReel)
+            self.reelFillButton.pack()
+            self.reelCountButton = tb.Button(self.debugWindow, text="Print Reel Count", command=lambda: print(f"Reel count: {len(self.slideReel.slides)}"))
+            self.slideListButton = tb.Button(self.debugWindow, text="Print Slide List", command=lambda: print(self.slideshow.printSlides()))
+            self.slideListButton.pack()
 
         self.imageViewerSizeButton = tb.Button(self.debugWindow, text="Print ImageViewer Size", command=lambda: print(f"ImageViewer size: {self.imageViewer.winfo_width()}x{self.imageViewer.winfo_height()}"))
         self.imageViewerSizeButton.pack()
@@ -205,7 +232,7 @@ class SlideshowCreator(tb.Frame):
             return
         self.debugWindow.destroy()
         self.destroy()
-        self.creator = SlideshowCreator(self.master, projectPath=path, debug=True)
+        self.creator = SlideshowCreator(self.master, projectPath=path)
         self.creator.pack(expand=True, fill="both")
         self.update()
         print(self.creator.slideshow)

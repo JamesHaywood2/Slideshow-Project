@@ -4,21 +4,39 @@ from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from tkinter import dnd
 from PIL import Image, ImageTk
 import os
 
+updateRate = 100 #Milliseconds
 class ScrollableFrame(tb.Frame):
     """
     A frame that can be scrolled vertically or horizontally.
     From https://blog.teclado.com/tkinter-scrollable-frames/
     """
-    def __init__(self, container, *args, **kwargs):
+    def __init__(self, container, orient: str="both", *args, **kwargs):
         super().__init__(container, *args, **kwargs)
         canvas = tb.Canvas(self)
-        scrollbar = tb.Scrollbar(self, orient="vertical", command=canvas.yview)
-        scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=canvas.xview)
-        self.scrollable_frame = tb.Frame(canvas)
+        self.orient = orient
+
+        horiz = False
+        vert = False
+        if orient == "both":
+            horiz = True
+            vert = True
+        if orient == "horizontal":
+            horiz = True
+        if orient == "vertical":
+            vert = True
+
+        if horiz == False and vert == False:
+            horiz = True
+            vert = True
+
+        if vert:
+            scrollbar = tb.Scrollbar(self, orient="vertical", command=canvas.yview)
+        if horiz:
+            scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=canvas.xview)
+        self.scrollable_frame = tk.Frame(canvas)
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -26,14 +44,18 @@ class ScrollableFrame(tb.Frame):
                 scrollregion=canvas.bbox("all")
             )
         )
-
+        
         canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.configure(xscrollcommand=scrollbar_h.set)
+        if vert:
+            canvas.configure(yscrollcommand=scrollbar.set)
+        if horiz:
+            canvas.configure(xscrollcommand=scrollbar_h.set)
 
-        scrollbar_h.pack(side="bottom", fill="x")
-        scrollbar.pack(side="right", fill="y")
+        if horiz:
+            scrollbar_h.pack(side="bottom", fill="x")
+        if vert:
+            scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
 
 class ImageViewer(tb.Canvas):
@@ -59,7 +81,13 @@ class ImageViewer(tb.Canvas):
         self.imageLabel = self.create_text(10, 10, anchor="nw", text="", font=("Arial", 16), fill="#FF1D8E")
 
         #bind a configure event to the canvas
-        self.bind("<Configure>", lambda event: self.redrawImage())
+        self.after_id = None
+        self.bind("<Configure>", self.afterEvent)
+
+    def afterEvent(self, event):
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        self.after_id = self.after(updateRate, self.redrawImage)
 
     def loadImage(self, imagePath:str):
         #Clear the canvas
@@ -86,6 +114,7 @@ class ImageViewer(tb.Canvas):
         self.redrawImage()
 
     def redrawImage(self):
+        print("Redrawing Image")
         #Return early if there is no image
         if self.imagePath == None:
             self.delete("all")
@@ -320,17 +349,17 @@ class SlideReel(tk.Frame):
         self.slides: list[FP.Slide] = self.slideshow.getSlides()
 
         #Horizontal Scrollable Frame
-        self.scrollFrame = ScrollableFrame(self)
+        self.scrollFrame = ScrollableFrame(self, orient="horizontal")
         self.scrollFrame.pack(expand=True, fill="both")
 
         #bind a configure event to the canvas
-        self.__after_id = None
+        self.after_id = None
         self.bind("<Configure>", self.afterEvent)
 
     def afterEvent(self, event):
-        if self.__after_id:
-            self.after_cancel(self.__after_id)
-        self.__after_id = self.after(1000, self.fillReel)
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        self.after_id = self.after(updateRate, self.fillReel)
 
     def loadProject(self, project: FP.Slideshow):
         self.slideshow = project
@@ -344,7 +373,7 @@ class SlideReel(tk.Frame):
     
     #fillReel just takes the slides and puts them in the scrollable frame IN ORDER
     def fillReel(self):
-        # print("Filling the reel with these")
+        print("Filling the reel")
         # print(self.slideshow.printSlides())
 
         #First of all pack forget everything in the scrollable frame
@@ -360,7 +389,7 @@ class SlideReel(tk.Frame):
             slideIcon = SlideIcon(self.scrollFrame.scrollable_frame, imgPath)
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
-            slideIcon.pack(side="left", padx=30, pady=3, anchor=tk.CENTER)
+            slideIcon.pack(side="left", padx=75, pady=20, anchor="w")
         return
 
     def addSlide(self, imagePath:str, index:int=-1):
@@ -415,13 +444,13 @@ class MediaBucket(tk.Frame):
         self.columnCount: int = 0
 
         self.loadProject(slideshow) 
-        self.__resizeAfter = None
-        self.bind("<Configure>", self.resizeBucket)
+        self.after_id = None
+        self.bind("<Configure>", self.afterEvent)
     
-    def resizeBucket(self, event):
-        if self.__resizeAfter:
-            self.after_cancel(self.__resizeAfter)
-        self.__resizeAfter = self.after(200, self.fillBucket)
+    def afterEvent(self, event):
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        self.after_id = self.after(updateRate, self.fillBucket)
 
     def linkPreviewer(self, previewer: ImageViewer):
         self.previewer = previewer
@@ -436,7 +465,7 @@ class MediaBucket(tk.Frame):
         return
 
     def fillBucket(self):
-        # print("Filling Bucket")
+        print("Filling Bucket")
         # print(f"{self.project.name} has {len(self.files)} files in it.")
         self.projectLabel.config(text=self.project.name)
 
@@ -460,14 +489,14 @@ class MediaBucket(tk.Frame):
             return
         self.columnCount = columnCount
 
-        print(f"Column Count: {self.columnCount}")
-        print(f"Width: {width}")
+        # print(f"Column Count: {self.columnCount}")
+        # print(f"Width: {width}")
         
         for icon in self.iconFrame.winfo_children():
             icon.destroy()
 
         #If there are no files, add buttons to add files
-        print(f"Files in bucket: {len(self.files)}")
+        # print(f"Files in bucket: {len(self.files)}")
         if len(self.files) == 0:
             print("No files in the bucket")
             #Create buttons to add files
