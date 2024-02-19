@@ -57,7 +57,7 @@ class SlideshowCreator(tb.Frame):
         self.debug = debug
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
-        self.update()
+        self.update_idletasks()
         ######################
         #LAYOUT SETUP
         ######################
@@ -94,12 +94,12 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=win_height_start//10*3)
         self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=win_width_start//10*3)
         self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=win_width_start//10*3)
-        self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*3, minsize=win_width_start//10*4)
-        self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*7, minsize=win_width_start//10*4)
+        self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=win_width_start//10*4)
+        self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=win_width_start//10*4)
 
         #Initialize these widgets. They will probably have to be redrawn later though.
-        self.slideInfoButton = InfoFrame(self.slideInfoFrame)
-        self.slideInfoButton.pack(expand=True, fill="both")
+        self.infoViewer = InfoFrame(self.slideInfoFrame, slideshow=self.slideshow)
+        self.infoViewer.pack(expand=True, fill="both")
 
         #Create the ImageViewer object
         self.imageViewer = ImageViewer(self.imageFrame)
@@ -111,6 +111,10 @@ class SlideshowCreator(tb.Frame):
             self.slideReel.linkPreviewer(self.imageViewer)
         except:
             print("No imageViewer to link to")
+        try:
+            self.slideReel.linkInfoFrame(self.infoViewer)
+        except:
+            print("No infoViewer to link to")
 
         #Mediabucket
         self.mediaBucket = MediaBucket(self.mediaFrame, slideshow=self.slideshow)
@@ -123,6 +127,10 @@ class SlideshowCreator(tb.Frame):
             self.mediaBucket.linkReel(self.slideReel)
         except:
             print("No slideReel to link to")
+        try:
+            self.mediaBucket.linkInfoFrame(self.infoViewer)
+        except:
+            print("No infoViewer to link to")
 
         self.DebugWindow()
 
@@ -150,6 +158,7 @@ class SlideshowCreator(tb.Frame):
 
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
+
 
 
     def redraw(self):
@@ -234,7 +243,7 @@ class SlideshowCreator(tb.Frame):
         self.destroy()
         self.creator = SlideshowCreator(self.master, projectPath=path)
         self.creator.pack(expand=True, fill="both")
-        self.update()
+        self.update_idletasks()
         print(self.creator.slideshow)
 
     def save(self):

@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 import os
 
 updateRate = 100 #Milliseconds
+    
 class ScrollableFrame(tb.Frame):
     """
     A frame that can be scrolled vertically or horizontally.
@@ -149,12 +150,176 @@ class ImageViewer(tb.Canvas):
         self.imagePath = None
         self.redrawImage()
 
-#Will contain info about the specific slide or image. For now it's just a button that says "Info"
+
 class InfoFrame(tb.Frame):
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, slideshow: FP.Slideshow = None, **kwargs):
         super().__init__(master, **kwargs)
-        self.slideInfoButton = tb.Button(self, text="Slide Info")
-        self.slideInfoButton.pack()
+        self.slideshow: FP.Slideshow = slideshow
+
+        #Notebook for different tabs: Slide/Image info and Project Info.
+        self.notebook = tb.Notebook(self)
+        self.notebook.pack(expand=True, fill="both")
+
+        #Scrollable Frame for the slide info
+        self.slideInfoFrame = ScrollableFrame(self.notebook, orient="vertical")
+        self.notebook.add(self.slideInfoFrame, text="Slide Info")
+
+        #Scrollable Frame for the project info
+        self.projectInfoFrame = ScrollableFrame(self.notebook, orient="vertical")
+        self.notebook.add(self.projectInfoFrame, text="Project Info")
+
+        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
+
+        self.fillProjectInfo()
+
+    def fillProjectInfo(self):
+        if self.slideshow == None:
+            return
+        
+        #Clear the project info frame
+        for widget in self.projectInfoFrame.scrollable_frame.winfo_children():
+            widget.destroy()
+        
+        #Grid layout for the project info
+        self.nameLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
+        self.nameLabel.grid(row=0, column=0, columnspan=3, sticky="w")
+        self.name = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.name, font=("Arial", 12))
+        self.name.grid(row=0, column=2, sticky="w")
+
+        self.countLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Count: ", font=("Arial", 12))
+        self.countLabel.grid(row=1, column=0, columnspan=3, sticky="w")
+        self.count = tb.Label(self.projectInfoFrame.scrollable_frame, text=str(len(self.slideshow.getSlides())), font=("Arial", 12))
+        self.count.grid(row=1, column=2, sticky="w")
+
+        self.pathLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Path: ", font=("Arial", 12))
+        self.pathLabel.grid(row=2, column=0, columnspan=3,sticky="w")
+        self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
+        self.path.grid(row=2, column=2, sticky="w", columnspan=4)
+
+        self.defaultSlideDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Default Slide Duration: ", font=("Arial", 12))
+        self.defaultSlideDurationLabel.grid(row=3, column=0, columnspan=3,sticky="w")
+        self.setDurationButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="Set", command=self.setDefaultDuration, takefocus=0)
+        self.setDurationButton.grid(row=3, column=2, sticky="e")
+        self.defaultSlideDuration = tb.Entry(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
+        self.defaultSlideDuration.insert(0, self.slideshow.defaultSlideDuration)
+        self.defaultSlideDuration.grid(row=3, column=3, sticky="w")
+
+        self.defaultSlideDuration.bind("<FocusIn>", self.onDefaultDurationFocusIn)
+        self.defaultSlideDuration.bind("<FocusOut>", self.onDefaultDurationFocusOut)
+        
+        self.slideShuffleLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12))
+        self.slideShuffleLabel.grid(row=4, column=0, columnspan=3,sticky="w")
+        self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.slideShuffle.grid(row=4, column=3, sticky="w")
+
+        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop: ", font=("Arial", 12))
+        self.loopLabel.grid(row=5, column=0, columnspan=3,sticky="w")
+        self.loop = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.loop.grid(row=5, column=3, sticky="w")
+
+        #Separator
+        self.separator = tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal")
+        self.separator.grid(row=6, column=0, columnspan=4, sticky="ew", pady=10)
+
+        self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
+        self.PlaylistLabel.grid(row=7, column=0, sticky="w")
+        self.PlaylistName = tb.Label(self.projectInfoFrame.scrollable_frame, text="None", font=("Arial", 12))
+        self.PlaylistName.grid(row=7, column=1, sticky="w")
+
+        self.playlistDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
+        self.playlistDurationLabel.grid(row=7, column=2, sticky="w")
+        self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
+        self.playlistDuration.grid(row=7, column=3, sticky="w")
+
+        #Add shuffle and loop buttons.
+
+
+        self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
+        self.tree_frame.grid(row=8, column=1, columnspan=4, rowspan=7, sticky="ew")
+
+        #Scrollbar for the treeview
+        tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
+        tree_scrollbar.pack(side="right", fill="y")
+
+        self.playlistTree = tb.Treeview(self.tree_frame, columns=("Name", "Order"), show="headings", selectmode="browse")
+        self.playlistTree.heading("Name", text="Name")
+        self.playlistTree.heading("Order", text="Order")
+        self.playlistTree.column("Name", anchor="w", minwidth=200)
+        self.playlistTree.column("Order", anchor="w", minwidth=100)
+        self.playlistTree.pack(expand=True, fill="both")
+
+        tree_scrollbar.config(command=self.playlistTree.yview)
+
+        #Buttons to move a song up, down, or remove it from the playlist
+        self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
+        self.moveUpButton.grid(row=9, column=0, sticky="se")
+        self.addSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.playListAdd, takefocus=0, style="success.TButton")
+        self.addSongButton.grid(row=10, column=0, sticky="se")
+        self.removeSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="X", command=self.playListRemove, takefocus=0, style="danger.TButton")
+        self.removeSongButton.grid(row=11, column=0, sticky="se")
+        self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
+        self.moveDownButton.grid(row=12, column=0, sticky="se")
+
+        pass
+
+    def playListMoveUp(self):
+        pass
+
+    def playListMoveDown(self):
+        pass
+
+    def playListRemove(self):
+        pass
+
+    def playListAdd(self):
+        pass
+
+    def fillSlideInfo(self):
+        pass
+
+    def setDefaultDuration(self):
+        #Check if it is a valid number.
+        try:
+            float(self.defaultSlideDuration.get())
+        except:
+            print("Invalid input for slide duration.")
+            self.defaultSlideDuration.delete(0, tk.END)
+            self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
+
+            #Set the outline to red
+            self.defaultSlideDuration.config(style="danger.TEntry")
+            return
+        
+        #No errors
+        self.defaultSlideDuration.config(style="TEntry")
+        # print(f"Slide Duration: {self.defaultSlideDuration.get()}")
+        self.slideshow.defaultSlideDuration = self.defaultSlideDuration.get()
+        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
+        self.winfo_toplevel().focus_set()
+        return
+    
+    def onDefaultDurationFocusIn(self, event):
+        # self.defaultSlideDuration.config(state=tk.NORMAL)
+        print("Slide Duration Focused In")
+        self.defaultSlideDuration.bind("<Return>", lambda event: self.setDefaultDuration())
+        #Bind escape to unfocus the entry
+        self.defaultSlideDuration.bind("<Escape>", lambda event: self.focus_set())
+        return
+    
+    def onDefaultDurationFocusOut(self, event):
+        # self.defaultSlideDuration.config(state=tk.DISABLED)
+        print("Slide Duration Focused Out")
+        self.defaultSlideDuration.unbind("<Return>")
+        self.defaultSlideDuration.unbind("<Escape>")
+        #Reset the entry
+        self.defaultSlideDuration.delete(0, tk.END)
+        self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
+
+        #Change style to normal
+        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
+        return
+    
+
 
 
 class FileIcon(tk.Frame):
@@ -219,6 +384,7 @@ class FileIcon(tk.Frame):
 
         self.linkedViewer: ImageViewer = None
         self.linkedReel: SlideReel = None
+        self.linkedInfo: InfoFrame = None
 
         #Event binding
         self.canvas.bind("<Double-Button-1>", self.openImage)
@@ -229,7 +395,7 @@ class FileIcon(tk.Frame):
         self.canvas.bind("<Button-1>", self.pickup)
         self.__startX: int = 0
         self.__startY: int = 0
-        self.__popup: tk.Toplevel = None
+        self.popup: tk.Toplevel = None
 
     def openImage(self, event):
         os.startfile(self.imagepath)
@@ -268,34 +434,53 @@ class FileIcon(tk.Frame):
 
     def dragIcon(self, event):
         #Check if the popup exists. If it does move it to the mouse position
-        if self.__popup:
-            self.__popup.geometry(f"+{event.x_root}+{event.y_root}")
+        if self.popup:
+            self.popup.geometry(f"+{event.x_root}+{event.y_root}")
+
+            #Check and see if the user is hovering over a divider. If they are, highlight the divider
+            for divider in self.linkedReel.dividers:
+                x = divider.winfo_rootx()
+                y = divider.winfo_rooty()
+                w = divider.winfo_width()
+                h = divider.winfo_height()
+                if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                    divider.configure(relief=tk.SUNKEN, borderwidth=2)
+                    divider.label.configure(text="Drop", background="black", foreground="white")
+                else:
+                    divider.configure(relief=tk.FLAT, borderwidth=0)
+                    divider.label.configure(text="", background="white", foreground="black")
+
         else:
             #Create the popup which is a borderless transparent TopLevel window containing the image
-            self.__popup = tk.Toplevel()
-            self.__popup.overrideredirect(True)
-            self.__popup.geometry(f"{self.canvasWidth}x{self.canvasHeight}+{event.x_root}+{event.y_root}")
-            self.__popup.attributes("-transparentcolor", "white")
-            self.__popup.attributes("-topmost", True)
-            self.__popup.wm_attributes("-alpha", 0.8)
+            self.popup = tk.Toplevel()
+            self.popup.overrideredirect(True)
+            self.popup.geometry(f"{self.canvasWidth}x{self.canvasHeight}+{event.x_root}+{event.y_root}")
+            self.popup.attributes("-transparentcolor", "white")
+            self.popup.attributes("-topmost", True)
+            self.popup.wm_attributes("-alpha", 0.8)
 
             #Create the canvas in the popup
-            self.__popupCanvas = tk.Canvas(self.__popup, width=self.canvasWidth, height=self.canvasHeight)
-            self.__popupCanvas.pack()
-            self.__popupImage = ImageTk.PhotoImage(self.__imagePIL)
-            self.__popupCanvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.__popupImage)
+            self.popupCanvas = tk.Canvas(self.popup, width=self.canvasWidth, height=self.canvasHeight)
+            self.popupCanvas.pack()
+            self.popupImage = ImageTk.PhotoImage(self.__imagePIL)
+            self.popupCanvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.popupImage)
 
             #Bind the popup to the mouse
-            self.__popup.bind("<B1-Motion>", self.dragIcon)
+            self.popup.bind("<B1-Motion>", self.dragIcon)
             self.canvas.bind("<ButtonRelease-1>", self.dropIcon)
 
     def dropIcon(self, event):
         print(f"Dropped at {event.x}, {event.y}")
-        self.__popup.destroy()
-        self.__popup = None
+        self.popup.destroy()
+        self.popup = None
         self.canvas.bind("<Button-1>", self.pickup)
         self.canvas.unbind("<B1-Motion>")
         self.canvas.bind("<ButtonRelease-1>", self.clickIcon)
+
+        #Set the dividers back to normal
+        for divider in self.linkedReel.dividers:
+            divider.configure(relief=tk.FLAT, borderwidth=0)
+            divider.label.configure(text="", background="white", foreground="black")
 
         #check if the user has dropped the icon into the previewer. If they have, load the image
         if self.linkedViewer:
@@ -317,7 +502,26 @@ class FileIcon(tk.Frame):
                 # print(f"Adding {self.imagepath} to the slideshow")
                 self.linkedReel.addSlide(self.imagepath)
             return
-        
+
+class IconDivider(tk.Frame):
+    def __init__(self, master, index:int, **kwargs):
+        super().__init__(master, **kwargs)
+        self.configure(width=70, height=130)
+        self.pack_propagate(False)
+        self.label = tb.Label(self, text="", font=("Arial", 12), background="white")
+        self.label.pack(expand=True, fill="both")
+        self.index: int = index
+
+        #Bind hover events
+        self.label.bind("<Enter>", self.hoverEnter)
+        self.label.bind("<Leave>", self.hoverLeave)
+    
+    def hoverEnter(self, event):
+        self.configure(relief=tk.SUNKEN, borderwidth=2)
+
+    def hoverLeave(self, event):
+        self.configure(relief=tk.FLAT, borderwidth=0)
+
 class SlideIcon(FileIcon):
     """
     SlideIcon litteraly just a FileIcon but with the extra slide attribute. It's used in the SlideReel.\n
@@ -332,6 +536,29 @@ class SlideIcon(FileIcon):
         self.slide = slide
         return
     
+    def dropIcon(self, event):
+        print(f"Dropped at {event.x}, {event.y}")
+        self.popup.destroy()
+        self.popup = None
+        self.canvas.bind("<Button-1>", self.pickup)
+        self.canvas.unbind("<B1-Motion>")
+        self.canvas.bind("<ButtonRelease-1>", self.clickIcon)
+
+        #Set the dividers back to normal
+        for divider in self.linkedReel.dividers:
+            divider.configure(relief=tk.FLAT, borderwidth=0)
+            divider.label.configure(text="", background="white", foreground="black")
+
+        #check if the user has dropped the icon into the previewer. If they have, load the image
+        if self.linkedViewer:
+            x = self.linkedViewer.winfo_rootx()
+            y = self.linkedViewer.winfo_rooty()
+            w = self.linkedViewer.winfo_width()
+            h = self.linkedViewer.winfo_height()
+            if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                self.linkedViewer.loadImage(self.imagepath)
+                self.linkedViewer.redrawImage()
+
 class SlideReel(tk.Frame):
     """
     SlideReel is a frame that contains the SlideReel widget. Consists of a scrollable frame that contains SlideIcons.\n
@@ -345,8 +572,10 @@ class SlideReel(tk.Frame):
         super().__init__(master, **kwargs)
         self.addStack = []
         self.slideshow: FP.Slideshow = slideshow
-        self.previewer: ImageViewer = None  
+        self.previewer: ImageViewer = None 
+        self.infoFrame: InfoFrame = None
         self.slides: list[FP.Slide] = self.slideshow.getSlides()
+        self.dividers: list[IconDivider] = []
 
         #Horizontal Scrollable Frame
         self.scrollFrame = ScrollableFrame(self, orient="horizontal")
@@ -361,14 +590,18 @@ class SlideReel(tk.Frame):
             self.after_cancel(self.after_id)
         self.after_id = self.after(updateRate, self.fillReel)
 
-    def loadProject(self, project: FP.Slideshow):
-        self.slideshow = project
-        self.slides = project.getSlides()
-        self.fillReel()
-        return
+    # def loadProject(self, project: FP.Slideshow):
+    #     self.slideshow = project
+    #     self.slides = project.getSlides()
+    #     self.fillReel()
+    #     return
     
     def linkPreviewer(self, previewer: ImageViewer):
         self.previewer = previewer
+        return
+    
+    def linkInfoFrame(self, info: InfoFrame):
+        self.infoFrame = info
         return
     
     #fillReel just takes the slides and puts them in the scrollable frame IN ORDER
@@ -380,16 +613,38 @@ class SlideReel(tk.Frame):
         for slide in self.scrollFrame.scrollable_frame.winfo_children():
             slide.pack_forget()
 
+        #Clear the dividers
+        for divider in self.dividers:
+            divider.destroy()
+        self.dividers = []
+
+
+        i = 0
+        #Every slide in the slideReel is made into a slideIcon.
         for slide in self.slides:
+            #If accessing using subscript doesn't work try using dot notation
             try:
                 imgPath = slide["imagePath"]
             except:
                 imgPath = slide.imagePath
-            # print(imgPath)
+
+            divider = IconDivider(self.scrollFrame.scrollable_frame, i)
+            # divider.pack(side="left", padx=20, pady=20, anchor="w")
+            divider.grid(row=0, column=i, padx=5, pady=20, sticky="w")
+            self.dividers.append(divider)
+            i += 1
+
             slideIcon = SlideIcon(self.scrollFrame.scrollable_frame, imgPath)
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
-            slideIcon.pack(side="left", padx=75, pady=20, anchor="w")
+            # slideIcon.pack(side="left", padx=20, pady=20, anchor="w")
+            slideIcon.grid(row=0, column=i, padx=20, pady=20, sticky="w")
+            i += 1
+
+        divider = IconDivider(self.scrollFrame.scrollable_frame, i)
+        # divider.pack(side="left", padx=20, pady=20, anchor="w")
+        divider.grid(row=0, column=i, padx=5, pady=20, sticky="w")
+        self.dividers.append(divider)
         return
 
     def addSlide(self, imagePath:str, index:int=-1):
@@ -429,6 +684,7 @@ class MediaBucket(tk.Frame):
         self.addStack = []
         self.previewer: ImageViewer = None
         self.reel: SlideReel = None
+        self.infoFrame: InfoFrame = None
         self.project: FP.Slideshow = slideshow
         # self.files = self.project.filesInProject
 
@@ -459,6 +715,10 @@ class MediaBucket(tk.Frame):
     def linkReel(self, reel: SlideReel):
         self.reel = reel
         return
+    
+    def linkInfoFrame(self, info: InfoFrame):
+        self.infoFrame = info
+        return
 
     def removeDuplicates(self):
         self.files = list(dict.fromkeys(self.files))
@@ -472,7 +732,7 @@ class MediaBucket(tk.Frame):
         #Remove duplicates
         self.removeDuplicates()
 
-        self.update()
+        self.update_idletasks()
         #find the number of columns
         width = self.winfo_width()
         #Only even attempt to fill the bucket if the width is greater than like 10. If it's less than 10 the window probably doesn't exist yet.
@@ -504,7 +764,6 @@ class MediaBucket(tk.Frame):
             addFileButton.pack()
             addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
             addFolderButton.pack()
-
             return
 
         #Create the icons
@@ -514,6 +773,7 @@ class MediaBucket(tk.Frame):
             icon = FileIcon(self.iconFrame, file)
             icon.linkedViewer = self.previewer
             icon.linkedReel = self.reel
+            icon.linkedInfo = self.infoFrame
             icon.grid(row=i, column=j, padx=3, pady=3)
             self.icons.append(icon)
             j += 1
