@@ -11,6 +11,11 @@ class SlideshowCreatorStart(tb.Frame):
     def __init__(self, master=None, **kw):
         super().__init__(master, **kw)
         self.create_widgets()
+        try:
+            FP.initializeCache()
+        except:
+            print("Cache initialziation failed")
+        tb.Style().theme_use(FP.getPreferences())
 
     def create_widgets(self):
         """Creates the widgets for the start window."""
@@ -58,6 +63,12 @@ class SlideshowCreator(tb.Frame):
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         self.update_idletasks()
+        try:
+            FP.initializeCache()
+        except:
+            print("Cache initialziation failed")
+        tb.Style().theme_use(FP.getPreferences())
+
         ######################
         #LAYOUT SETUP
         ######################
@@ -132,12 +143,12 @@ class SlideshowCreator(tb.Frame):
         except:
             print("No infoViewer to link to")
 
-        self.DebugWindow()
+        # self.DebugWindow()
 
         #Menubar
-        self.menubar = tk.Menu(self.master)
+        self.menubar = tb.Menu(self.master)
         self.master.config(menu=self.menubar)
-        self.projectMenu = tk.Menu(self.menubar, tearoff=0)
+        self.projectMenu = tb.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Project", menu=self.projectMenu)
         self.projectMenu.add_command(label="New Project", command=self.newProject)
         self.projectMenu.add_command(label="Open Project", command=self.openProject)
@@ -147,7 +158,7 @@ class SlideshowCreator(tb.Frame):
         self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Exit", command=self.quit)
 
-        self.fileMenu = tk.Menu(self.menubar, tearoff=0)
+        self.fileMenu = tb.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="File", menu=self.fileMenu)
         self.fileMenu.add_command(label="Add file", command=self.addFile)
         self.fileMenu.add_command(label="Add folder", command=self.addFolder)
@@ -155,6 +166,10 @@ class SlideshowCreator(tb.Frame):
         if self.mediaBucket:
             self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
         self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
+
+        self.themeMenu = tb.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Theme", menu=self.themeMenu)
+        self.themeMenu.add_command(label="Theme Selector", command=self.ThemeSelector)
 
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
@@ -287,6 +302,64 @@ class SlideshowCreator(tb.Frame):
             self.mediaBucket.addFolder(folder)
             self.slideshow.filesInProject = self.mediaBucket.files
 
+    def ThemeSelector(self):
+        window = tb.Toplevel()
+        window.title("Theme Selector")
+        window.geometry("400x400")
+        #Get the theme currently used by the program.
+        currentTheme: str = self.master.tk.call("ttk::style", "theme", "use")
+        print(f"Current Theme: {currentTheme}")
+        selectedTheme: str = currentTheme
+        
+        #Current theme label
+        currentThemeLabel = tb.Label(window, text=f"Current Theme: {currentTheme}")
+        currentThemeLabel.pack(pady=10)
+
+        #Label for the currently selected theme
+        selectedThemeLabel = tb.Label(window, text=f"Selected Theme: {selectedTheme}")
+        selectedThemeLabel.pack(pady=10)
+
+        def saveTheme(theme: str):
+            nonlocal currentTheme
+            currentTheme = theme
+            currentThemeLabel.config(text=f"Current Theme: {currentTheme}")
+            FP.updatePreferences(theme)
+
+        #save theme button
+        saveThemeButton = tb.Button(window, text="Save Theme", command=lambda: saveTheme(selectedTheme))
+        saveThemeButton.pack(pady=10)
+
+        #List of themes in TTKBootstrap
+        #https://ttkbootstrap.readthedocs.io/en/latest/themes/
+        themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        #combobox for the themes
+        themeList = tb.Combobox(window, values=themes)
+        themeList.pack(expand=False, fill="none", pady=10)
+        themeList.set(selectedTheme)
+
+        def changeTheme(theme: str):
+            nonlocal selectedTheme
+            selectedTheme = theme
+            selectedThemeLabel.config(text=f"Selected Theme: {theme}")
+            self.changeTheme(theme)
+
+        themeList.bind("<<ComboboxSelected>>", lambda event: changeTheme(themeList.get()))
+
+        #Bind closing the window to changing the theme to the currentTheme
+        def on_closing():
+            self.changeTheme(currentTheme)
+            window.destroy()
+        window.protocol("WM_DELETE_WINDOW", on_closing)
+
+
+    def changeTheme(self, theme: str):
+        print(f"Changing theme to {theme}")
+        tb.Style().theme_use(theme)
+
+        self.master.update_idletasks()
+        self.master.update()
+        self.redraw()
+
     def quit(self):
         self.master.quit()
 
@@ -296,8 +369,9 @@ if __name__ == "__main__":
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
-    app = SlideshowCreatorStart(root)
-    # app = SlideshowCreator(root, debug=True, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    # app = SlideshowCreatorStart(root)
+    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
     app.pack(expand=True, fill="both")
+
     app.mainloop()
 

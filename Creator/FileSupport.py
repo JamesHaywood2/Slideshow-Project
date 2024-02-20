@@ -48,6 +48,53 @@ def getParentDir(files):
     """Returns the parent directory of a list of file paths."""
     return [os.path.dirname(f) for f in files]
 
+def getUserCacheDir():
+    """Print the user's AppData/Local/PySlideshow directory. This is where the program will store its cache files."""
+    return os.path.join(os.getenv('LOCALAPPDATA'), "PySlideshow")
+
+def initializeCache():
+    """Initialize the cache directory. Creates it if it doesn't exist."""
+    cacheDir = getUserCacheDir()
+    if not os.path.exists(cacheDir):
+        os.makedirs(cacheDir)
+
+    #Make a user preferences file and a cache folder
+    if not os.path.exists(os.path.join(cacheDir, "cache")):
+        os.makedirs(os.path.join(cacheDir, "cache"))
+
+    #Preference file can just be a text file containing the theme.
+    if not os.path.exists(os.path.join(cacheDir, "preferences.txt")):
+        with open(os.path.join(cacheDir, "preferences.txt"), 'w') as f:
+            f.write("litera")
+
+def updatePreferences(theme:str):
+    """Update the user preferences file with the theme."""
+    cacheDir = getUserCacheDir()
+    with open(os.path.join(cacheDir, "preferences.txt"), 'w') as f:
+        f.write(theme)
+
+def getPreferences():
+    """Get the user preferences from the preferences file."""
+    #Check if the preferences file exists
+    cacheDir = getUserCacheDir()
+    if not os.path.exists(os.path.join(cacheDir, "preferences.txt")):
+        initializeCache()
+        return "litera"
+    else:
+        with open(os.path.join(cacheDir, "preferences.txt"), 'r') as f:
+            return f.read().strip()
+
+def clearCache():
+    """Clear the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    for f in os.listdir(cacheDir):
+        os.remove(os.path.join(cacheDir, f))
+    print("Cache cleared.")
+
+def resetPreferences():
+    """Reset the preferences file to the default theme."""
+    updatePreferences("litera")
+
 class Slide:
     """
     Slide class. Contains the image path, transition type, and transition speed.\n
