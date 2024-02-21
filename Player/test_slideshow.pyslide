@@ -1,0 +1,39 @@
+{
+  "_Slideshow__filePath": "C:/Test/Path/Slideshow.pyslide",
+  "name": "Test.pyslide",
+  "_Slideshow__slides": [
+    {
+      "slideID": null,
+      "imagePath": "C:\\Users\\emmaf\\Documents\\College\\S2024\\CS 499\\Slideshow project\\Slideshow-Project\\Player\\ball.jpg",
+      "imageName": "ball.jpg",
+      "transition": "Default",
+      "transitionSpeed": 1
+    },
+    {
+      "slideID": null,
+      "imagePath": "C:\\Users\\emmaf\\Documents\\College\\S2024\\CS 499\\Slideshow project\\Slideshow-Project\\Player\\ball2.jpg",
+      "imageName": "ball2.jpg",
+      "transition": "Default",
+      "transitionSpeed": 1
+    }
+  ],
+  "_Slideshow__count": 2,
+  "_Slideshow__playlist": {
+    "name": null,
+    "_Playlist__songs": [
+      {}
+    ],
+    "_Playlist__count": 0,
+    "_Playlist__duration": 0,
+    "shuffle": false,
+    "loop": false
+  },
+  "manual": true,
+  "defaultSlideDuration": 5,
+  "shuffle": false,
+  "loop": false,
+  "filesInProject": [
+    "C:\\Users\\emmaf\\Documents\\College\\S2024\\CS 499\\Slideshow project\\Slideshow-Project\\Player\\ball.jpg",
+    "C:\\Users\\emmaf\\Documents\\College\\S2024\\CS 499\\Slideshow project\\Slideshow-Project\\Player\\ball2.png"
+  ]
+}

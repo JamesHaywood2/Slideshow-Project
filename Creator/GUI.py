@@ -246,7 +246,7 @@ class MenuBar(tk.Menu):
         print(f"Preview Size: {self.GUI.preview.winfo_width()}x{self.GUI.preview.winfo_height()}")
 
     def redrawImage(self):
-        self.GUI.previewImage.redrawImage()
+        self.GUI.Image.redrawImage()
     
     def printMediaSize(self):
         print(f"Media Size: {self.GUI.media.winfo_width()}x{self.GUI.media.winfo_height()}")
