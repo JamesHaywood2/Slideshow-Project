@@ -19,11 +19,13 @@ class SlideshowCreatorStart(tb.Frame):
     def create_widgets(self):
         """Creates the widgets for the start window."""
         self.label = tb.Label(self, text="Slideshow Creator", font=("Arial", 24))
-        self.label.pack()
-        self.newProjectButton = tb.Button(self, text="New Project", command=self.newProject)
-        self.newProjectButton.pack()
-        self.openProjectButton = tb.Button(self, text="Open Project", command=self.openProject)
-        self.openProjectButton.pack()
+        self.label.pack(anchor="center", expand=True)
+        self.buttonFrame = tb.Frame(self)
+        self.buttonFrame.pack(anchor="center", expand=True, fill="both")
+        self.newProjectButton = tb.Button(self.buttonFrame, text="New Project", command=self.newProject)
+        self.newProjectButton.pack(anchor="center", pady=10)
+        self.openProjectButton = tb.Button(self.buttonFrame, text="Open Project", command=self.openProject)
+        self.openProjectButton.pack(anchor="center", pady=10)
 
     def newProject(self):
         """Loads the slideshow creator window without a project file. This will create a new project."""
@@ -81,14 +83,15 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Base.add(self.PanedWindow_Bottom, stretch="last")
 
         #panedWindow color
-        # self.PanedWindow_Base.config(bg="black")
-        # self.PanedWindow_Top.config(bg="black")
-        # self.PanedWindow_Bottom.config(bg="black")
+        self.panedWindowColor = tb.Style().colors.primary
+        self.PanedWindow_Base.config(bg=self.panedWindowColor)
+        self.PanedWindow_Top.config(bg=self.panedWindowColor)
+        self.PanedWindow_Bottom.config(bg=self.panedWindowColor)
 
         # #PanedWindow Options
-        # self.PanedWindow_Base.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
-        # self.PanedWindow_Top.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
-        # self.PanedWindow_Bottom.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
+        self.PanedWindow_Base.config(sashrelief=tk.FLAT, sashwidth=3, showhandle=False, opaqueresize=False)
+        self.PanedWindow_Top.config(sashrelief=tk.FLAT, sashwidth=5, showhandle=False, opaqueresize=False)
+        self.PanedWindow_Bottom.config(sashrelief=tk.FLAT, sashwidth=5, showhandle=False, opaqueresize=False)
 
 
         self.mediaFrame = tb.Frame(self.PanedWindow_Top)
@@ -392,6 +395,11 @@ class SlideshowCreator(tb.Frame):
         print(f"Changing theme to {theme}")
         tb.Style().theme_use(theme)
 
+        self.panedWindowColor = tb.Style().colors.primary
+        self.PanedWindow_Base.config(bg=self.panedWindowColor)
+        self.PanedWindow_Top.config(bg=self.panedWindowColor)
+        self.PanedWindow_Bottom.config(bg=self.panedWindowColor)
+
         self.master.update_idletasks()
         self.master.update()
         self.redraw()
@@ -405,9 +413,9 @@ if __name__ == "__main__":
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
-    # app = SlideshowCreatorStart(root)
+    app = SlideshowCreatorStart(root)
     # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
-    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\flami\OneDrive - uah.edu\CS499\TestSlideshow.pyslide")
+    # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\flami\OneDrive - uah.edu\CS499\TestSlideshow.pyslide")
     app.pack(expand=True, fill="both")
 
     app.mainloop()
