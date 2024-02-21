@@ -180,6 +180,10 @@ class Slideshow:
             self.__slides.append(slide)
         else:
             self.__slides.insert(index, slide)
+
+        #Make slideID the index of the slide in the list
+        for i, slide in enumerate(self.__slides):
+            slide['slideID'] = i
         self.__count += 1
         self.printSlides()
 
@@ -195,6 +199,30 @@ class Slideshow:
     def removeSlide(self, slide:Slide):
         self.__slides.remove(slide)
         self.__count -= 1
+
+    def swapSlides(self, index1:int, index2:int):
+        """
+        Swap the slides at index1 and index2.
+        """
+        self.__slides[index1], self.__slides[index2] = self.__slides[index2], self.__slides[index1]
+        #Update the slideID
+        for i, slide in enumerate(self.__slides):
+            slide['slideID'] = i
+
+    def moveSlide(self, index:int, newIndex:int):
+        """
+        Move the slide at index to newIndex.
+        """
+        #If the newIndex is greater than the index, subtract 1. Otherwise just use the newIndex.
+        if newIndex > index:
+            newIndex -= 1
+
+        slide = self.__slides.pop(index)
+        self.__slides.insert(newIndex, slide)
+        print(f"Moved slide from {index} to {newIndex}")
+        #Update the slideID
+        for i, slide in enumerate(self.__slides):
+            slide['slideID'] = i
 
     #Haven't tested. Should work
     def getSlide(self, index:int):

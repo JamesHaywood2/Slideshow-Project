@@ -5,7 +5,6 @@ from Widgetsv2 import *
 from tkinter import filedialog
 
 
-
 class SlideshowCreatorStart(tb.Frame):
     """Start window for the Slideshow Creator. This window will have two buttons: New Project and Open Project."""
     def __init__(self, master=None, **kw):
@@ -143,7 +142,7 @@ class SlideshowCreator(tb.Frame):
         except:
             print("No infoViewer to link to")
 
-        # self.DebugWindow()
+        self.debugWindow: tk.Toplevel = None
 
         #Menubar
         self.menubar = tb.Menu(self.master)
@@ -254,7 +253,8 @@ class SlideshowCreator(tb.Frame):
         path = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")])
         if not path:
             return
-        self.debugWindow.destroy()
+        if self.debugWindow:
+            self.debugWindow.destroy()
         self.destroy()
         self.creator = SlideshowCreator(self.master, projectPath=path)
         self.creator.pack(expand=True, fill="both")
@@ -370,7 +370,8 @@ if __name__ == "__main__":
     screen_height = root.winfo_screenheight()
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     # app = SlideshowCreatorStart(root)
-    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\flami\OneDrive - uah.edu\CS499\TestSlideshow.pyslide")
     app.pack(expand=True, fill="both")
 
     app.mainloop()

@@ -177,7 +177,7 @@ class FileIcon(tk.Frame):
     def __init__(self, master, imagepath: str=None, **kwargs):
         super().__init__(master, **kwargs)
         self.width = 100
-        self.height = 130
+        self.height = 140
         self.configure(width=self.width, height=self.height)
         self.pack_propagate(False)
 
@@ -190,9 +190,9 @@ class FileIcon(tk.Frame):
             self.name = FP.removeExtension(FP.removePath([imagepath]))[0]
         except:
             self.name = "Error: Missing Image"
-        nameCutoff: int = 14
+        nameCutoff: int = 20
         fn = self.name[:nameCutoff] + "..." if len(self.name) > nameCutoff else self.name
-        self.label = tb.Label(self, text=fn, font=("Arial", 12), bootstyle="default")
+        self.label = tb.Label(self, text=fn, font=("Arial", 12), bootstyle="default", justify="center", wraplength=90)
         self.label.pack(expand=False, fill="none", anchor="center")
 
         self.missing: bool = False
@@ -213,6 +213,7 @@ class FileIcon(tk.Frame):
         self.linkedViewer: ImageViewer = None
         self.linkedReel: SlideReel = None
         self.linkedInfo: InfoFrame = None
+        self.linkedBucket: MediaBucket = None
 
         #Event binding
         self.canvas.bind("<Double-Button-1>", self.openImage)
@@ -272,15 +273,22 @@ class FileIcon(tk.Frame):
 
             #Check and see if the user is hovering over a divider. If they are, highlight the divider
             for divider in self.linkedReel.dividers:
-                x = divider.winfo_rootx()
-                y = divider.winfo_rooty()
-                w = divider.winfo_width()
-                h = divider.winfo_height()
+                x: int = divider.winfo_rootx()
+                y: int = divider.winfo_rooty()
+                w: int = divider.winfo_width()
+                h: int = divider.winfo_height()
                 if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
-                    divider.configure(relief=tk.SUNKEN, borderwidth=2)
-                    divider.label.configure(text="Drop", bootstyle="inverse-default")
+                    if (type(self) == SlideIcon):
+                        #If the slideID is within two of the divider index, return early.
+                        distance: int = abs(self.slide['slideID'] - (divider.index//2))
+                        if divider.index//2 > self.slide['slideID']:
+                            distance -= 1
+                        # print(f"Distance: {distance}")
+                        if distance == 0:
+                            return
+
+                    divider.label.configure(text=" ", bootstyle="inverse-default")
                 else:
-                    divider.configure(relief=tk.FLAT, borderwidth=0)
                     divider.label.configure(text="", bootstyle="default")
 
         else:
@@ -310,11 +318,7 @@ class FileIcon(tk.Frame):
         self.canvas.unbind("<B1-Motion>")
         self.canvas.bind("<ButtonRelease-1>", self.clickIcon)
 
-        #Set the dividers back to normal
-        for divider in self.linkedReel.dividers:
-            divider.configure(relief=tk.FLAT, borderwidth=0)
-            divider.label.configure(text="", bootstyle="default")
-
+        
         #check if the user has dropped the icon into the previewer. If they have, load the image
         if self.linkedViewer:
             x = self.linkedViewer.winfo_rootx()
@@ -327,6 +331,19 @@ class FileIcon(tk.Frame):
 
         #If the user dropped the icon into the slide reel, add the image to the slideshow
         if self.linkedReel:
+            #Check if the dividers exist.
+            if len(self.linkedReel.dividers) > 0:
+                for divider in self.linkedReel.dividers:
+                    divider.reset()
+                    x = divider.winfo_rootx()
+                    y = divider.winfo_rooty()
+                    w = divider.winfo_width()
+                    h = divider.winfo_height()
+                    if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                        print(f"Adding {self.imagepath} to the slideshow at index {divider.index//2}")
+                        self.linkedReel.addSlide(self.imagepath, (divider.index//2))
+                        return
+
             x = self.linkedReel.winfo_rootx()
             y = self.linkedReel.winfo_rooty()
             w = self.linkedReel.winfo_width()
@@ -336,23 +353,24 @@ class FileIcon(tk.Frame):
                 self.linkedReel.addSlide(self.imagepath)
             return
 
-class IconDivider(tk.Frame):
+class IconDivider(tb.Frame):
     def __init__(self, master, index:int, **kwargs):
         super().__init__(master, **kwargs)
-        self.configure(width=70, height=130)
+        self.configure(width=20, height=150)
         self.pack_propagate(False)
         self.label = tb.Label(self, text="", font=("Arial", 12), bootstyle="default")
         self.label.pack(expand=True, fill="both")
         self.index: int = index
 
-        #Bind hover events
-        self.label.bind("<Enter>", self.hoverEnter)
-        self.label.bind("<Leave>", self.hoverLeave)
-    
-    def hoverEnter(self, event):
-        self.configure(relief=tk.SUNKEN, borderwidth=2)
+        #Bind click
+        self.label.bind("<ButtonRelease-1>", self.clickDivider)
 
-    def hoverLeave(self, event):
+
+    def clickDivider(self, event):
+        print(f"Clicked on divider {self.index}")
+
+    def reset(self):
+        self.label.configure(text="", bootstyle="default")
         self.configure(relief=tk.FLAT, borderwidth=0)
 
 class SlideIcon(FileIcon):
@@ -392,6 +410,26 @@ class SlideIcon(FileIcon):
                 self.linkedViewer.loadImage(self.imagepath)
                 self.linkedViewer.redrawImage()
 
+        if self.linkedReel:
+            #Check if the dividers exist.
+            if len(self.linkedReel.dividers) > 0:
+                for divider in self.linkedReel.dividers:
+                    divider.reset()
+                    x = divider.winfo_rootx()
+                    y = divider.winfo_rooty()
+                    w = divider.winfo_width()
+                    h = divider.winfo_height()
+
+
+                    #If they dropped the icon onto a divider, move the slide icon to that index.
+                    if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                        slideID = self.slide['slideID']
+                        self.linkedReel.slideshow.moveSlide(slideID, divider.index//2)
+                        self.update_idletasks()
+                        self.after(33, self.linkedReel.fillReel)
+
+
+
 
 class InfoFrame(tb.Frame):
     def __init__(self, master, slideshow: FP.Slideshow = None, **kwargs):
@@ -429,25 +467,26 @@ class InfoFrame(tb.Frame):
         
         #Grid layout for the project info
         self.nameLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=0, column=0, columnspan=2, sticky="w")
+        self.nameLabel.grid(row=0, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.name, font=("Arial", 12))
-        self.name.grid(row=0, column=3, sticky="w")
+        self.name.grid(row=0, column=3, columnspan=10, sticky="w")
 
         self.countLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Count: ", font=("Arial", 12))
         self.countLabel.grid(row=1, column=0, columnspan=3, sticky="w")
         self.count = tb.Label(self.projectInfoFrame.scrollable_frame, text=str(len(self.slideshow.getSlides())), font=("Arial", 12))
-        self.count.grid(row=1, column=3, sticky="w")
+        self.count.grid(row=1, column=3, columnspan=10, sticky="w")
 
         self.pathLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Path: ", font=("Arial", 12))
-        self.pathLabel.grid(row=2, column=0, columnspan=2,sticky="w")
+        self.pathLabel.grid(row=2, column=0, columnspan=3,sticky="w")
         self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
         self.path.grid(row=2, column=3, sticky="w", columnspan=4)
 
         self.defaultSlideDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Default Slide Duration: ", font=("Arial", 12))
-        self.defaultSlideDurationLabel.grid(row=3, column=0, columnspan=3,sticky="w")
+        self.defaultSlideDurationLabel.grid(row=3, column=0, columnspan=3, sticky="w")
         # self.setDurationButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="Set", command=self.setDefaultDuration, takefocus=0)
         # self.setDurationButton.grid(row=3, column=3, sticky="w")
         self.defaultSlideDuration = tb.Entry(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
+        self.defaultSlideDuration.config(width=7)
         self.defaultSlideDuration.insert(0, self.slideshow.defaultSlideDuration)
         self.defaultSlideDuration.grid(row=3, column=3, sticky="w")
 
@@ -455,57 +494,61 @@ class InfoFrame(tb.Frame):
         self.defaultSlideDuration.bind("<FocusOut>", self.onDefaultDurationFocusOut)
         
         self.slideShuffleLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12))
-        self.slideShuffleLabel.grid(row=4, column=0, columnspan=3,sticky="w")
+        self.slideShuffleLabel.grid(row=4, column=0, columnspan=3, sticky="w")
         self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.slideShuffle.grid(row=4, column=3, sticky="w")
 
         self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop: ", font=("Arial", 12))
-        self.loopLabel.grid(row=5, column=0, columnspan=3,sticky="w")
+        self.loopLabel.grid(row=5, column=0, columnspan=3, sticky="w")
         self.loop = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.loop.grid(row=5, column=3, sticky="w")
 
         #Separator
         self.separator = tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal")
-        self.separator.grid(row=6, column=0, columnspan=4, sticky="ew", pady=10)
+        self.separator.grid(row=6, column=0, columnspan=10, sticky="ew", pady=10)
 
         self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
-        self.PlaylistLabel.grid(row=7, column=0, sticky="w")
+        self.PlaylistLabel.grid(row=7, column=0, columnspan=3, sticky="w")
         self.PlaylistName = tb.Label(self.projectInfoFrame.scrollable_frame, text="None", font=("Arial", 12))
-        self.PlaylistName.grid(row=7, column=1, sticky="w")
+        self.PlaylistName.grid(row=7, column=2, columnspan=1,sticky="w")
 
         self.playlistDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
-        self.playlistDurationLabel.grid(row=7, column=2, sticky="w")
+        self.playlistDurationLabel.grid(row=8, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
-        self.playlistDuration.grid(row=7, column=3, sticky="w")
+        self.playlistDuration.grid(row=8, column=2, columnspan=1, sticky="w")
 
         #Add shuffle and loop buttons.
 
+        self.projectInfoFrame.scrollable_frame.config(bg="gray")
 
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
-        self.tree_frame.grid(row=8, column=1, columnspan=4, rowspan=7, sticky="ew")
+        self.tree_frame.grid(row=9, column=1, columnspan=9, rowspan=7, sticky="w")
 
         #Scrollbar for the treeview
         tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
         tree_scrollbar.pack(side="right", fill="y")
 
+        # self.tree_frame = ScrolledFrame(self.projectInfoFrame.scrollable_frame, style="primary.TFrame", autohide=True)
+        # self.tree_frame.grid(row=9, column=0, columnspan=10, rowspan=7, sticky="w")
+
         self.playlistTree = tb.Treeview(self.tree_frame, columns=("Name", "Order"), show="headings", selectmode="browse")
         self.playlistTree.heading("Name", text="Name")
         self.playlistTree.heading("Order", text="Order")
-        self.playlistTree.column("Name", anchor="w", minwidth=200)
-        self.playlistTree.column("Order", anchor="w", minwidth=100)
+        self.playlistTree.column("Name", anchor="w", minwidth=100, width=150)
+        self.playlistTree.column("Order", anchor="w", minwidth=50, width=100)
         self.playlistTree.pack(expand=True, fill="both")
 
         tree_scrollbar.config(command=self.playlistTree.yview)
 
         #Buttons to move a song up, down, or remove it from the playlist
         self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
-        self.moveUpButton.grid(row=9, column=0, sticky="se")
+        self.moveUpButton.grid(row=10, column=0, sticky="e", padx=5)
         self.addSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.playListAdd, takefocus=0, style="success.TButton")
-        self.addSongButton.grid(row=10, column=0, sticky="se")
+        self.addSongButton.grid(row=11, column=0, sticky="e", padx=5)
         self.removeSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="X", command=self.playListRemove, takefocus=0, style="danger.TButton")
-        self.removeSongButton.grid(row=11, column=0, sticky="se")
+        self.removeSongButton.grid(row=12, column=0, sticky="e", padx=5)
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
-        self.moveDownButton.grid(row=12, column=0, sticky="se")
+        self.moveDownButton.grid(row=13, column=0, sticky="e", padx=5)
 
         pass
 
@@ -599,7 +642,11 @@ class InfoFrame(tb.Frame):
             #Change the notebook tab text to "Image Info"
             self.notebook.tab(0, text="Image Info")
             #Button for adding image to the slideshow
+            self.addSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Add Slide", command=self.addSlide, takefocus=0, style="success.TButton")
+            self.addSlideButton.grid(row=2, column=0, sticky="w")
             #Button to remove image from the project.
+            self.removeImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Image", command=self.removeImage, takefocus=0, style="danger.TButton")
+            self.removeImageButton.grid(row=2, column=1, sticky="w")
             return
             
         icon: SlideIcon = self.__icon
@@ -612,7 +659,20 @@ class InfoFrame(tb.Frame):
         #Transition type
         #Preview transition.
 
+        #Slide ID
+        self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: ", font=("Arial", 12))
+
         pass
+
+    def addSlide(self):
+        print(self.__icon.imagepath)
+        self.__icon.linkedReel.addSlide(self.__icon.imagepath)
+        return
+
+    def removeImage(self):
+        print(self.__icon.imagepath)
+        self.__icon.linkedBucket.removeFile(self.__icon.imagepath)
+        return
 
 
     def loadIcon(self, icon):
@@ -698,19 +758,21 @@ class SlideReel(tk.Frame):
                 imgPath = slide.imagePath
 
             divider = IconDivider(self.scrollFrame.scrollable_frame, i)
-            divider.grid(row=0, column=i, padx=5, pady=20, sticky="w")
+            divider.grid(row=0, column=i, padx=0, pady=20, sticky="w")
             self.dividers.append(divider)
             i += 1
 
             slideIcon = SlideIcon(self.scrollFrame.scrollable_frame, imgPath)
+            slideIcon.label.configure(text=f"Slide {i//2}")
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
             slideIcon.linkedInfo = self.infoFrame
-            slideIcon.grid(row=0, column=i, padx=20, pady=20, sticky="w")
+            slideIcon.slide = slide
+            slideIcon.grid(row=0, column=i, padx=0, pady=20, sticky="w")
             i += 1
 
         divider = IconDivider(self.scrollFrame.scrollable_frame, i)
-        divider.grid(row=0, column=i, padx=5, pady=20, sticky="w")
+        divider.grid(row=0, column=i, padx=0, pady=20, sticky="w")
         self.dividers.append(divider)
         return
 
@@ -842,6 +904,7 @@ class MediaBucket(tb.Frame):
             icon.linkedViewer = self.previewer
             icon.linkedReel = self.reel
             icon.linkedInfo = self.infoFrame
+            icon.linkedBucket = self
             icon.grid(row=i, column=j, padx=3, pady=3)
             self.icons.append(icon)
             j += 1
@@ -919,4 +982,13 @@ class MediaBucket(tb.Frame):
         self.files.remove(file)
         self.fillBucket()
         return
+    
+    def verifyFile(self, file):
+        """
+        Checks if the file is in the bucket. If it is, returns True. If it isn't, returns False.
+        """
+        if file in self.files:
+            return True
+        else:
+            return False
     
