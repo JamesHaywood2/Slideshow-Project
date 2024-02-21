@@ -72,13 +72,24 @@ class SlideshowCreator(tb.Frame):
         #LAYOUT SETUP
         ######################
         #The 3 PanedWindows that divide the window into 4 sections
-        self.PanedWindow_Base = tk.PanedWindow(self, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="black", opaqueresize=False)
+        self.PanedWindow_Base = tk.PanedWindow(self, orient=tk.VERTICAL)
         self.PanedWindow_Base.pack(expand=True, fill=tk.BOTH)
 
-        self.PanedWindow_Top = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="red", opaqueresize=False)
+        self.PanedWindow_Top = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL)
+        self.PanedWindow_Bottom = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL)
         self.PanedWindow_Base.add(self.PanedWindow_Top, stretch="first")
-        self.PanedWindow_Bottom = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5, showhandle=True, bg="blue", opaqueresize=False)
         self.PanedWindow_Base.add(self.PanedWindow_Bottom, stretch="last")
+
+        #panedWindow color
+        # self.PanedWindow_Base.config(bg="black")
+        # self.PanedWindow_Top.config(bg="black")
+        # self.PanedWindow_Bottom.config(bg="black")
+
+        # #PanedWindow Options
+        # self.PanedWindow_Base.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
+        # self.PanedWindow_Top.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
+        # self.PanedWindow_Bottom.config(sashrelief=tk.RAISED, sashwidth=5, showhandle=True, opaqueresize=False)
+
 
         self.mediaFrame = tb.Frame(self.PanedWindow_Top)
         self.PanedWindow_Top.add(self.mediaFrame)
@@ -173,6 +184,23 @@ class SlideshowCreator(tb.Frame):
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
 
+        self.after_id = None
+        #Whenever the window is resized it calls the afterEvent function
+        self.bind("<Configure>", self.afterEvent)
+
+    def afterEvent(self, event):
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        else:
+            #First time the window is resized, turn off the autoResize
+            print("\n", "Window starting to change size. Widget autoResize turned off.")
+            if self.imageViewer:
+                self.imageViewer.autoResizeToggle(False)
+            if self.mediaBucket:
+                self.mediaBucket.autoResizeToggle(False)
+            if self.slideReel:
+                self.slideReel.autoResizeToggle(False)
+        self.after_id = self.after(1000, self.redraw)
 
 
     def redraw(self):
@@ -182,20 +210,27 @@ class SlideshowCreator(tb.Frame):
         This means all the widgets are sized to like 1x1 pixels. These functions will resize them to fit the new window properly.\n
         Possibly not necesary as the widgets themselves should call their own redraw functions when they are resized. - James
         """
-        print("\nWindow changed size")
+        print("\nWindow changed size. Turning on autoResize for widgets.")
+        self.after_id = None
 
         if self.imageViewer:
             self.imageViewer.redrawImage()
+            self.imageViewer.autoResizeToggle(True)
 
         if self.mediaBucket:
             self.mediaBucket.fillBucket()
+            self.mediaBucket.autoResizeToggle(True)
 
         if self.slideReel:
             self.slideReel.fillReel()
+            self.slideReel.autoResizeToggle(True)
+
+        
 
 
     def DebugWindow(self):
         self.debugWindow = tk.Toplevel()
+        self.debugWindow.transient(self.master)
         self.debugWindow.title("Debug Window")
         self.debugWindow.geometry("400x800")
 
@@ -304,6 +339,7 @@ class SlideshowCreator(tb.Frame):
 
     def ThemeSelector(self):
         window = tb.Toplevel()
+        window.transient(self.master)
         window.title("Theme Selector")
         window.geometry("400x400")
         #Get the theme currently used by the program.

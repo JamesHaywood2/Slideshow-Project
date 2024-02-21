@@ -82,8 +82,23 @@ class ImageViewer(tb.Canvas):
         self.imageLabel = self.create_text(10, 10, anchor="nw", text="", font=("Arial", 16), fill="#FF1D8E")
 
         #bind a configure event to the canvas
+        self.autoResize: bool = True
         self.after_id = None
-        self.bind("<Configure>", self.afterEvent)
+        self.autoResizeToggle(True)
+
+    def autoResizeToggle(self, state: bool=True):
+        if state:
+            print("ImageViewer: Auto resizing enabled")
+            self.autoResize = True
+            self.after_id = None
+            self.bind("<Configure>", self.afterEvent)
+            return
+        else:
+            print("ImageViewer: Auto resizing disabled")
+            self.autoResize = False
+            self.after_id = None
+            self.unbind("<Configure>")
+            return
 
     def afterEvent(self, event):
         if self.after_id:
@@ -519,7 +534,6 @@ class InfoFrame(tb.Frame):
 
         #Add shuffle and loop buttons.
 
-        self.projectInfoFrame.scrollable_frame.config(bg="gray")
 
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
         self.tree_frame.grid(row=9, column=1, columnspan=9, rowspan=7, sticky="w")
@@ -711,8 +725,23 @@ class SlideReel(tk.Frame):
         self.scrollFrame.pack(expand=True, fill="both")
 
         #bind a configure event to the canvas
+        self.autoResize: bool = True
         self.after_id = None
-        self.bind("<Configure>", self.afterEvent)
+        self.autoResizeToggle(True)
+
+    def autoResizeToggle(self, state: bool=True):
+        if state:
+            print("SlideReel: AutoResize Enabled")
+            self.autoResize = True
+            self.after_id = None
+            self.bind("<Configure>", self.afterEvent)
+            return
+        else:
+            print("SlideReel: AutoResize Disabled")
+            self.autoResize = False
+            self.after_id = None
+            self.unbind("<Configure>")
+            return
 
     def afterEvent(self, event):
         if self.after_id:
@@ -830,8 +859,24 @@ class MediaBucket(tb.Frame):
         self.columnCount: int = 0
 
         self.loadProject(slideshow) 
+        #bind a configure event to the canvas
+        self.autoResize: bool = True
         self.after_id = None
-        self.bind("<Configure>", self.afterEvent)
+        self.autoResizeToggle(True)
+
+    def autoResizeToggle(self, state: bool=True):
+        if state:
+            print("MediaBucket: AutoResize Enabled")
+            self.autoResize = True
+            self.after_id = None
+            self.bind("<Configure>", self.afterEvent)
+            return
+        else:
+            print("MediaBucket: AutoResize Disabled")
+            self.autoResize = False
+            self.after_id = None
+            self.unbind("<Configure>")
+            return
     
     def afterEvent(self, event):
         if self.after_id:
