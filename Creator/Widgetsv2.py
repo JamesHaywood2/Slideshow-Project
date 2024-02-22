@@ -6,18 +6,20 @@ import FileSupport as FP
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import os
+from copy import deepcopy
 
 updateRate = 100 #Milliseconds
     
-class ScrollableFrame(tb.Frame):
+class ScrollableFrame(tk.Frame):
     """
     A frame that can be scrolled vertically or horizontally.
     From https://blog.teclado.com/tkinter-scrollable-frames/
     """
-    def __init__(self, container, orient: str="both", *args, **kwargs):
+    def __init__(self, container, orient: str="both", autohide:bool = True, *args, **kwargs):
         super().__init__(container, *args, **kwargs)
-        canvas = tb.Canvas(self)
+        self.canvas = tk.Canvas(self)
         self.orient = orient
+        self.autohide = autohide
 
         horiz = False
         vert = False
@@ -34,30 +36,123 @@ class ScrollableFrame(tb.Frame):
             vert = True
 
         if vert:
-            scrollbar = tb.Scrollbar(self, orient="vertical", command=canvas.yview)
+            self.scrollbar = tb.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         if horiz:
-            scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=canvas.xview)
-        self.scrollable_frame = tk.Frame(canvas)
+            self.scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        self.scrollable_frame = tk.Frame(self.canvas)
 
         self.scrollable_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
             )
         )
+
+        # Get the size of the scrollableFrame
+        height = self.canvas.winfo_height()
+
+        self.canvasWindow = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+
+        if vert:
+            self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        if horiz:
+            self.canvas.configure(xscrollcommand=self.scrollbar_h.set)
+
+        try:
+            self.scrollbar_h.pack(side="bottom", fill="x")
+            # self.scrollbar_h.grid(row=11, column=0, sticky="ew")
+        except:
+            pass
+        try:
+            self.scrollbar.pack(side="right", fill="y")
+            # self.scrollbar.grid(row=0, column=11, sticky="ns")
+        except:
+            pass
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        # self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.verticle = vert
+        self.horizontal = horiz
+        if self.autohide:
+            self.hideScrollBar()
+            pass
         
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        if vert:
-            canvas.configure(yscrollcommand=scrollbar.set)
-        if horiz:
-            canvas.configure(xscrollcommand=scrollbar_h.set)
+        self.bind("<Enter>", self.bindMouseWheel)
+        self.bind("<Leave>", self.unbindMouseWheel)
 
-        if horiz:
-            scrollbar_h.pack(side="bottom", fill="x")
-        if vert:
-            scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
+    def bindMouseWheel(self, event):
+        self.showScrollBar()
+        if self.verticle:
+            self.scrollbar.bind_all("<MouseWheel>", self.onMouseWheel)
+        if self.horizontal:
+            self.scrollbar_h.bind_all("<MouseWheel>", self.onMouseWheel)
+        return
+    
+    def unbindMouseWheel(self, event):
+        self.hideScrollBar()
+        try:
+            self.scrollbar.unbind_all("<MouseWheel>")
+        except:
+            pass
+        try:
+            self.scrollbar_h.unbind_all("<MouseWheel>")
+        except:
+            pass
+        return
+    
+    def onMouseWheel(self, event):
+        #Prefer the verticle scrolling over the horizontal scrolling
+        #Could probably set it to change based on the last scrollbar that was used with the mouse, but I dont see the need. - James
+        if self.verticle:
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        elif self.horizontal:
+            self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
+        return
+    
+    def hideScrollBar(self):
+        #Hiding horizontal scrollbar doesn't work. It's a byproduct of using pack. May be able to fix it by using grid, but I couldn't figure it out. - James
+
+        #Unpack the scrollbar
+        # try:
+        #     self.scrollbar_h.pack_forget()
+        #     # self.scrollbar_h.grid_remove()
+        # except:
+        #     pass
+        try:
+            self.scrollbar.pack_forget()
+            # self.scrollbar.grid_remove()
+        except:
+            pass
+
+    def showScrollBar(self):
+        #Hiding horizontal scrollbar doesn't work. It's a byproduct of using pack. May be able to fix it by using grid, but I couldn't figure it out. - James
+        #Another potential fix is to essentially repack the widget. This "works" but causes the widget to kinda flicker. Didn't like it. - James
+
+        #pack remove the canvas, then pack the scrollbars, then pack the canvas
+        # self.canvas.pack_forget()
+        # self.canvas.grid_remove()
+        # try:
+        #     self.scrollbar_h.pack(side="bottom", fill="x")
+        #     # self.scrollbar_h.grid()
+        # except:
+        #     pass
+        try:
+            self.scrollbar.pack(side="right", fill="y")
+            # self.scrollbar.grid()
+        except:
+            pass
+        # self.canvas.pack(side="left", fill="both", expand=True)
+        # self.canvas.grid()
+        return
+    
+    def recenterCanvasWindow(self):
+        #Get the size of the scrollableFrame
+        height = self.canvas.winfo_height()
+        # print(f"Scrollable Frame Height: {height}")
+        self.canvasWindow = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        return
 
 class ImageViewer(tb.Canvas):
     """
@@ -82,9 +177,10 @@ class ImageViewer(tb.Canvas):
         self.imageLabel = self.create_text(10, 10, anchor="nw", text="", font=("Arial", 16), fill="#FF1D8E")
 
         #bind a configure event to the canvas
-        self.autoResize: bool = True
+        self.autoResize: bool = False
         self.after_id = None
-        self.autoResizeToggle(True)
+        # self.autoResizeToggle(False)
+        return
 
     def autoResizeToggle(self, state: bool=True):
         if state:
@@ -104,6 +200,7 @@ class ImageViewer(tb.Canvas):
         if self.after_id:
             self.after_cancel(self.after_id)
         self.after_id = self.after(updateRate, self.redrawImage)
+        return
 
     def loadImage(self, imagePath:str):
         #Clear the canvas
@@ -128,6 +225,7 @@ class ImageViewer(tb.Canvas):
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.redrawImage()
+        return
 
     def redrawImage(self):
         print("Redrawing Image")
@@ -159,11 +257,13 @@ class ImageViewer(tb.Canvas):
         self.canvasWidth = self.canvas.winfo_width()
         self.canvasHeight = self.canvas.winfo_height()
         print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
+        return
 
     def setBlankImage(self):
         print("Setting Blank Image")
         self.imagePath = None
         self.redrawImage()
+        return
 
 class FileIcon(tk.Frame):
     """
@@ -243,17 +343,20 @@ class FileIcon(tk.Frame):
 
     def openImage(self, event):
         os.startfile(self.imagepath)
+        return
 
     def hoverEnter(self, event):
         self.__hover = True
         self.configure(relief=tk.SUNKEN, borderwidth=2)
+        return
 
     def hoverLeave(self, event):
         self.__hover = False
         self.configure(relief=tk.FLAT, borderwidth=0)
+        return
 
     def clickIcon(self, event):
-        print(f"Clicked on {self.name}")
+        # print(f"Clicked on {self.name}")
         if self.linkedViewer != None:
             #Load image into the viewer
             self.linkedViewer.loadImage(self.imagepath)
@@ -263,16 +366,17 @@ class FileIcon(tk.Frame):
             self.linkedInfo.loadIcon(self)
         else:
             print(f"No InfoFrame linked to {self.name}")
-
-            
+        return
+     
     def pickup(self, event):
-        print(f"Click at {event.x}, {event.y} on {self.name}")
+        # print(f"Click at {event.x}, {event.y} on {self.name}")
         self.__startX = event.x
         self.__startY = event.y
         #If missing image, don't allow dragging
         if self.missing == True:
             return
         self.canvas.bind("<B1-Motion>", self.dragIconStart)
+        return
 
     def dragIconStart(self, event):
         #Begin dragging after the mouse has moved a certain distance. Once it does, change the binding to dragIcon
@@ -280,6 +384,7 @@ class FileIcon(tk.Frame):
         if abs(event.x - self.__startX) > distance or abs(event.y - self.__startY) > distance:
             self.canvas.unbind("<B1-Motion>")
             self.canvas.bind("<B1-Motion>", self.dragIcon)
+        return
 
     def dragIcon(self, event):
         #Check if the popup exists. If it does move it to the mouse position
@@ -305,6 +410,7 @@ class FileIcon(tk.Frame):
                     divider.label.configure(text=" ", bootstyle="inverse-default")
                 else:
                     divider.label.configure(text="", bootstyle="default")
+            return
 
         else:
             #Create the popup which is a borderless transparent TopLevel window containing the image
@@ -324,6 +430,7 @@ class FileIcon(tk.Frame):
             #Bind the popup to the mouse
             self.popup.bind("<B1-Motion>", self.dragIcon)
             self.canvas.bind("<ButtonRelease-1>", self.dropIcon)
+            return
 
     def dropIcon(self, event):
         print(f"Dropped at {event.x}, {event.y}")
@@ -366,7 +473,7 @@ class FileIcon(tk.Frame):
             if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                 # print(f"Adding {self.imagepath} to the slideshow")
                 self.linkedReel.addSlide(self.imagepath)
-            return
+        return
 
 class IconDivider(tb.Frame):
     def __init__(self, master, index:int, **kwargs):
@@ -383,10 +490,12 @@ class IconDivider(tb.Frame):
 
     def clickDivider(self, event):
         print(f"Clicked on divider {self.index}")
+        return
 
     def reset(self):
         self.label.configure(text="", bootstyle="default")
         self.configure(relief=tk.FLAT, borderwidth=0)
+        return
 
 class SlideIcon(FileIcon):
     """
@@ -442,6 +551,7 @@ class SlideIcon(FileIcon):
                         self.linkedReel.slideshow.moveSlide(slideID, divider.index//2)
                         self.update_idletasks()
                         self.after(33, self.linkedReel.fillReel)
+        return
 
 
 
@@ -456,11 +566,11 @@ class InfoFrame(tb.Frame):
         self.notebook.pack(expand=True, fill="both")
 
         #Scrollable Frame for the slide info
-        self.slideInfoFrame = ScrollableFrame(self.notebook, orient="vertical")
+        self.slideInfoFrame = ScrollableFrame(self.notebook, orient="both")
         self.notebook.add(self.slideInfoFrame, text="Slide Info")
 
         #Scrollable Frame for the project info
-        self.projectInfoFrame = ScrollableFrame(self.notebook, orient="vertical")
+        self.projectInfoFrame = ScrollableFrame(self.notebook, orient="both")
         self.notebook.add(self.projectInfoFrame, text="Project Info")
 
         self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
@@ -471,6 +581,7 @@ class InfoFrame(tb.Frame):
         self.fillProjectInfo()
         self.fillSlideInfo()
         self.notebook.select(1)
+        return
 
     def fillProjectInfo(self):
         if self.slideshow == None:
@@ -564,19 +675,22 @@ class InfoFrame(tb.Frame):
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
         self.moveDownButton.grid(row=13, column=0, sticky="e", padx=5)
 
-        pass
+        #Empty space to pad the bottom of grid
+        self.emptySpace = tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12))
+        self.emptySpace.grid(row=17, column=0, columnspan=10, sticky="w")
+        return
 
     def playListMoveUp(self):
-        pass
+        return
 
     def playListMoveDown(self):
-        pass
+        return
 
     def playListRemove(self):
-        pass
+        return
 
     def playListAdd(self):
-        pass
+        return
 
     def setDefaultDuration(self):
         #Check if it is a valid number.
@@ -675,8 +789,11 @@ class InfoFrame(tb.Frame):
 
         #Slide ID
         self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: ", font=("Arial", 12))
+        self.slideIDLabel.grid(row=2, column=0, columnspan=2, sticky="w")
+        self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(icon.slide['slideID']), font=("Arial", 12))
+        self.slideID.grid(row=2, column=3, sticky="w")
 
-        pass
+        return
 
     def addSlide(self):
         print(self.__icon.imagepath)
@@ -717,17 +834,20 @@ class SlideReel(tk.Frame):
         self.slideshow: FP.Slideshow = slideshow
         self.previewer: ImageViewer = None 
         self.infoFrame: InfoFrame = None
-        self.slides: list[FP.Slide] = self.slideshow.getSlides()
+        self.slides: list[FP.Slide] = self.slideshow.getSlides() #Pretty sure this is a reference to the slideshow object so it should update automatically.
         self.dividers: list[IconDivider] = []
 
         #Horizontal Scrollable Frame
         self.scrollFrame = ScrollableFrame(self, orient="horizontal")
         self.scrollFrame.pack(expand=True, fill="both")
 
+        self.prevSlideList: list[FP.Slide] = deepcopy(self.slides)
+
         #bind a configure event to the canvas
-        self.autoResize: bool = True
+        self.autoResize: bool = False
         self.after_id = None
-        self.autoResizeToggle(True)
+        # self.autoResizeToggle(True)
+        return
 
     def autoResizeToggle(self, state: bool=True):
         if state:
@@ -735,24 +855,18 @@ class SlideReel(tk.Frame):
             self.autoResize = True
             self.after_id = None
             self.bind("<Configure>", self.afterEvent)
-            return
         else:
             print("SlideReel: AutoResize Disabled")
             self.autoResize = False
             self.after_id = None
             self.unbind("<Configure>")
-            return
+        return
 
     def afterEvent(self, event):
         if self.after_id:
             self.after_cancel(self.after_id)
-        self.after_id = self.after(updateRate, self.fillReel)
-
-    # def loadProject(self, project: FP.Slideshow):
-    #     self.slideshow = project
-    #     self.slides = project.getSlides()
-    #     self.fillReel()
-    #     return
+        self.after_id = self.after(updateRate, self.refreshReel)
+        return
     
     def linkPreviewer(self, previewer: ImageViewer):
         self.previewer = previewer
@@ -762,6 +876,22 @@ class SlideReel(tk.Frame):
         self.infoFrame = info
         return
     
+    def refreshReel(self):
+        #If the slides have not changed at all, just redraw them, which is faster as it doesn't require creating new SlideIcons.
+        #Recenter the scrollable frame
+        # self.scrollFrame.recenterCanvasWindow()
+        print("Refreshing the reel")
+
+        #If they have changed redraw the entire widget.
+        if self.slides == self.prevSlideList and len(self.slides) > 0 and len(self.scrollFrame.scrollable_frame.winfo_children()) > 0:
+            print(f"No change in slides. {len(self.slides)} == {len(self.prevSlideList)}")
+            self.redrawReel()
+            return
+        else:
+            self.prevSlideList = deepcopy(self.slides)
+            self.fillReel()
+            return
+
     #fillReel just takes the slides and puts them in the scrollable frame IN ORDER
     def fillReel(self):
         print("Filling the reel")
@@ -769,13 +899,13 @@ class SlideReel(tk.Frame):
 
         #First of all pack forget everything in the scrollable frame
         for slide in self.scrollFrame.scrollable_frame.winfo_children():
-            slide.pack_forget()
+            slide.destroy()
 
         #Clear the dividers
         for divider in self.dividers:
             divider.destroy()
-        self.dividers = []
 
+        self.dividers = []
 
         i = 0
         #Every slide in the slideReel is made into a slideIcon.
@@ -787,7 +917,7 @@ class SlideReel(tk.Frame):
                 imgPath = slide.imagePath
 
             divider = IconDivider(self.scrollFrame.scrollable_frame, i)
-            divider.grid(row=0, column=i, padx=0, pady=20, sticky="w")
+            divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
             self.dividers.append(divider)
             i += 1
 
@@ -796,14 +926,35 @@ class SlideReel(tk.Frame):
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
             slideIcon.linkedInfo = self.infoFrame
+            slide['slideID'] = i//2
             slideIcon.slide = slide
-            slideIcon.grid(row=0, column=i, padx=0, pady=20, sticky="w")
+            slideIcon.grid(row=0, column=i, padx=0, pady=10, sticky="w")
             i += 1
 
         divider = IconDivider(self.scrollFrame.scrollable_frame, i)
-        divider.grid(row=0, column=i, padx=0, pady=20, sticky="w")
+        divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
         self.dividers.append(divider)
         return
+
+    def redrawReel(self):
+        print(f"Redrawing the reel")
+        #Ungrid the dividers and slideIcons
+        children = self.scrollFrame.scrollable_frame.winfo_children()
+        for child in children:
+            child.grid_remove()
+        
+        self.update_idletasks()
+        for child in children:
+            #If ANY child is a SlideIcon, test if it has a slideID. If it does we good. If it doesn't then something is wrong and we should call fillReel.
+            if type(child) == SlideIcon:
+                if child.slide['slideID'] == None:
+                    print("Redraw Error: SlideID is None")
+                    self.fillReel()
+                    return
+            child.grid()
+
+
+        #Regrid the dividers and slideIcons
 
     def addSlide(self, imagePath:str, index:int=-1):
         #First check if there is a slideshow object. If there isn't there isn't a point in adding a slide.
@@ -851,7 +1002,7 @@ class MediaBucket(tb.Frame):
         self.projectLabel.pack(fill="x", anchor="nw")
 
         #Frame for the icons
-        self.iconFrame: ScrolledFrame = ScrolledFrame(self, autohide=True,)
+        self.iconFrame: ScrolledFrame = ScrolledFrame(self, autohide=True)
         self.iconFrame.pack(expand=True, fill="both")
 
 
@@ -860,9 +1011,9 @@ class MediaBucket(tb.Frame):
 
         self.loadProject(slideshow) 
         #bind a configure event to the canvas
-        self.autoResize: bool = True
+        self.autoResize: bool = False
         self.after_id = None
-        self.autoResizeToggle(True)
+        # self.autoResizeToggle(True)
 
     def autoResizeToggle(self, state: bool=True):
         if state:
@@ -882,6 +1033,7 @@ class MediaBucket(tb.Frame):
         if self.after_id:
             self.after_cancel(self.after_id)
         self.after_id = self.after(updateRate, self.fillBucket)
+        return
 
     def linkPreviewer(self, previewer: ImageViewer):
         self.previewer = previewer
@@ -907,7 +1059,6 @@ class MediaBucket(tb.Frame):
         #Remove duplicates
         self.removeDuplicates()
 
-        self.update_idletasks()
         #find the number of columns
         width = self.winfo_width()
         #Only even attempt to fill the bucket if the width is greater than like 10. If it's less than 10 the window probably doesn't exist yet.
@@ -923,9 +1074,6 @@ class MediaBucket(tb.Frame):
         if columnCount == self.columnCount and len(self.icons) == filecount:
             return
         self.columnCount = columnCount
-
-        # print(f"Column Count: {self.columnCount}")
-        # print(f"Width: {width}")
         
         for icon in self.iconFrame.winfo_children():
             icon.destroy()

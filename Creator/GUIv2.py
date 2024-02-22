@@ -63,7 +63,6 @@ class SlideshowCreator(tb.Frame):
         self.debug = debug
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
-        self.update_idletasks()
         try:
             FP.initializeCache()
         except:
@@ -79,8 +78,8 @@ class SlideshowCreator(tb.Frame):
 
         self.PanedWindow_Top = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL)
         self.PanedWindow_Bottom = tk.PanedWindow(self.PanedWindow_Base, orient=tk.HORIZONTAL)
-        self.PanedWindow_Base.add(self.PanedWindow_Top, stretch="first")
-        self.PanedWindow_Base.add(self.PanedWindow_Bottom, stretch="last")
+        self.PanedWindow_Base.add(self.PanedWindow_Top, stretch="always")
+        self.PanedWindow_Base.add(self.PanedWindow_Bottom, stretch="middle")
 
         #panedWindow color
         self.panedWindowColor = tb.Style().colors.primary
@@ -89,9 +88,9 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Bottom.config(bg=self.panedWindowColor)
 
         # #PanedWindow Options
-        self.PanedWindow_Base.config(sashrelief=tk.FLAT, sashwidth=3, showhandle=False, opaqueresize=False)
-        self.PanedWindow_Top.config(sashrelief=tk.FLAT, sashwidth=5, showhandle=False, opaqueresize=False)
-        self.PanedWindow_Bottom.config(sashrelief=tk.FLAT, sashwidth=5, showhandle=False, opaqueresize=False)
+        self.PanedWindow_Base.config(sashrelief=tk.FLAT, sashwidth=4, showhandle=False, opaqueresize=False, bd=0)
+        self.PanedWindow_Top.config(sashrelief=tk.FLAT, sashwidth=6, showhandle=False, opaqueresize=False, bd=0)
+        self.PanedWindow_Bottom.config(sashrelief=tk.FLAT, sashwidth=6, showhandle=False, opaqueresize=False, bd=0)
 
 
         self.mediaFrame = tb.Frame(self.PanedWindow_Top)
@@ -114,12 +113,12 @@ class SlideshowCreator(tb.Frame):
         #Maybe this isn't the best method for setting the initial sizes? Idk. If yall have a better method, let me know. - James
         win_width_start = self.master.winfo_screenwidth()//2
         win_height_start = self.master.winfo_screenheight()//2
-        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Top, height=win_height_start//10*7, minsize=win_height_start//10*3)
-        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=win_height_start//10*3)
-        self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=win_width_start//10*3)
-        self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=win_width_start//10*3)
-        self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=win_width_start//10*4)
-        self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=win_width_start//10*4)
+        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Top, height=win_height_start//10*7, minsize=180)
+        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=170)
+        self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=130)
+        self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=100)
+        self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=300)
+        self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
 
         #Initialize these widgets. They will probably have to be redrawn later though.
         self.infoViewer = InfoFrame(self.slideInfoFrame, slideshow=self.slideshow)
@@ -188,8 +187,9 @@ class SlideshowCreator(tb.Frame):
         self.winHeight = self.master.winfo_height()
 
         self.after_id = None
-        #Whenever the window is resized it calls the afterEvent function
-        self.bind("<Configure>", self.afterEvent)
+        #Will call redraw event once super quickly, and then bind it to the resize event
+        self.update_idletasks()
+        self.after(33, self.redraw)
 
     def afterEvent(self, event):
         if self.after_id:
@@ -203,7 +203,8 @@ class SlideshowCreator(tb.Frame):
                 self.mediaBucket.autoResizeToggle(False)
             if self.slideReel:
                 self.slideReel.autoResizeToggle(False)
-        self.after_id = self.after(1000, self.redraw)
+        self.after_id = self.after(500, self.redraw)
+        return
 
 
     def redraw(self):
@@ -215,6 +216,7 @@ class SlideshowCreator(tb.Frame):
         """
         print("\nWindow changed size. Turning on autoResize for widgets.")
         self.after_id = None
+        self.bind("<Configure>", self.afterEvent)
 
         if self.imageViewer:
             self.imageViewer.redrawImage()
@@ -225,8 +227,10 @@ class SlideshowCreator(tb.Frame):
             self.mediaBucket.autoResizeToggle(True)
 
         if self.slideReel:
-            self.slideReel.fillReel()
+            self.slideReel.refreshReel()
             self.slideReel.autoResizeToggle(True)
+
+        return
 
         
 
@@ -413,8 +417,10 @@ if __name__ == "__main__":
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
-    app = SlideshowCreatorStart(root)
-    # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    #minimum size
+    root.minsize(600, 500)
+    # app = SlideshowCreatorStart(root)
+    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
     # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\flami\OneDrive - uah.edu\CS499\TestSlideshow.pyslide")
     app.pack(expand=True, fill="both")
 
