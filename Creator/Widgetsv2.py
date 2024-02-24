@@ -20,7 +20,7 @@ class ScrollableFrame(tk.Frame):
         super().__init__(container, *args, **kwargs)
         self.canvas = tk.Canvas(self, highlightthickness=0, bg="white")
         self.orient = orient
-        self.autohide = True
+        self.autohide = autohide
 
         horiz = False
         vert = False
@@ -67,6 +67,9 @@ class ScrollableFrame(tk.Frame):
         self.verticle = vert
         self.horizontal = horiz
 
+        self.hideVertical = False
+        self.hideHorizontal = False
+
         if self.autohide:
             self.bind("<Enter>", self.show_scrollbars)
             self.bind("<Leave>", self.hide_scrollbars)
@@ -78,31 +81,69 @@ class ScrollableFrame(tk.Frame):
         self.canvas.bind("<Leave>", self.hoverLeave)
 
     def resizeCanvas(self, event):
+        #The new size is the parent frame's new size.
         canvasWidth = self.winfo_width()
         canvasHeight = self.winfo_height()
 
-        #If autohide is turned off, canvas width and height should be adjusted to account for the scrollbar
-        if not self.autohide:
+
+        if self.verticle:
+                #If the canvas is tall enough to display the entire scrollable frame, then the scrollbar should be hidden
+                scrollFrameHeight = self.scrollable_frame.winfo_height()
+                #If there is a horizontal scrollbar, then assum that the scrollable_frame is slightly larger.
+                if self.horizontal:
+                    scrollFrameHeight += self.scrollbar_h.winfo_height()
+
+                if scrollFrameHeight <= canvasHeight:
+                    self.hideVertical = True
+                    # print("Enough height to display the entire frame")
+                else:
+                    self.hideVertical = False
+                    # print("Not enough height to display the entire frame")
+
+        if self.horizontal:
+            #If the canvas is wide enough to display the entire scrollable frame, then the scrollbar should be hidden
+            scrollFrameWidth = self.scrollable_frame.winfo_width()
+            #If there is a vertical scrollbar, then assum that the scrollable_frame is slightly larger.
             if self.verticle:
+                scrollFrameWidth += self.scrollbar.winfo_width()
+
+            if scrollFrameWidth <= canvasWidth:
+                self.hideHorizontal = True
+                # print("Enough width to display the entire frame")
+            else:
+                self.hideHorizontal = False
+                # print("Not enough width to display the entire frame")
+
+        
+
+        #If autohide is off (meaning scrollbars should "always" be visible), then whenever the canvas can't display all the contents, the canvas should be a little smaller to make room for the scrollbar.
+        if not self.autohide:
+            if not self.hideVertical:
                 canvasWidth -= self.scrollbar.winfo_width()
-            if self.horizontal:
+            if not self.hideHorizontal:
                 canvasHeight -= self.scrollbar_h.winfo_height()
+        
 
         #Make the canvas the same size as the parent
         self.canvas.configure(width=canvasWidth, height=canvasHeight)
 
+        self.update_idletasks()
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
     def show_scrollbars(self, event):
         # print("Showing Scrollbars")
-        if self.verticle:
+        self.update_idletasks()
+        if self.verticle and not self.hideVertical:
             self.scrollbar.grid()
             self.canvas.configure(width=self.winfo_width()-self.scrollbar.winfo_width())
-        if self.horizontal:
+        if self.horizontal and not self.hideHorizontal:
             self.scrollbar_h.grid()
             self.canvas.configure(height=self.winfo_height()-self.scrollbar_h.winfo_height())
         return
 
     def hide_scrollbars(self, event):
         # print("Hiding Scrollbars")
+        self.update_idletasks()
         if self.verticle:
             self.scrollbar.grid_remove()
             self.canvas.configure(width=self.winfo_width())
@@ -127,9 +168,9 @@ class ScrollableFrame(tk.Frame):
         # print("Mousewheel Scrolling")
         #If the mousewheel is scrolled, the canvas should scroll
         #Prioritize vertical scrolling over horizontal scrolling
-        if self.verticle:
+        if self.verticle and not self.hideVertical:
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        elif self.horizontal:
+        elif self.horizontal and not self.hideHorizontal:
             self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
         return
 
@@ -613,18 +654,28 @@ class InfoFrame(tb.Frame):
         self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
         self.PlaylistLabel.grid(row=7, column=0, columnspan=3, sticky="w")
         self.PlaylistName = tb.Label(self.projectInfoFrame.scrollable_frame, text="None", font=("Arial", 12))
-        self.PlaylistName.grid(row=7, column=2, columnspan=1,sticky="w")
+        self.PlaylistName.grid(row=7, column=3, columnspan=1,sticky="w")
 
         self.playlistDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
         self.playlistDurationLabel.grid(row=8, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
-        self.playlistDuration.grid(row=8, column=2, columnspan=1, sticky="w")
+        self.playlistDuration.grid(row=8, column=3, columnspan=1, sticky="w")
 
-        #Add shuffle and loop buttons.
+        #ShufflePlaylist toggle button
+        self.shufflePlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Shuffle Playlist: ", font=("Arial", 12))
+        self.shufflePlaylistLabel.grid(row=9, column=0, columnspan=3, sticky="w")
+        self.shufflePlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.shufflePlaylist.grid(row=9, column=3, columnspan=1, sticky="w")
 
+        #Loop toggle button
+        self.loopPlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Playlist: ", font=("Arial", 12))
+        self.loopPlaylistLabel.grid(row=10, column=0, columnspan=3, sticky="w")
+        self.loopPlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.loopPlaylist.grid(row=10, column=3, columnspan=1, sticky="w")
 
+        
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
-        self.tree_frame.grid(row=9, column=1, columnspan=9, rowspan=7, sticky="w")
+        self.tree_frame.grid(row=11, column=1, columnspan=9, rowspan=7, sticky="w")
 
         #Scrollbar for the treeview
         tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
@@ -644,17 +695,17 @@ class InfoFrame(tb.Frame):
 
         #Buttons to move a song up, down, or remove it from the playlist
         self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
-        self.moveUpButton.grid(row=10, column=0, sticky="e", padx=5)
+        self.moveUpButton.grid(row=12, column=0, sticky="e", padx=5)
         self.addSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.playListAdd, takefocus=0, style="success.TButton")
-        self.addSongButton.grid(row=11, column=0, sticky="e", padx=5)
+        self.addSongButton.grid(row=13, column=0, sticky="e", padx=5)
         self.removeSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="X", command=self.playListRemove, takefocus=0, style="danger.TButton")
-        self.removeSongButton.grid(row=12, column=0, sticky="e", padx=5)
+        self.removeSongButton.grid(row=14, column=0, sticky="e", padx=5)
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
-        self.moveDownButton.grid(row=13, column=0, sticky="e", padx=5)
+        self.moveDownButton.grid(row=15, column=0, sticky="e", padx=5)
 
         #Empty space to pad the bottom of grid
         self.emptySpace = tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12))
-        self.emptySpace.grid(row=17, column=0, columnspan=10, sticky="w")
+        self.emptySpace.grid(row=21, column=0, columnspan=10, sticky="w")
         return
 
     def playListMoveUp(self):
@@ -668,6 +719,7 @@ class InfoFrame(tb.Frame):
 
     def playListAdd(self):
         return
+    
 
     def setDefaultDuration(self):
         #Check if it is a valid number.
@@ -696,6 +748,8 @@ class InfoFrame(tb.Frame):
         self.defaultSlideDuration.bind("<Return>", lambda event: self.setDefaultDuration())
         #Bind escape to unfocus the entry
         self.defaultSlideDuration.bind("<Escape>", lambda event: self.focus_set())
+        #Set the style to normal
+        self.defaultSlideDuration.config(style="TEntry")
         return
     
     def onDefaultDurationFocusOut(self, event):
@@ -733,15 +787,15 @@ class InfoFrame(tb.Frame):
 
         #Grid layout for the slide info
         self.nameLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=0, column=0, columnspan=2, sticky="w")
+        self.nameLabel.grid(row=0, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.name, font=("Arial", 12))
-        self.name.grid(row=0, column=3, sticky="w")
+        self.name.grid(row=0, column=3, columnspan=10, sticky="ew")
 
         #imagePath
         self.imagePathLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Image Path: ", font=("Arial", 12))
-        self.imagePathLabel.grid(row=1, column=0, columnspan=2,sticky="w")
+        self.imagePathLabel.grid(row=1, column=0, columnspan=3,sticky="w")
         self.imagePath = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.imagepath, font=("Arial", 12))
-        self.imagePath.grid(row=1, column=3, sticky="w", columnspan=4)
+        self.imagePath.grid(row=1, column=3, columnspan=10, sticky="ew",)
 
         if self.image:
             #Change the notebook tab text to "Image Info"
@@ -758,18 +812,169 @@ class InfoFrame(tb.Frame):
         self.notebook.tab(0, text="Slide Info")
 
         #Slide info we need:
-        #Position/ID
+        #Position/ID - Done
         #Duration to show slide for
         #transition speed (maybe just have this be static??)
         #Transition type
         #Preview transition.
 
         #Slide ID
-        self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: ", font=("Arial", 12))
-        self.slideIDLabel.grid(row=2, column=0, columnspan=2, sticky="w")
+        rowNum = 2
+        self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: \t\t", font=("Arial", 12))
+        self.slideIDLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
         self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(icon.slide['slideID']), font=("Arial", 12))
-        self.slideID.grid(row=2, column=3, sticky="w")
+        self.slideID.grid(row=rowNum, column=3, sticky="w")
 
+        #Duration - Entry
+        rowNum += 1
+        self.durationLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
+        self.durationLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
+        self.slideDuration.config(width=7)
+        self.slideDuration.insert(0, icon.slide['duration'])
+        self.slideDuration.grid(row=rowNum, column=3, sticky="w")
+        self._slideDurationTemp = icon.slide['duration']
+
+        self.slideDuration.bind("<FocusIn>", self.onSlideDurationFocusIn)
+        self.slideDuration.bind("<FocusOut>", self.onSlideDurationFocusOut)
+
+        #Transition Speed - Entry
+        rowNum += 1
+        self.transitionSpeedLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12))
+        self.transitionSpeedLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
+        self.transitionSpeed.config(width=7)
+        self.transitionSpeed.insert(0, icon.slide['transitionSpeed'])
+        self.transitionSpeed.grid(row=rowNum, column=3, sticky="w")
+        self._transitionSpeedTemp = icon.slide['transitionSpeed']
+
+        self.transitionSpeed.bind("<FocusIn>", self.onTransitionSpeedFocusIn)
+        self.transitionSpeed.bind("<FocusOut>", self.onTransitionSpeedFocusOut)
+
+        #Transition Type - Dropdown
+        rowNum += 1
+        self.transitionTypeLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Type: ", font=("Arial", 12))
+        self.transitionTypeLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.transitionType = tb.Combobox(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
+        self.transitionType.config(width=7)
+        self.transitionType['values'] = ("Default", "Fade", "Wipe_Up", "Wipe_Down", "Wipe_Left", "Wipe_Right")
+        self.transitionType.current(0)
+        self.transitionType.grid(row=rowNum, column=3, columnspan=1, sticky="ew")
+
+        self.transitionType.bind("<<ComboboxSelected>>", self.setTransitionType)
+
+        #Preview Transition - Button
+        rowNum += 1
+        self.previewTransitionButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Preview Transition", command=self.previewTransition, takefocus=0)
+        self.previewTransitionButton.grid(row=rowNum, column=1, columnspan=2, pady=15)
+
+        #Remove slide button
+        self.removeSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Slide", command=self.removeSlide, takefocus=0, style="danger.TButton")
+        self.removeSlideButton.grid(row=rowNum, column=3, columnspan=2, pady=15)
+        return
+    
+    def setSlideDuration(self, event):
+        #Check if it is a valid number.
+        try:
+            float(self.slideDuration.get())
+        except:
+            print("Invalid input for slide duration.")
+            self.slideDuration.delete(0, tk.END)
+            self.slideDuration.insert(0, 3)
+
+            #Set the outline to red
+            self.slideDuration.config(style="danger.TEntry")
+            return
+        
+        #No errors
+        self.slideDuration.config(style="TEntry")
+        # print(f"Slide Duration: {self.slideDuration.get()}")
+        self.__icon.slide['duration'] = self.slideDuration.get()
+        self.winfo_toplevel().focus_set()
+        self._slideDurationTemp = self.slideDuration.get()
+        return
+    
+    def onSlideDurationFocusIn(self, event):
+        # self.defaultSlideDuration.config(state=tk.NORMAL)
+        print("Slide Duration Focused In")
+        self.slideDuration.bind("<Return>", self.setSlideDuration)
+        #Bind escape to unfocus the entry
+        self.slideDuration.bind("<Escape>", lambda event: self.focus_set())
+        self._slideDurationTemp = self.slideDuration.get()
+        #Set the style to normal
+        self.slideDuration.config(style="TEntry")
+        return
+    
+    def onSlideDurationFocusOut(self, event):
+        # self.defaultSlideDuration.config(state=tk.DISABLED)
+        print("Slide Duration Focused Out")
+        self.slideDuration.unbind("<Return>")
+        self.slideDuration.unbind("<Escape>")
+        #Reset the entry
+        self.slideDuration.delete(0, tk.END)
+        self.slideDuration.insert(0, self._slideDurationTemp)
+
+        #Change style to normal
+        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
+        return
+    
+    def setTransitionSpeed(self, event):
+        #Check if it is a valid number.
+        try:
+            float(self.transitionSpeed.get())
+        except:
+            print("Invalid input for transition speed.")
+            self.transitionSpeed.delete(0, tk.END)
+            self.transitionSpeed.insert(0, 3)
+
+            #Set the outline to red
+            self.transitionSpeed.config(style="danger.TEntry")
+            return
+        
+        #No errors
+        self.transitionSpeed.config(style="TEntry")
+        # print(f"Slide Duration: {self.transitionSpeed.get()}")
+        self.__icon.slide['transitionSpeed'] = self.transitionSpeed.get()
+        self.winfo_toplevel().focus_set()
+        self._transitionSpeedTemp = self.transitionSpeed.get()
+        return
+
+    def onTransitionSpeedFocusIn(self, event):
+        # self.defaultSlideDuration.config(state=tk.NORMAL)
+        print("Transition Speed Focused In")
+        self.transitionSpeed.bind("<Return>", self.setTransitionSpeed)
+        #Bind escape to unfocus the entry
+        self.transitionSpeed.bind("<Escape>", lambda event: self.focus_set())
+        self._transitionSpeedTemp = self.transitionSpeed.get()
+        #Set the style to normal
+        self.transitionSpeed.config(style="TEntry")
+        return
+    
+    def onTransitionSpeedFocusOut(self, event):
+        # self.defaultSlideDuration.config(state=tk.DISABLED)
+        print("Transition Speed Focused Out")
+        self.transitionSpeed.unbind("<Return>")
+        self.transitionSpeed.unbind("<Escape>")
+        #Reset the entry
+        self.transitionSpeed.delete(0, tk.END)
+        self.transitionSpeed.insert(0, self._transitionSpeedTemp)
+
+        #Change style to normal
+        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
+        return
+
+
+    def setTransitionType(self, event):
+        self.transitionType.selection_range(0,0)
+        self.focus_set()
+        print(f"Transition Type: {self.transitionType.get()}")
+        self.__icon.slide['transitionType'] = self.transitionType.get()
+        return
+    
+    def previewTransition(self):
+        print("Previewing Transition")
+        #Have the image previewer do a transition
+        #not yet implemented.
         return
 
     def addSlide(self):
@@ -780,6 +985,11 @@ class InfoFrame(tb.Frame):
     def removeImage(self):
         print(self.__icon.imagepath)
         self.__icon.linkedBucket.removeFile(self.__icon.imagepath)
+        return
+    
+    def removeSlide(self):
+        print(self.__icon.imagepath)
+        self.__icon.linkedReel.slideshow.removeSlide(self.__icon.slide['slideID'])
         return
 
 

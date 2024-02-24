@@ -196,6 +196,9 @@ class SlideshowCreator(tb.Frame):
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
 
+        #Bind hitting escape to putting focus on the window
+        self.bind_all("<Escape>", lambda event: self.master.focus_set())
+
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
         self.update_idletasks()

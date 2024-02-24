@@ -112,7 +112,8 @@ class Slide:
         self.imagePath: str = None
         self.imageName: str = None
         self.transition: transitionType = transitionType.DEFAULT
-        self.transitionSpeed: int = 1
+        self.transitionSpeed: int = 2
+        self.duration: int = 5
 
         #Check if the imagePath is a valid picture
         try:
