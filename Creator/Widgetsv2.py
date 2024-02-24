@@ -16,10 +16,11 @@ class ScrollableFrame(tk.Frame):
     From https://blog.teclado.com/tkinter-scrollable-frames/
     """
     def __init__(self, container, orient: str="both", autohide:bool = True, *args, **kwargs):
+        #Scrollable Frame is a frame that houses a canvas and two scrollbars.
         super().__init__(container, *args, **kwargs)
-        self.canvas = tk.Canvas(self)
+        self.canvas = tk.Canvas(self, highlightthickness=0, bg="white")
         self.orient = orient
-        self.autohide = autohide
+        self.autohide = True
 
         horiz = False
         vert = False
@@ -41,6 +42,7 @@ class ScrollableFrame(tk.Frame):
             self.scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
         self.scrollable_frame = tk.Frame(self.canvas)
 
+        #Whenever something is added to the scrollable frame (or removed), it changes sizes. Sroll region must be updated.
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(
@@ -48,110 +50,87 @@ class ScrollableFrame(tk.Frame):
             )
         )
 
-        # Get the size of the scrollableFrame
-        height = self.canvas.winfo_height()
-
         self.canvasWindow = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-
+        
         if vert:
             self.canvas.configure(yscrollcommand=self.scrollbar.set)
+            self.scrollbar.grid(row=0, column=1, sticky="ns")
         if horiz:
             self.canvas.configure(xscrollcommand=self.scrollbar_h.set)
+            self.scrollbar_h.grid(row=1, column=0, sticky="ew")
 
-        try:
-            self.scrollbar_h.pack(side="bottom", fill="x")
-            # self.scrollbar_h.grid(row=11, column=0, sticky="ew")
-        except:
-            pass
-        try:
-            self.scrollbar.pack(side="right", fill="y")
-            # self.scrollbar.grid(row=0, column=11, sticky="ns")
-        except:
-            pass
+        #Wait until they have been gridded to the frame
+        self.update_idletasks()
 
-        self.canvas.pack(side="left", fill="both", expand=True)
-        # self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.canvas.grid(row=0, column=0, sticky="nsew")
 
         self.verticle = vert
         self.horizontal = horiz
+
         if self.autohide:
-            self.hideScrollBar()
-            pass
-        
+            self.bind("<Enter>", self.show_scrollbars)
+            self.bind("<Leave>", self.hide_scrollbars)
+            self.hide_scrollbars(None)
 
-        self.bind("<Enter>", self.bindMouseWheel)
-        self.bind("<Leave>", self.unbindMouseWheel)
+        # self.update_idletasks()
+        self.bind("<Configure>", self.resizeCanvas)
+        self.canvas.bind("<Enter>", self.hoverEnter)
+        self.canvas.bind("<Leave>", self.hoverLeave)
 
-    def bindMouseWheel(self, event):
-        self.showScrollBar()
+    def resizeCanvas(self, event):
+        canvasWidth = self.winfo_width()
+        canvasHeight = self.winfo_height()
+
+        #If autohide is turned off, canvas width and height should be adjusted to account for the scrollbar
+        if not self.autohide:
+            if self.verticle:
+                canvasWidth -= self.scrollbar.winfo_width()
+            if self.horizontal:
+                canvasHeight -= self.scrollbar_h.winfo_height()
+
+        #Make the canvas the same size as the parent
+        self.canvas.configure(width=canvasWidth, height=canvasHeight)
+
+    def show_scrollbars(self, event):
+        # print("Showing Scrollbars")
         if self.verticle:
-            self.scrollbar.bind_all("<MouseWheel>", self.onMouseWheel)
+            self.scrollbar.grid()
+            self.canvas.configure(width=self.winfo_width()-self.scrollbar.winfo_width())
         if self.horizontal:
-            self.scrollbar_h.bind_all("<MouseWheel>", self.onMouseWheel)
+            self.scrollbar_h.grid()
+            self.canvas.configure(height=self.winfo_height()-self.scrollbar_h.winfo_height())
+        return
+
+    def hide_scrollbars(self, event):
+        # print("Hiding Scrollbars")
+        if self.verticle:
+            self.scrollbar.grid_remove()
+            self.canvas.configure(width=self.winfo_width())
+        if self.horizontal:
+            self.scrollbar_h.grid_remove()
+            self.canvas.configure(height=self.winfo_height())
         return
     
-    def unbindMouseWheel(self, event):
-        self.hideScrollBar()
-        try:
-            self.scrollbar.unbind_all("<MouseWheel>")
-        except:
-            pass
-        try:
-            self.scrollbar_h.unbind_all("<MouseWheel>")
-        except:
-            pass
+    def hoverEnter(self, event):
+        # print("Hovering over the frame")
+        #If you hover over the canvas, mousewheel scrolling should be enabled
+        self.canvas.bind_all("<MouseWheel>", self.onMouseWheel)
+        return
+    
+    def hoverLeave(self, event):
+        # print("Leaving the frame")
+        #Once you leave the canvas, mousewheel scrolling should be disabled
+        self.canvas.unbind_all("<MouseWheel>")
         return
     
     def onMouseWheel(self, event):
-        #Prefer the verticle scrolling over the horizontal scrolling
-        #Could probably set it to change based on the last scrollbar that was used with the mouse, but I dont see the need. - James
+        # print("Mousewheel Scrolling")
+        #If the mousewheel is scrolled, the canvas should scroll
+        #Prioritize vertical scrolling over horizontal scrolling
         if self.verticle:
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         elif self.horizontal:
             self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
-        return
-    
-    def hideScrollBar(self):
-        #Hiding horizontal scrollbar doesn't work. It's a byproduct of using pack. May be able to fix it by using grid, but I couldn't figure it out. - James
-
-        #Unpack the scrollbar
-        # try:
-        #     self.scrollbar_h.pack_forget()
-        #     # self.scrollbar_h.grid_remove()
-        # except:
-        #     pass
-        try:
-            self.scrollbar.pack_forget()
-            # self.scrollbar.grid_remove()
-        except:
-            pass
-
-    def showScrollBar(self):
-        #Hiding horizontal scrollbar doesn't work. It's a byproduct of using pack. May be able to fix it by using grid, but I couldn't figure it out. - James
-        #Another potential fix is to essentially repack the widget. This "works" but causes the widget to kinda flicker. Didn't like it. - James
-
-        #pack remove the canvas, then pack the scrollbars, then pack the canvas
-        # self.canvas.pack_forget()
-        # self.canvas.grid_remove()
-        # try:
-        #     self.scrollbar_h.pack(side="bottom", fill="x")
-        #     # self.scrollbar_h.grid()
-        # except:
-        #     pass
-        try:
-            self.scrollbar.pack(side="right", fill="y")
-            # self.scrollbar.grid()
-        except:
-            pass
-        # self.canvas.pack(side="left", fill="both", expand=True)
-        # self.canvas.grid()
-        return
-    
-    def recenterCanvasWindow(self):
-        #Get the size of the scrollableFrame
-        height = self.canvas.winfo_height()
-        # print(f"Scrollable Frame Height: {height}")
-        self.canvasWindow = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         return
 
 class ImageViewer(tb.Canvas):
@@ -552,8 +531,6 @@ class SlideIcon(FileIcon):
                         self.update_idletasks()
                         self.after(33, self.linkedReel.fillReel)
         return
-
-
 
 
 class InfoFrame(tb.Frame):

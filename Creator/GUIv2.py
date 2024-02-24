@@ -120,13 +120,19 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=300)
         self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
 
+        self.update_idletasks()
+
         #Initialize these widgets. They will probably have to be redrawn later though.
         self.infoViewer = InfoFrame(self.slideInfoFrame, slideshow=self.slideshow)
         self.infoViewer.pack(expand=True, fill="both")
 
+        self.update_idletasks()
+
         #Create the ImageViewer object
         self.imageViewer = ImageViewer(self.imageFrame)
         self.imageViewer.pack(expand=True, fill="both")
+
+        self.update_idletasks()
 
         self.slideReel = SlideReel(self.reelFrame, slideshow=self.slideshow)
         self.slideReel.pack(expand=True, fill="both", side="bottom")
@@ -138,6 +144,8 @@ class SlideshowCreator(tb.Frame):
             self.slideReel.linkInfoFrame(self.infoViewer)
         except:
             print("No infoViewer to link to")
+
+        self.update_idletasks()
 
         #Mediabucket
         self.mediaBucket = MediaBucket(self.mediaFrame, slideshow=self.slideshow)
@@ -154,6 +162,8 @@ class SlideshowCreator(tb.Frame):
             self.mediaBucket.linkInfoFrame(self.infoViewer)
         except:
             print("No infoViewer to link to")
+
+        self.update_idletasks()
 
         self.debugWindow: tk.Toplevel = None
 
