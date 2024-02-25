@@ -341,7 +341,8 @@ class FileIcon(tk.Frame):
             self.missing = True
             img = Image.open(FP.MissingImage)
             self.__imagePIL = img
-            self.imagepath = "File Not Found"
+            self.imagepath = imagepath
+            self.name = "File Not Found"
         self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)

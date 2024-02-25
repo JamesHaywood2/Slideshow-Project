@@ -275,6 +275,10 @@ class Slideshow:
         if self.name == "New Project":
             self.__init__()
             return
+        
+        #Save the filepath and name to a temp variable
+        tempPath = self.__filePath
+        tempName = self.name
 
         try:
             with open(self.__filePath, 'r') as f:
@@ -284,6 +288,11 @@ class Slideshow:
             print(f"Error loading file: {str(e)}")
             #Basically if there is an error loading the file it's going to create a new slideshow.
             self.__init__()
+
+        #Restore the file path and name
+        #Basically if you have a slideshow file and it has changed name or location it's going to act as if it's it's in the old location. We want the current ones.
+        self.__filePath = tempPath
+        self.name = tempName
 
     
     def __str__(self) -> str:

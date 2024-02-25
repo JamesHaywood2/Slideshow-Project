@@ -63,6 +63,7 @@ class SlideshowCreator(tb.Frame):
         self.debug = debug
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
+        
         try:
             FP.initializeCache()
         except:
@@ -317,7 +318,8 @@ class SlideshowCreator(tb.Frame):
         self.creator = SlideshowCreator(self.master, projectPath=path)
         self.creator.pack(expand=True, fill="both")
         self.update_idletasks()
-        print(self.creator.slideshow)
+        print(f"New slideshow name: {self.creator.slideshow.name}")
+        
 
     def save(self):
         print("Save")
