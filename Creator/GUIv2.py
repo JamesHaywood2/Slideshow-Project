@@ -199,6 +199,9 @@ class SlideshowCreator(tb.Frame):
         #Bind hitting escape to putting focus on the window
         self.bind_all("<Escape>", lambda event: self.master.focus_set())
 
+        #Bind ctrl+s to save
+        self.bind_all("<Control-s>", lambda event: self.save())
+
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
         self.update_idletasks()
@@ -434,7 +437,6 @@ if __name__ == "__main__":
     root.minsize(600, 500)
     # app = SlideshowCreatorStart(root)
     app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
-    # app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\flami\OneDrive - uah.edu\CS499\TestSlideshow.pyslide")
     app.pack(expand=True, fill="both")
 
     app.mainloop()

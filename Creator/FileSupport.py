@@ -3,12 +3,11 @@ import random
 from PIL import Image
 import json
 
-MissingImage = r"Slideshow-Project\Creator\MissingImage.png"
 
-ProgramIcon = r"Slideshow-Project\Creator\Icon.ico"
-
-ball = r"Slideshow-Project\Creator\ball.jpg"
-ball2 = r"Slideshow-Project\Creator\ball2.png"
+MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
+ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
+ball = r"../Slideshow-Project/assets/ball.jpg"
+ball2 = r"../Slideshow-Project/assets/ball2.png"
 
 
 def getJPEG(folderPath:str, recursive:bool=False):
@@ -198,6 +197,8 @@ class Slideshow:
     
     #Haven't tested.
     def removeSlide(self, slide:Slide):
+        print(slide)
+        print(f"Removing slide {slide['slideID']}")
         self.__slides.remove(slide)
         self.__count -= 1
 
@@ -239,6 +240,11 @@ class Slideshow:
         return self.__count
     
     def getPlaylist(self):
+        #If the playlist is a disctionary, convert it to a Playlist object.
+        if isinstance(self.__playlist, dict):
+            playlist = Playlist()
+            playlist.__dict__.update(self.__playlist)
+            self.__playlist = playlist
         return self.__playlist
     
     def getSaveLocation(self):
@@ -270,7 +276,6 @@ class Slideshow:
             self.__init__()
             return
 
-
         try:
             with open(self.__filePath, 'r') as f:
                 data = json.load(f)
@@ -279,11 +284,13 @@ class Slideshow:
             print(f"Error loading file: {str(e)}")
             #Basically if there is an error loading the file it's going to create a new slideshow.
             self.__init__()
+
     
     def __str__(self) -> str:
         """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
+
     
 
 class Song:
@@ -306,6 +313,9 @@ class Song:
                 raise FileNotFoundError(f"File {songPath} is not a valid song file.")
             self.filePath = songPath
             self.name = removePath([self.filePath])[0]
+
+            #Get the duration of the song. ffprobe maybe??
+
         except:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
@@ -314,24 +324,52 @@ class Song:
 class Playlist:
     def __init__(self):
         self.name: str = None
-        self.__songs: list[Song] = []
+        self.songs: list[Song] = []
         self.__count: int = 0
         self.__duration: int = 0
         self.shuffle: bool = False
         self.loop: bool = False
 
-    def addSong(self, song:Song, index:int=-1):
+    def addSong(self, song:str, index:int=-1):
         """Will insert a song at the index, then push the rest of the songs down one index.
         If the index is -1, it will append the song to the end of the list."""
+        #Check if the song already exists in the playlist
+
         if index == -1:
-            self.__songs.append(song)
+            self.songs.append(song)
         else:
-            self.__songs.insert(index, song)
+            self.songs.insert(index, song)
         self.__count += 1
         #Update the duration
+        self.validate()
 
     def removeSong(self, song:Song):
-        self.__songs.remove(song)
+        self.songs.remove(song)
         self.__count -= 1
         #Update the duration
+
+    def validate(self):
+        #Just update values.
+        self.__count = len(self.songs)
+        self.__duration = 0
+        for song in self.songs:
+            song = Song(song)
+            self.__duration += song.duration
+        print(f"Playlist duration: {self.__duration} seconds")
+            
+
+    def getDuration(self):
+        return self.__duration
+    
+    def moveSongUp(self, index:int):
+        """Move the song at index up one index."""
+        if index > 0:
+            self.songs[index], self.songs[index-1] = self.songs[index-1], self.songs[index]
+
+    def moveSongDown(self, index:int):
+        """Move the song at index down one index."""
+        if index < self.__count - 1:
+            self.songs[index], self.songs[index+1] = self.songs[index+1], self.songs[index]
+
+    
     

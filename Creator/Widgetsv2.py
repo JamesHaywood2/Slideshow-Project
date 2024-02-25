@@ -341,6 +341,7 @@ class FileIcon(tk.Frame):
             self.missing = True
             img = Image.open(FP.MissingImage)
             self.__imagePIL = img
+            self.imagepath = "File Not Found"
         self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
@@ -610,79 +611,166 @@ class InfoFrame(tb.Frame):
             widget.destroy()
         
         #Grid layout for the project info
+        rowNumber = 0
         self.nameLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=0, column=0, columnspan=3, sticky="w")
+        self.nameLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.name, font=("Arial", 12))
-        self.name.grid(row=0, column=3, columnspan=10, sticky="w")
+        self.name.grid(row=rowNumber, column=3, columnspan=10, sticky="w")
 
+        rowNumber += 1
         self.countLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Count: ", font=("Arial", 12))
-        self.countLabel.grid(row=1, column=0, columnspan=3, sticky="w")
+        self.countLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.count = tb.Label(self.projectInfoFrame.scrollable_frame, text=str(len(self.slideshow.getSlides())), font=("Arial", 12))
-        self.count.grid(row=1, column=3, columnspan=10, sticky="w")
+        self.count.grid(row=rowNumber, column=3, columnspan=10, sticky="w")
 
+        rowNumber += 1
         self.pathLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Path: ", font=("Arial", 12))
-        self.pathLabel.grid(row=2, column=0, columnspan=3,sticky="w")
+        self.pathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
-        self.path.grid(row=2, column=3, sticky="w", columnspan=4)
+        self.path.grid(row=rowNumber, column=3, sticky="w", columnspan=4)
 
+        rowNumber += 1
         self.defaultSlideDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Default Slide Duration: ", font=("Arial", 12))
-        self.defaultSlideDurationLabel.grid(row=3, column=0, columnspan=3, sticky="w")
-        # self.setDurationButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="Set", command=self.setDefaultDuration, takefocus=0)
-        # self.setDurationButton.grid(row=3, column=3, sticky="w")
+        self.defaultSlideDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.defaultSlideDuration = tb.Entry(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.defaultSlideDuration.config(width=7)
         self.defaultSlideDuration.insert(0, self.slideshow.defaultSlideDuration)
-        self.defaultSlideDuration.grid(row=3, column=3, sticky="w")
+        self.defaultSlideDuration.grid(row=rowNumber, column=3, sticky="w")
 
         self.defaultSlideDuration.bind("<FocusIn>", self.onDefaultDurationFocusIn)
         self.defaultSlideDuration.bind("<FocusOut>", self.onDefaultDurationFocusOut)
-        
-        self.slideShuffleLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12))
-        self.slideShuffleLabel.grid(row=4, column=0, columnspan=3, sticky="w")
-        self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.slideShuffle.grid(row=4, column=3, sticky="w")
 
+        #Manual or automatic slide control
+        rowNumber += 1
+        self.manualSlideControlLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Manual Slide Control: ", font=("Arial", 12))
+        self.manualSlideControlLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        self.manualSlideControl = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.manualSlideControl.grid(row=rowNumber, column=3, sticky="w")
+
+        #Set self.slideshow.manualSlideControl as the control variable
+        self.manualSlideControl.var = tk.BooleanVar()
+        self.manualSlideControl.var.set(self.slideshow.manual)
+        #If self.slideshow.manualSlideControl is true, then the button should be toggled
+        if self.slideshow.manual:
+            self.manualSlideControl.invoke()
+        #bind the toggle button to the slideshow
+        def toggleManualSlideControl(event):
+            self.slideshow.manual = not self.slideshow.manual
+            return
+        #Bind toggling the button to the control variable
+        self.manualSlideControl.bind("<ButtonRelease-1>", toggleManualSlideControl)
+
+        #Slide shuffle toggle button
+        rowNumber += 1
+        self.slideShuffleLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12))
+        self.slideShuffleLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
+        self.slideShuffle.grid(row=rowNumber, column=3, sticky="w")
+
+        #Set self.slideshow.shuffle as the control variable
+        self.slideShuffle.var = tk.BooleanVar()
+        self.slideShuffle.var.set(self.slideshow.shuffle)
+        #If self.slideshow.shuffle is true, then the button should be toggled
+        if self.slideshow.shuffle:
+            self.slideShuffle.invoke()
+        #bind the toggle button to the slideshow
+        def toggleShuffle(event):
+            self.slideshow.shuffle = not self.slideshow.shuffle
+            return
+        #Bind toggling the button to the control variable
+        self.slideShuffle.bind("<ButtonRelease-1>", toggleShuffle)
+
+        rowNumber += 1
         self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop: ", font=("Arial", 12))
-        self.loopLabel.grid(row=5, column=0, columnspan=3, sticky="w")
+        self.loopLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.loop = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.loop.grid(row=5, column=3, sticky="w")
+        self.loop.grid(row=rowNumber, column=3, sticky="w")
+
+        #Set self.slideshow.loop as the control variable
+        self.loop.var = tk.BooleanVar()
+        self.loop.var.set(self.slideshow.loop)
+        #If self.slideshow.loop is true, then the button should be toggled
+        if self.slideshow.loop:
+            self.loop.invoke()
+        #bind the toggle button to the slideshow
+        def toggleLoop(event):
+            self.slideshow.loop = not self.slideshow.loop
+            return
+        #Bind toggling the button to the control variable
+        self.loop.bind("<ButtonRelease-1>", toggleLoop)
 
         #Separator
+        rowNumber += 1
         self.separator = tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal")
-        self.separator.grid(row=6, column=0, columnspan=10, sticky="ew", pady=10)
+        self.separator.grid(row=rowNumber, column=0, columnspan=10, sticky="ew", pady=10)
 
+        #Read the playlist from the slideshow
+        self.playlist: FP.Playlist = self.slideshow.getPlaylist()
+        self.slideshow.playlist = self.playlist
+        self.slideshow.playlist.validate()
+
+        #Playlist Label
+        rowNumber += 1
         self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
-        self.PlaylistLabel.grid(row=7, column=0, columnspan=3, sticky="w")
+        self.PlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.PlaylistName = tb.Label(self.projectInfoFrame.scrollable_frame, text="None", font=("Arial", 12))
-        self.PlaylistName.grid(row=7, column=3, columnspan=1,sticky="w")
+        self.PlaylistName.grid(row=rowNumber, column=3, columnspan=1,sticky="w")
 
+        #Playlist Duration
+        rowNumber += 1
         self.playlistDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
-        self.playlistDurationLabel.grid(row=8, column=0, columnspan=3, sticky="w")
+        self.playlistDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
-        self.playlistDuration.grid(row=8, column=3, columnspan=1, sticky="w")
+        self.playlistDuration.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
 
         #ShufflePlaylist toggle button
+        rowNumber += 1
         self.shufflePlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Shuffle Playlist: ", font=("Arial", 12))
-        self.shufflePlaylistLabel.grid(row=9, column=0, columnspan=3, sticky="w")
+        self.shufflePlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.shufflePlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.shufflePlaylist.grid(row=9, column=3, columnspan=1, sticky="w")
+        self.shufflePlaylist.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
+        
+        #Set self.playlist.shuffle as the control variable
+        self.shufflePlaylist.var = tk.BooleanVar()
+        self.shufflePlaylist.var.set(self.playlist.shuffle)
+        #If self.playlist.shuffle is true, then the button should be toggled
+        if self.playlist.shuffle:
+            self.shufflePlaylist.invoke()
+        #bind the toggle button to the playlist
+        def togglePlaylistShuffle(event):
+            self.playlist.shuffle = not self.playlist.shuffle
+            return
+        #Bind toggling the button to the control variable
+        self.shufflePlaylist.bind("<ButtonRelease-1>", togglePlaylistShuffle)
 
         #Loop toggle button
+        rowNumber += 1
         self.loopPlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Playlist: ", font=("Arial", 12))
-        self.loopPlaylistLabel.grid(row=10, column=0, columnspan=3, sticky="w")
+        self.loopPlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.loopPlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.loopPlaylist.grid(row=10, column=3, columnspan=1, sticky="w")
+        self.loopPlaylist.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
 
-        
+
+        #Set self.playlist.loop as the control variable
+        self.loopPlaylist.var = tk.BooleanVar()
+        self.loopPlaylist.var.set(self.playlist.loop)
+        #If self.playlist.loop is true, then the button should be toggled
+        if self.playlist.loop:
+            self.loopPlaylist.invoke()
+        #bind the toggle button to the playlist
+        def togglePlaylistLoop(event):
+            self.playlist.loop = not self.playlist.loop
+            return
+        #Bind toggling the button to the control variable
+        self.loopPlaylist.bind("<ButtonRelease-1>", togglePlaylistLoop)
+
+        rowNumber += 1
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
-        self.tree_frame.grid(row=11, column=1, columnspan=9, rowspan=7, sticky="w")
+        self.tree_frame.grid(row=rowNumber, column=1, columnspan=9, rowspan=7, sticky="w")
 
         #Scrollbar for the treeview
         tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
         tree_scrollbar.pack(side="right", fill="y")
-
-        # self.tree_frame = ScrolledFrame(self.projectInfoFrame.scrollable_frame, style="primary.TFrame", autohide=True)
-        # self.tree_frame.grid(row=9, column=0, columnspan=10, rowspan=7, sticky="w")
 
         self.playlistTree = tb.Treeview(self.tree_frame, columns=("Name", "Order"), show="headings", selectmode="browse")
         self.playlistTree.heading("Name", text="Name")
@@ -695,29 +783,118 @@ class InfoFrame(tb.Frame):
 
         #Buttons to move a song up, down, or remove it from the playlist
         self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
-        self.moveUpButton.grid(row=12, column=0, sticky="e", padx=5)
+        self.moveUpButton.grid(row=rowNumber+3, column=0, sticky="e", padx=5)
         self.addSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.playListAdd, takefocus=0, style="success.TButton")
-        self.addSongButton.grid(row=13, column=0, sticky="e", padx=5)
+        self.addSongButton.grid(row=rowNumber+4, column=0, sticky="e", padx=5)
         self.removeSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="X", command=self.playListRemove, takefocus=0, style="danger.TButton")
-        self.removeSongButton.grid(row=14, column=0, sticky="e", padx=5)
+        self.removeSongButton.grid(row=rowNumber+5, column=0, sticky="e", padx=5)
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
-        self.moveDownButton.grid(row=15, column=0, sticky="e", padx=5)
+        self.moveDownButton.grid(row=rowNumber+6, column=0, sticky="e", padx=5)
+
+        #Fill the treeview with the playlist
+        for i in range(len(self.playlist.songs)):
+            self.playlistTree.insert("", "end", values=(FP.getBaseName([self.playlist.songs[i]])[0], i+1))
 
         #Empty space to pad the bottom of grid
+        rowNumber += 7
         self.emptySpace = tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12))
-        self.emptySpace.grid(row=21, column=0, columnspan=10, sticky="w")
+        self.emptySpace.grid(row=rowNumber, column=0, columnspan=10, sticky="w")
         return
 
     def playListMoveUp(self):
+        #Get the selected item
+        selected = self.playlistTree.selection()
+
+        #If nothing is selected, return early
+        if len(selected) == 0:
+            return
+        
+        #Get the song that was selected
+        song = self.playlistTree.item(selected)['values'][0]
+        print(f"Song: {song} moving up in the playlist")
+        for songPath in self.playlist.songs:
+            if FP.getBaseName([songPath])[0] == song:
+                # print(f"Moving {songPath} up in the playlist")
+                #Get the index of the song
+                index = self.playlist.songs.index(songPath)
+                self.playlist.moveSongUp(index)
+                break
+        
+        #Move the song up in the treeview
+        self.playlistTree.move(selected, "", self.playlistTree.index(selected)-1)
+        #Redo the order numbers
+        for i in range(len(self.playlist.songs)):
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
         return
 
     def playListMoveDown(self):
+        #Get the selected item
+        selected = self.playlistTree.selection()
+
+        #If nothing is selected, return early
+        if len(selected) == 0:
+            return
+        
+        #Get the song that was selected
+        song = self.playlistTree.item(selected)['values'][0]
+        print(f"Song: {song} moving down in the playlist")
+        for songPath in self.playlist.songs:
+            if FP.getBaseName([songPath])[0] == song:
+                # print(f"Moving {songPath} down in the playlist")
+                #Get the index of the song
+                index = self.playlist.songs.index(songPath)
+                self.playlist.moveSongDown(index)
+                break
+
+        #Move the song down in the treeview
+        self.playlistTree.move(selected, "", self.playlistTree.index(selected)+1)
+        #Redo the order numbers
+        for i in range(len(self.playlist.songs)):
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
         return
 
     def playListRemove(self):
+        #Get the selected item
+        selected = self.playlistTree.selection()
+        print(self.playlist.songs)
+
+        #If nothing is selected, return early
+        if len(selected) == 0:
+            return
+        
+        #Get the song that was selected
+        song = self.playlistTree.item(selected)['values'][0]
+        print(f"Song: {song}")
+
+        #Search for the song in the playlist
+        for songPath in self.playlist.songs:
+            if FP.getBaseName([songPath])[0] == song:
+                print(f"Removing {songPath} from the playlist")
+                self.playlist.removeSong(songPath)
+                break
+
+        #Remove the song from the treeview
+        self.playlistTree.delete(selected)
         return
 
     def playListAdd(self):
+        #Open a file dialog to select a .mp3, .mp4, .wav, or .aiff file
+        filetypes = [("Audio Files", "*.mp3 *.mp4 *.wav *.aiff")]
+        file = filedialog.askopenfile(filetypes=filetypes, title="Select a song to add to the playlist")
+        if file == None:
+            return
+
+        #Check if file is already in the playlist
+        for song in self.playlist.songs:
+            if song == file.name:
+                print(f"{file.name} is already in the playlist")
+                return
+
+        #Add the file to the playlist
+        #How many songs are in the playlist
+        songCount = len(self.playlist.songs)
+        self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1))
+        self.playlist.addSong(file.name)
         return
     
 
@@ -810,13 +987,6 @@ class InfoFrame(tb.Frame):
             
         icon: SlideIcon = self.__icon
         self.notebook.tab(0, text="Slide Info")
-
-        #Slide info we need:
-        #Position/ID - Done
-        #Duration to show slide for
-        #transition speed (maybe just have this be static??)
-        #Transition type
-        #Preview transition.
 
         #Slide ID
         rowNum = 2
@@ -963,7 +1133,6 @@ class InfoFrame(tb.Frame):
         # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
         return
 
-
     def setTransitionType(self, event):
         self.transitionType.selection_range(0,0)
         self.focus_set()
@@ -988,8 +1157,8 @@ class InfoFrame(tb.Frame):
         return
     
     def removeSlide(self):
-        print(self.__icon.imagepath)
-        self.__icon.linkedReel.slideshow.removeSlide(self.__icon.slide['slideID'])
+        self.__icon.linkedReel.slideshow.removeSlide(self.__icon.slide)
+        self.__icon.linkedReel.fillReel()
         return
 
 
@@ -1121,6 +1290,7 @@ class SlideReel(tk.Frame):
         divider = IconDivider(self.scrollFrame.scrollable_frame, i)
         divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
         self.dividers.append(divider)
+        self.infoFrame.count.config(text=str(len(self.slides)))
         return
 
     def redrawReel(self):
@@ -1156,6 +1326,7 @@ class SlideReel(tk.Frame):
         self.slideshow.addSlide(slide, index)
         self.fillReel()
         return
+    
 
 class MediaBucket(tb.Frame):
     """
