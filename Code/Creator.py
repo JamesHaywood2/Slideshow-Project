@@ -1,7 +1,7 @@
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-from Widgetsv2 import *
+from Widgets import *
 from tkinter import filedialog
 
 
@@ -61,6 +61,12 @@ class SlideshowCreator(tb.Frame):
     def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
         super().__init__(master, **kw)
         self.debug = debug
+        #Check if the projectPath even exists
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         
