@@ -115,11 +115,14 @@ class SlideshowPlayer(tb.Frame):
                 pass
 
             
-            self.hideOverlay()
+            # self.hideOverlay()
             self.master.bind("<Enter>", lambda e: self.showOverlay())
             self.master.bind("<Leave>", lambda e: self.hideOverlay())
             self.master.bind("<Right>", lambda e: self.nextSlide())
             self.master.bind("<Left>", lambda e: self.prevSlide())
+            self.master.bind("<space>", lambda e: self.pause())
+            self.master.bind("<h>", lambda e: self.hideOverlay())
+
 
         ########################
         ######  MENU BAR #######
@@ -136,7 +139,11 @@ class SlideshowPlayer(tb.Frame):
 
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
+
         return
+    
+
+        
 
     def hideOverlay(self):
         #Hide slide buttons
@@ -144,6 +151,8 @@ class SlideshowPlayer(tb.Frame):
         self.prevButton.place_forget()
         self.pauseButton.place_forget()
         self.slideCounter.place_forget()
+        
+        self.master.bind("<h>", lambda e: self.showOverlay())
         return
 
     def showOverlay(self):
@@ -152,6 +161,8 @@ class SlideshowPlayer(tb.Frame):
         self.prevButton.place(relx=0.2, rely=0.85, anchor="center")
         self.pauseButton.place(relx=0.5, rely=0.85, anchor="center")
         self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+
+        self.master.bind("<h>", lambda e: self.hideOverlay())
         return
 
     def openProject(self):
