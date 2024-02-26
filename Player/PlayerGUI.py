@@ -1,5 +1,8 @@
 import random
+import tkinter.ttk
 from tkinter import *
+from tkinter import ttk
+
 import FileSupport as FP
 import time
 from Widgets import *
@@ -18,20 +21,19 @@ class player(tk.Tk):
         screen_height = self.winfo_screenheight()
         # Should make the window half the size of the screen and centered
         self.geometry(f"{screen_width // 2}x{screen_height // 2}+{screen_width // 4}+{screen_height // 4}")
+        #self.columnconfigure(index=1, weight=1)
 
         # Project file stuff
         self.projectFile = dict
         #self.timer = 0
         self.slide_counter = 0
+        self.button_on = True
 
         # Base PanedWindow that holds everything. Takes up the whole window and should always be the same size as the window
-        self.base = tk.PanedWindow(self, orient=tk.VERTICAL, bd=1, sashwidth=10)
-        self.base.pack(expand=True, fill="both")
-
-        # Add a slide to the canvas
-        self.picture = ImageViewer(master=self)
-        # Not anchoring to center
-        self.picture.pack(expand=True, fill="y", anchor=CENTER)
+        self.base = tk.Frame(master=self)
+        #self.base.pack(expand=True, fill="both")
+        self.base.place(relx=0.5, rely=0.5, relwidth=1, relheight=1, anchor=CENTER)
+        #self.base.columnconfigure(index=1, weight=1)
 
         # Get the position of the window
         self.win_xPos = self.winfo_x()
@@ -40,12 +42,37 @@ class player(tk.Tk):
         # resize after call variable.
         self.__resize_after = None
 
+        # Add a slide to the canvas
+        self.picture = ImageViewer(master=self)
+        # Not anchoring to center
+        self.picture.place(relx=0.5, rely=0.5, relwidth=1, relheight=1, anchor=CENTER)
+        self.picture.place_configure(in_=self)
+
         # Bind the resize event to the on_resize function
         self.bind("<Configure>", self.on_resize)
 
         # MENU BAR
         self.menubar = MenuBar(self, self)
         self.config(menu=self.menubar)
+
+        # Navigation buttons
+        self.nextButton = ttk.Button(master=self, command=self.nextSlide_m, text=">")
+        self.nextButton.place(relx=0.7, rely=0.9, relwidth=0.03, relheight=0.07, anchor=S)
+        self.prevButton = ttk.Button(master=self, command=self.prevSlide_m, text="<")
+        self.prevButton.place(relx=0.3, rely=0.9, relwidth=0.03, relheight=0.07, anchor=S)
+
+        self.bind("<Leave>", lambda event: self.nextButton.place_forget())
+        self.bind("<Enter>", lambda event: self.nextButton.place(relx=0.7, rely=0.9, relwidth=0.03, relheight=0.07, anchor=S))
+        self.bind("<Leave>", lambda event: self.prevButton.place_forget(), add='+')
+        self.bind("<Enter>", lambda event: self.prevButton.place(relx=0.3, rely=0.9, relwidth=0.03, relheight=0.07, anchor=S), add='+')
+
+    def toggleButtons(self):
+        if self.button_on:
+            self.buttonFrame.pack_forget()
+            self.button_on = False
+        else:
+            self.buttonFrame.pack(expand=True, fill="both", anchor=CENTER)
+            self.button_on = True
 
     # Redraw the window when you open a SlideShow project
     def redrawWindow(self):
@@ -78,36 +105,50 @@ class player(tk.Tk):
 
     def openProject(self, path: str):
         self.projectFile = self.load(path)
+        self.slide_counter = 0
         self.redrawWindow()
         #self.picture.redrawImage()
 
     def nextSlide_a(self):
         print("Time over")
         if self.projectFile['shuffle'] == False:
-            if (self.slide_counter + 1) > len(self.projectFile['_Slideshow__slides']):
+            if (self.slide_counter + 1) < len(self.projectFile['_Slideshow__slides']):
                 self.slide_counter += 1
-                self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
+                #self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
                 print("Going to next slide")
             elif self.projectFile['loop'] == True:
                 self.slide_counter = 0
-                self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
+                #self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
                 print("Looping")
             else:
                 print("Slideshow over")
         else: #Not sure how shuffle should work with loop
             self.slide_counter = random.randint(0, len(self.projectFile['_Slideshow__slides']))
-            self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
+            #self.after((self.projectFile['defaultSlideDuration'] * 1000), self.nextSlide_a())
         self.redrawWindow()
 
     # Set up manual advance buttons
     def nextSlide_m(self):
+        print("Next slide pressed")
         if self.projectFile['shuffle'] == False:
-            if (self.slide_counter + 1) > len(self.projectFile['_Slideshow__slides']):
+            if (self.slide_counter + 1) < len(self.projectFile['_Slideshow__slides']):
                 self.slide_counter += 1
             elif self.projectFile['loop'] == True:
                 self.slide_counter = 0
         else:  # Not sure how shuffle should work with loop
-            self.slide_counter = random.randint(0, len(self.projectFile['_Slideshow__slides']))
+            return
+            #self.slide_counter = random.randint(0, len(self.projectFile['_Slideshow__slides']))
+        self.redrawWindow()
+
+    def prevSlide_m(self):
+        if self.projectFile['shuffle'] == False:
+            if (self.slide_counter - 1) >= 0:
+                self.slide_counter -= 1
+            elif self.projectFile['loop'] == True:
+                self.slide_counter = 0
+        else:  # Not sure how shuffle should work with loop
+            return
+            #self.slide_counter = random.randint(0, len(self.projectFile['_Slideshow__slides']))
         self.redrawWindow()
 
     def load(self, __filePath):
