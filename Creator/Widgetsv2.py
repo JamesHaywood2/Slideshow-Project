@@ -1034,6 +1034,9 @@ class InfoFrame(tb.Frame):
 
         self.transitionType.bind("<<ComboboxSelected>>", self.setTransitionType)
 
+        #Set the transition type to the slide's transition type
+        self.transitionType.set(icon.slide['transition'])
+
         #Preview Transition - Button
         rowNum += 1
         self.previewTransitionButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Preview Transition", command=self.previewTransition, takefocus=0)
@@ -1138,7 +1141,9 @@ class InfoFrame(tb.Frame):
         self.transitionType.selection_range(0,0)
         self.focus_set()
         print(f"Transition Type: {self.transitionType.get()}")
-        self.__icon.slide['transitionType'] = self.transitionType.get()
+        self.__icon.slide['transition'] = self.transitionType.get()
+        self.update_idletasks()
+        print(self.__icon.slide)
         return
     
     def previewTransition(self):
@@ -1162,11 +1167,12 @@ class InfoFrame(tb.Frame):
         self.__icon.linkedReel.fillReel()
         return
 
-
     def loadIcon(self, icon):
         if type(icon) == SlideIcon:
             self.image = False
             self.__icon = icon
+            print(f"Loading Slide {icon.slide['slideID']} into InfoFrame")
+            print(self.__icon.slide)
         elif type(icon) == FileIcon:
             self.image = True
             self.__icon = icon
@@ -1174,6 +1180,7 @@ class InfoFrame(tb.Frame):
             print("Error loading Icon into InfoFrame: Invalid icon type.")
 
         self.fillSlideInfo()
+        self.notebook.select(0)
         return
 
 class SlideReel(tk.Frame):

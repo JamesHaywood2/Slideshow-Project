@@ -247,6 +247,10 @@ class SlideshowCreator(tb.Frame):
             self.slideReel.refreshReel()
             self.slideReel.autoResizeToggle(True)
 
+        if self.infoViewer:
+            self.infoViewer.fillProjectInfo()
+            self.infoViewer.fillSlideInfo()
+
         return
 
         
