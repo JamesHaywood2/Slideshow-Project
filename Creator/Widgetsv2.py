@@ -13,7 +13,14 @@ updateRate = 100 #Milliseconds
 class ScrollableFrame(tk.Frame):
     """
     A frame that can be scrolled vertically or horizontally.
-    From https://blog.teclado.com/tkinter-scrollable-frames/
+    Based on https://blog.teclado.com/tkinter-scrollable-frames/
+    ---------------------
+    Options:
+    - container: The parent container for the frame
+    - orient: "both", "horizontal", "vertical" - Which scrollbars to display
+    - autohide: True/False - Whether or not to hide the scrollbars when the mouse is not over the frame
+    ---------------------
+
     """
     def __init__(self, container, orient: str="both", autohide:bool = True, *args, **kwargs):
         #Scrollable Frame is a frame that houses a canvas and two scrollbars.
@@ -22,8 +29,13 @@ class ScrollableFrame(tk.Frame):
         self.orient = orient
         self.autohide = autohide
 
+        #It's going to check which scrollbar it needs to display.
         horiz = False
         vert = False
+        orient_options = ["both", "horizontal", "vertical"]
+        if orient not in orient_options:
+            print(f"Invalid orientation. Defaulting to both. Options are {orient_options}")
+            orient = "both"
         if orient == "both":
             horiz = True
             vert = True
@@ -31,10 +43,14 @@ class ScrollableFrame(tk.Frame):
             horiz = True
         if orient == "vertical":
             vert = True
-
+        
+        #If both are false something has gone wrong. Default to both.
         if horiz == False and vert == False:
             horiz = True
             vert = True
+
+        self.verticle: bool = vert
+        self.horizontal: bool = horiz
 
         if vert:
             self.scrollbar = tb.Scrollbar(self, orient="vertical", command=self.canvas.yview)
@@ -61,21 +77,19 @@ class ScrollableFrame(tk.Frame):
 
         #Wait until they have been gridded to the frame
         self.update_idletasks()
-
         self.canvas.grid(row=0, column=0, sticky="nsew")
-
-        self.verticle = vert
-        self.horizontal = horiz
 
         self.hideVertical = False
         self.hideHorizontal = False
 
+        #If autohide is on, bind show/hide scrollbars to the mouse entering and leaving the frame
         if self.autohide:
             self.bind("<Enter>", self.show_scrollbars)
             self.bind("<Leave>", self.hide_scrollbars)
             self.hide_scrollbars(None)
 
-        # self.update_idletasks()
+        self.update_idletasks()
+        #Whenever the frame changes size, we should resize the canvas so it fits the frame properly.
         self.bind("<Configure>", self.resizeCanvas)
         self.canvas.bind("<Enter>", self.hoverEnter)
         self.canvas.bind("<Leave>", self.hoverLeave)
@@ -85,7 +99,8 @@ class ScrollableFrame(tk.Frame):
         canvasWidth = self.winfo_width()
         canvasHeight = self.winfo_height()
 
-
+        #Basically we want the canvas to be as big as it can be while fitting in the parent frame. If there are scrollbars then it needs to be slightly smaller to make room for them.
+        #Even if autohide is off, the scrollbars will be hidden if they aren't required.
         if self.verticle:
                 #If the canvas is tall enough to display the entire scrollable frame, then the scrollbar should be hidden
                 scrollFrameHeight = self.scrollable_frame.winfo_height()
@@ -114,21 +129,19 @@ class ScrollableFrame(tk.Frame):
                 self.hideHorizontal = False
                 # print("Not enough width to display the entire frame")
 
-        
-
         #If autohide is off (meaning scrollbars should "always" be visible), then whenever the canvas can't display all the contents, the canvas should be a little smaller to make room for the scrollbar.
         if not self.autohide:
             if not self.hideVertical:
                 canvasWidth -= self.scrollbar.winfo_width()
             if not self.hideHorizontal:
                 canvasHeight -= self.scrollbar_h.winfo_height()
-        
 
         #Make the canvas the same size as the parent
         self.canvas.configure(width=canvasWidth, height=canvasHeight)
 
         self.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        return
 
     def show_scrollbars(self, event):
         # print("Showing Scrollbars")
@@ -168,6 +181,7 @@ class ScrollableFrame(tk.Frame):
         # print("Mousewheel Scrolling")
         #If the mousewheel is scrolled, the canvas should scroll
         #Prioritize vertical scrolling over horizontal scrolling
+        #There may be a better way to do this than just prioritizng one over the other, but I think this works fine. - James
         if self.verticle and not self.hideVertical:
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         elif self.horizontal and not self.hideHorizontal:
@@ -223,6 +237,7 @@ class ImageViewer(tb.Canvas):
         return
 
     def loadImage(self, imagePath:str):
+        """Load a given image found at imagePath into the ImageViewer."""
         #Clear the canvas
         self.delete("all")
         #Test if the file is a valid image file
@@ -248,6 +263,8 @@ class ImageViewer(tb.Canvas):
         return
 
     def redrawImage(self):
+        """Redraws the image on the canvas."""
+        #This maybe should be called when the canvas is resized.
         print("Redrawing Image")
         #Return early if there is no image
         if self.imagePath == None:
@@ -412,28 +429,31 @@ class FileIcon(tk.Frame):
         #Check if the popup exists. If it does move it to the mouse position
         if self.popup:
             self.popup.geometry(f"+{event.x_root}+{event.y_root}")
-
-            #Check and see if the user is hovering over a divider. If they are, highlight the divider
-            for divider in self.linkedReel.dividers:
-                x: int = divider.winfo_rootx()
-                y: int = divider.winfo_rooty()
-                w: int = divider.winfo_width()
-                h: int = divider.winfo_height()
+            #Check if you are within the bounds of the linked reel.
+            if self.linkedReel:
+                #Maybe have these as attributes of the reel instead of calculating them every time??
+                x, y, w, h = self.linkedReel.winfo_rootx(), self.linkedReel.winfo_rooty(), self.linkedReel.winfo_width(), self.linkedReel.winfo_height()
+                #If the mouse is within the bounds of the reel,
                 if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
-                    if (type(self) == SlideIcon):
-                        #If the slideID is within two of the divider index, return early.
-                        distance: int = abs(self.slide['slideID'] - (divider.index//2))
-                        if divider.index//2 > self.slide['slideID']:
-                            distance -= 1
-                        # print(f"Distance: {distance}")
-                        if distance == 0:
-                            return
+                    #If the icon is at the left/right edge of the reel, slowly scroll in that direction.
+                    
 
-                    divider.label.configure(text=" ", bootstyle="inverse-default")
-                else:
-                    divider.label.configure(text="", bootstyle="default")
+                    #Check and see if the user is hovering over a divider. If they are, highlight the divider
+                    for divider in self.linkedReel.dividers:
+                        x, y, w, h = divider.winfo_rootx(), divider.winfo_rooty(), divider.winfo_width(), divider.winfo_height()
+                        if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                            if (type(self) == SlideIcon):
+                                #If the slideID is within two of the divider index, return early.
+                                distance: int = abs(self.slide['slideID'] - (divider.index//2))
+                                if divider.index//2 > self.slide['slideID']:
+                                    distance -= 1
+                                # print(f"Distance: {distance}")
+                                if distance == 0:
+                                    return
+                            divider.label.configure(text=" ", bootstyle="inverse-default")
+                        else:
+                            divider.label.configure(text="", bootstyle="default")
             return
-
         else:
             #Create the popup which is a borderless transparent TopLevel window containing the image
             self.popup = tk.Toplevel()
@@ -461,8 +481,6 @@ class FileIcon(tk.Frame):
         self.canvas.bind("<Button-1>", self.pickup)
         self.canvas.unbind("<B1-Motion>")
         self.canvas.bind("<ButtonRelease-1>", self.clickIcon)
-
-        
         #check if the user has dropped the icon into the previewer. If they have, load the image
         if self.linkedViewer:
             x = self.linkedViewer.winfo_rootx()
@@ -506,11 +524,12 @@ class IconDivider(tb.Frame):
         self.label.pack(expand=True, fill="both")
         self.index: int = index
 
-        #Bind click
+        #Bind click - Not Needed
         self.label.bind("<ButtonRelease-1>", self.clickDivider)
 
 
     def clickDivider(self, event):
+        #Not needed.
         print(f"Clicked on divider {self.index}")
         return
 
@@ -522,8 +541,8 @@ class IconDivider(tb.Frame):
 class SlideIcon(FileIcon):
     """
     SlideIcon litteraly just a FileIcon but with the extra slide attribute. It's used in the SlideReel.\n
-    Will probably need to redo drag and drop functionality specifically for this depending on how we want to organize the slides.\n
-    Since it acts just like a FileIcon there is some wierd interactions with the SlideReel. Will fix later.\n
+    It has virtually the same functionality as file icon, execpt the drag and drop is changed to function with the SlideReel.\n
+    If you drag a slide icon around within the slide reel, it will cause dividers to show up. You can then drop the slide icon onto a divider to move the slide to that index.\n
     """
     def __init__(self, master, imgPath: str, **kwargs):
         super().__init__(master, imgPath, **kwargs)
@@ -957,10 +976,13 @@ class InfoFrame(tb.Frame):
             icon: SlideIcon = self.__icon
         elif type(self.__icon) == FileIcon:
             icon: FileIcon = self.__icon
-        else:
-            print(f"FillSlideInfo: Invalid icon type. {type(self.__icon)}")
+        elif self.__icon == None:
+            print("FillSlideInfo: No icon selected.")
             label = tb.Label(self.slideInfoFrame.scrollable_frame, text="Select an image or slide to view info.", font=("Arial", 12))
             label.grid(row=0, column=0, columnspan=2, sticky="w")
+            return
+        else:
+            print(f"FillSlideInfo: Invalid icon type. {type(self.__icon)}")
             return
 
         #Grid layout for the slide info
@@ -1299,6 +1321,9 @@ class SlideReel(tk.Frame):
         divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
         self.dividers.append(divider)
         self.infoFrame.count.config(text=str(len(self.slides)))
+
+        self.update_idletasks()
+        self.scrollFrame.resizeCanvas(None)
         return
 
     def redrawReel(self):
@@ -1317,9 +1342,7 @@ class SlideReel(tk.Frame):
                     self.fillReel()
                     return
             child.grid()
-
-
-        #Regrid the dividers and slideIcons
+        return
 
     def addSlide(self, imagePath:str, index:int=-1):
         #First check if there is a slideshow object. If there isn't there isn't a point in adding a slide.

@@ -250,10 +250,7 @@ class SlideshowCreator(tb.Frame):
         if self.infoViewer:
             self.infoViewer.fillProjectInfo()
             self.infoViewer.fillSlideInfo()
-
         return
-
-        
 
 
     def DebugWindow(self):
@@ -297,6 +294,11 @@ class SlideshowCreator(tb.Frame):
             self.reelCountButton = tb.Button(self.debugWindow, text="Print Reel Count", command=lambda: print(f"Reel count: {len(self.slideReel.slides)}"))
             self.slideListButton = tb.Button(self.debugWindow, text="Print Slide List", command=lambda: print(self.slideshow.printSlides()))
             self.slideListButton.pack()
+            #resize the reel
+            def resizeReel():
+                self.slideReel.scrollFrame.resizeCanvas(None)
+            self.reelResizeButton = tb.Button(self.debugWindow, text="Resize Reel", command=resizeReel)
+            self.reelResizeButton.pack()
 
         self.imageViewerSizeButton = tb.Button(self.debugWindow, text="Print ImageViewer Size", command=lambda: print(f"ImageViewer size: {self.imageViewer.winfo_width()}x{self.imageViewer.winfo_height()}"))
         self.imageViewerSizeButton.pack()
