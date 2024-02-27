@@ -47,6 +47,10 @@ def getParentDir(files):
     """Returns the parent directory of a list of file paths."""
     return [os.path.dirname(f) for f in files]
 
+def getUserHome():
+    """Print the user's home directory. This is where the program will store its cache files."""
+    return os.path.expanduser("~")
+
 def getUserCacheDir():
     """Print the user's AppData/Local/PySlideshow directory. This is where the program will store its cache files."""
     return os.path.join(os.getenv('LOCALAPPDATA'), "PySlideshow")
@@ -153,7 +157,7 @@ class Slideshow:
         self.name = getBaseName([self.__filePath])[0]
         self.__slides: list[Slide] = []
         self.__count: int = 0
-        self.__playlist: Playlist = Playlist()
+        self.playlist: Playlist = Playlist()
         self.manual: bool = False
         self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
@@ -241,11 +245,11 @@ class Slideshow:
     
     def getPlaylist(self):
         #If the playlist is a disctionary, convert it to a Playlist object.
-        if isinstance(self.__playlist, dict):
+        if isinstance(self.playlist, dict):
             playlist = Playlist()
-            playlist.__dict__.update(self.__playlist)
-            self.__playlist = playlist
-        return self.__playlist
+            playlist.__dict__.update(self.playlist)
+            self.playlist = playlist
+        return self.playlist
     
     def getSaveLocation(self):
         return self.__filePath
@@ -329,6 +333,11 @@ class Song:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
             self.name = "Error: Missing Song"
+
+    def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print __dict__ for debugging
+        return str(self.__dict__)
     
 class Playlist:
     def __init__(self):
@@ -379,6 +388,11 @@ class Playlist:
         """Move the song at index down one index."""
         if index < self.__count - 1:
             self.songs[index], self.songs[index+1] = self.songs[index+1], self.songs[index]
+
+    def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print __dict__ for debugging
+        return str(self.__dict__)
 
     
     

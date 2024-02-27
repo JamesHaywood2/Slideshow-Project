@@ -1,7 +1,7 @@
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-from Widgetsv2 import *
+from Widgets import *
 from tkinter import filedialog
 
 
@@ -34,18 +34,18 @@ class SlideshowCreatorStart(tb.Frame):
         # if not folder:
         #     return
         self.destroy()
-        self.creator: SlideshowCreator = SlideshowCreator(self.master)
-        self.creator.pack(expand=True, fill="both")
+        self: SlideshowCreator = SlideshowCreator(self.master)
+        self.pack(expand=True, fill="both")
 
     def openProject(self):
         """Loads the slideshow creator window with a project file. This will open an existing project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
-        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")])
+        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")], multiple=False)
         if not projectPath:
             return
         self.destroy()
-        self.creator = SlideshowCreator(self.master, projectPath=projectPath)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master, projectPath=projectPath)
+        self.pack(expand=True, fill="both")
   
 class SlideshowCreator(tb.Frame):
     """
@@ -61,6 +61,12 @@ class SlideshowCreator(tb.Frame):
     def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
         super().__init__(master, **kw)
         self.debug = debug
+        #Check if the projectPath even exists
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         
@@ -309,8 +315,8 @@ class SlideshowCreator(tb.Frame):
     def newProject(self):
         #Basically destroy the current SlideshowCreator object and create a new one
         self.destroy()
-        self.creator = SlideshowCreator(self.master)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master)
+        self.pack(expand=True, fill="both")
 
     def openProject(self):
         print("Open Project")
@@ -321,10 +327,10 @@ class SlideshowCreator(tb.Frame):
         if self.debugWindow:
             self.debugWindow.destroy()
         self.destroy()
-        self.creator = SlideshowCreator(self.master, projectPath=path)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master, projectPath=path)
+        self.pack(expand=True, fill="both")
         self.update_idletasks()
-        print(f"New slideshow name: {self.creator.slideshow.name}")
+        print(f"New slideshow name: {self.slideshow.name}")
         
 
     def save(self):
@@ -444,7 +450,11 @@ if __name__ == "__main__":
     #minimum size
     root.minsize(600, 500)
     # app = SlideshowCreatorStart(root)
-    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    #User HOME directory
+    usrDir = FP.getUserHome()
+    # testPath = usrDir + "\Pictures\cat\kitty.pyslide"
+    testPath = usrDir + "\OneDrive - uah.edu\CS499\TestSlideshow.pyslide"
+    app = SlideshowCreator(root, debug=False, projectPath=testPath)
     app.pack(expand=True, fill="both")
 
     app.mainloop()
