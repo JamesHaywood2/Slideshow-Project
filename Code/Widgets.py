@@ -247,7 +247,7 @@ class ImageViewer(tb.Canvas):
             self.imagePIL = img
             #Delete & replace old label
             self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
-            print(f"Loaded {imagePath} into ImageViewer")
+            # print(f"Loaded {imagePath} into ImageViewer")
         except:
             print(f"{imagePath} is not a valid image file.")
             self.imagePath = FP.MissingImage
@@ -265,7 +265,7 @@ class ImageViewer(tb.Canvas):
     def redrawImage(self):
         """Redraws the image on the canvas."""
         #This maybe should be called when the canvas is resized.
-        print("Redrawing Image")
+        # print("Redrawing Image")
         #Return early if there is no image
         if self.imagePath == None:
             self.delete("all")

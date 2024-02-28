@@ -3,6 +3,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from Widgets import *
 from tkinter import filedialog
+import Playerv2 as Player
 
 
 class SlideshowCreatorStart(tb.Frame):
@@ -185,6 +186,8 @@ class SlideshowCreator(tb.Frame):
         self.projectMenu.add_command(label="Save", command=self.save)
         self.projectMenu.add_command(label="Save As", command=self.saveAs)
         self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
+        self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Exit", command=self.quit)
 
         self.fileMenu = tb.Menu(self.menubar, tearoff=0)
@@ -352,6 +355,20 @@ class SlideshowCreator(tb.Frame):
         self.slideshow.setSaveLocation(path)
         self.slideshow.save()
         self.redraw()
+
+    def exportToPlayer(self):
+        #Save the project
+        self.save()
+        #Create a new top level window
+        window = tb.Toplevel()
+        # window.transient(self.master)
+        window.title("Slideshow Player")
+        window.geometry("800x600")
+        window.resizable(True, True)
+        #Create a new SlideshowPlayer object
+        player = Player.SlideshowPlayer(window, projectPath=self.slideshow.getSaveLocation())
+        player.pack(expand=True, fill="both")
+
 
     def addFile(self):
         print("Adding Image")

@@ -80,9 +80,6 @@ class SlideshowPlayer(tb.Frame):
             except:
                 print("Error loading loop setting")
 
-
-        
-
         ########################
         ######   Layout  #######
         ########################
@@ -139,11 +136,7 @@ class SlideshowPlayer(tb.Frame):
 
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
-
         return
-    
-
-        
 
     def hideOverlay(self):
         #Hide slide buttons
@@ -183,9 +176,13 @@ class SlideshowPlayer(tb.Frame):
         #Update the slide counter
         self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
         
-        if not self.manual:
+        if not self.manual and not self.isPaused:
+            if self.slideChangeAfter:
+                self.after_cancel(self.slideChangeAfter)
             changeTime = self.slideList[self.currentSlide]['duration'] * 1000
             self.slideChangeAfter = self.after(changeTime, self.nextSlide)
+
+        print(f"Current slide: {self.slideList[self.currentSlide]}")
         return
     
     def prevSlide(self):
