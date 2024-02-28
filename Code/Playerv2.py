@@ -92,6 +92,7 @@ class SlideshowPlayer(tb.Frame):
             #Add first slide to the ImageViewer
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             self.imageViewer.autoResizeToggle()
+            self.imageViewer.config(bg="black")
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -113,13 +114,22 @@ class SlideshowPlayer(tb.Frame):
 
             
             # self.hideOverlay()
-            self.master.bind("<Enter>", lambda e: self.showOverlay())
-            self.master.bind("<Leave>", lambda e: self.hideOverlay())
+            # self.master.bind("<Enter>", lambda e: self.showOverlay())
+            # self.master.bind("<Leave>", lambda e: self.hideOverlay())
             self.master.bind("<Right>", lambda e: self.nextSlide())
             self.master.bind("<Left>", lambda e: self.prevSlide())
             self.master.bind("<space>", lambda e: self.pause())
             self.master.bind("<h>", lambda e: self.hideOverlay())
+            self.mouse_after_id = None
+            self.master.bind("<Motion>", lambda e: self.motionEvent())
 
+        else:
+            #If there are no slides/project is empty, display a message.
+            self.emptyLabel = tb.Label(self, text="Error: No slides in project", font=("Comic Sans MS", 20))
+            self.emptyLabel.place(relx=0.5, rely=0.5, anchor="center")
+            #Button to open a new project
+            self.openButton = tb.Button(self, text="Open Project", command=self.openProject)
+            self.openButton.place(relx=0.5, rely=0.6, anchor="center")
 
         ########################
         ######  MENU BAR #######
@@ -136,6 +146,13 @@ class SlideshowPlayer(tb.Frame):
 
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
+        return
+
+    def motionEvent(self):
+        self.showOverlay()
+        if self.mouse_after_id:
+            self.after_cancel(self.mouse_after_id)
+        self.mouse_after_id = self.after(2500, self.hideOverlay)
         return
 
     def hideOverlay(self):
@@ -211,6 +228,8 @@ class SlideshowPlayer(tb.Frame):
             if not self.manual:
                 changeTime = self.slideList[self.currentSlide]['duration'] * 1000
                 self.slideChangeAfter = self.after(changeTime, self.nextSlide)
+
+        self.showOverlay()
         return
     
 

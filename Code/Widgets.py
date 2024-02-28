@@ -187,8 +187,7 @@ class ScrollableFrame(tk.Frame):
         elif self.horizontal and not self.hideHorizontal:
             self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
         return
-
-class ImageViewer(tb.Canvas):
+class ImageViewer(tk.Canvas):
     """
     ImageViewer is a canvas that resizes and displays an image. It also has a label that displays the name of the image.
 
