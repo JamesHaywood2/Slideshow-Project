@@ -469,8 +469,8 @@ if __name__ == "__main__":
     # app = SlideshowCreatorStart(root)
     #User HOME directory
     usrDir = FP.getUserHome()
-    # testPath = usrDir + "\Pictures\cat\kitty.pyslide"
-    testPath = usrDir + "\OneDrive - uah.edu\CS499\TestSlideshow.pyslide"
+    testPath = usrDir + "\Pictures\cat\kitty.pyslide"
+    # testPath = usrDir + "\OneDrive - uah.edu\CS499\TestSlideshow.pyslide"
     app = SlideshowCreator(root, debug=False, projectPath=testPath)
     app.pack(expand=True, fill="both")
 

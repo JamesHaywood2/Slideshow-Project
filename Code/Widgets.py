@@ -4,7 +4,7 @@ from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import os
 from copy import deepcopy
 
@@ -187,7 +187,8 @@ class ScrollableFrame(tk.Frame):
         elif self.horizontal and not self.hideHorizontal:
             self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
         return
-class ImageViewer(tk.Canvas):
+
+class ImageViewer(tb.Canvas):
     """
     ImageViewer is a canvas that resizes and displays an image. It also has a label that displays the name of the image.
 
@@ -213,6 +214,8 @@ class ImageViewer(tk.Canvas):
         self.autoResize: bool = False
         self.after_id = None
         # self.autoResizeToggle(False)
+
+        self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -235,8 +238,13 @@ class ImageViewer(tk.Canvas):
         self.after_id = self.after(updateRate, self.redrawImage)
         return
 
+    def cancelTransition(self):
+        if self.transition_id:
+            self.after_cancel(self.transition_id)
+        return
+
     def loadImage(self, imagePath:str):
-        """Load a given image found at imagePath into the ImageViewer."""
+        self.cancelTransition()
         #Clear the canvas
         self.delete("all")
         #Test if the file is a valid image file
@@ -246,7 +254,7 @@ class ImageViewer(tk.Canvas):
             self.imagePIL = img
             #Delete & replace old label
             self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
-            # print(f"Loaded {imagePath} into ImageViewer")
+            print(f"Loaded {imagePath} into ImageViewer")
         except:
             print(f"{imagePath} is not a valid image file.")
             self.imagePath = FP.MissingImage
@@ -262,9 +270,7 @@ class ImageViewer(tk.Canvas):
         return
 
     def redrawImage(self):
-        """Redraws the image on the canvas."""
-        #This maybe should be called when the canvas is resized.
-        # print("Redrawing Image")
+        print("Redrawing Image")
         #Return early if there is no image
         if self.imagePath == None:
             self.delete("all")
@@ -288,7 +294,104 @@ class ImageViewer(tk.Canvas):
         if self.imagePath == FP.MissingImage:
             self.after(3000, self.setBlankImage)
         return
+    
+    
+    def executeTransition(self, slide: FP.Slide, slideshow: FP.Slideshow, preview: bool=False):
+        #Based on Jackie's code
+        transitionType = slide['transition'] #Get the transition type from the slide
+        transitionTime = slide['transitionSpeed'] * 1000 #Get the transition time from the slide
 
+        print(f"Transition Time: {transitionTime}s")
+        #Next slide. If there at the end of the slideshow, the next slide will be the first slide.
+        nextSlide = slideshow.getSlide(slide['slideID'] + 1)
+        if nextSlide == None:
+            nextSlide = slideshow.getSlide(0)
+        #Get the nextSlide's image and resize it to the correct size.
+        nextImg = Image.open(nextSlide['imagePath'])
+        nextImg.thumbnail((self.canvasWidth, self.canvasHeight))
+
+        
+        if transitionType == FP.transitionType.DEFAULT:
+            #Just change the image after the transition time
+            print(f"Default Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            # self.after(transitionTime, self.loadImage, nextSlide['imagePath'])
+            self.loadImage(nextSlide['imagePath'])
+            print("Default Transition Executed")
+        elif transitionType == FP.transitionType.WIPEDOWN:
+            print(f"Wipe Down Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            #transition code
+            print("Wipe Down Transition Executed")
+        elif transitionType == FP.transitionType.WIPEUP:
+            print(f"Wipe Up Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            #transition code
+            print("Wipe Up Transition Executed")
+        elif transitionType == FP.transitionType.WIPELEFT:
+            print(f"Wipe Left Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            #transition code
+            print("Wipe Left Transition Executed")
+        elif transitionType == FP.transitionType.WIPERIGHT:
+            print(f"Wipe Right Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            #Width of next image
+            incX = nextImg.width / (transitionTime)
+            print(f"IncX: {incX}")
+            incX = int(incX * 40) #40ms per iteration
+            print(f"IncX: {incX}")
+            print(f"Next Image Size: {nextImg.width}x{nextImg.height}")
+
+            #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
+            self.transition_WipeRight(self.imagePIL, nextImg, 0, incX)
+
+            print("Wipe Right Transition Executed")
+        elif transitionType == FP.transitionType.FADE:
+            print(f"Fade Transition to {nextSlide['imagePath']} in {transitionTime}ms")
+            #transition code
+            print("Fade Transition Executed")
+
+        if preview:
+            self.after(2000, self.redrawImage)
+
+
+    def transition_WipeRight(self, startImg, endImg, counter, incX):
+        #If the counter is greater than the width of the image, then the transition is complete.
+        if counter > endImg.width:
+            print("Transition Complete")
+            return 1
+        #Basically next image, crop it to correct size, then paste it on top of the current image.
+        #Then draw the new image on the canvas.
+
+        #Crop the end image to counter
+        endCrop = endImg.crop((0, 0, counter, endImg.height))
+        #Paste the end image onto the start image
+        startImg.paste(endCrop, (0,0))
+        #Draw the start image onto the canvas
+        self.image = ImageTk.PhotoImage(startImg)
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        #Increment the counter
+        counter += incX
+        #Call this function again after 40ms
+        self.transition_id = self.after(40, self.transition_WipeRight, startImg, endImg, counter, incX)
+        return
+
+    def draw_image(self, draw:ImageDraw, sourceImg, destImg, dest_rect, source_rect):
+        """
+        Draws the specified region of the source image onto the destination image.
+
+        Parameters:
+        - draw: The ImageDraw object for the destination image.
+        - img: The source image.
+        - dest_rect: A tuple (dx1, dy1, dx2, dy2) representing the destination rectangle.
+        - source_rect: A tuple (sx1, sy1, sx2, sy2) representing the source rectangle.
+        """
+        draw.rectangle(dest_rect, fill=None, outline=None)
+        cropped_img = sourceImg.crop(source_rect)
+        destImg.paste(cropped_img, dest_rect[:2], mask=cropped_img.convert("RGBA").split()[3])
+        return destImg
+
+
+
+
+
+           
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
         self.canvasHeight = self.canvas.winfo_height()
@@ -920,7 +1023,7 @@ class InfoFrame(tb.Frame):
     def setDefaultDuration(self):
         #Check if it is a valid number.
         try:
-            float(self.defaultSlideDuration.get())
+            time = float(self.defaultSlideDuration.get())
         except:
             print("Invalid input for slide duration.")
             self.defaultSlideDuration.delete(0, tk.END)
@@ -933,8 +1036,8 @@ class InfoFrame(tb.Frame):
         #No errors
         self.defaultSlideDuration.config(style="TEntry")
         # print(f"Slide Duration: {self.defaultSlideDuration.get()}")
-        self.slideshow.defaultSlideDuration = self.defaultSlideDuration.get()
-        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
+        self.slideshow.defaultSlideDuration = time
+        self.__defaultDurationTemp = time
         self.winfo_toplevel().focus_set()
         return
     
@@ -1071,7 +1174,7 @@ class InfoFrame(tb.Frame):
     def setSlideDuration(self, event):
         #Check if it is a valid number.
         try:
-            float(self.slideDuration.get())
+            time = float(self.slideDuration.get())
         except:
             print("Invalid input for slide duration.")
             self.slideDuration.delete(0, tk.END)
@@ -1084,9 +1187,9 @@ class InfoFrame(tb.Frame):
         #No errors
         self.slideDuration.config(style="TEntry")
         # print(f"Slide Duration: {self.slideDuration.get()}")
-        self.__icon.slide['duration'] = self.slideDuration.get()
+        self.__icon.slide['duration'] = time
         self.winfo_toplevel().focus_set()
-        self._slideDurationTemp = self.slideDuration.get()
+        self._slideDurationTemp = time
         return
     
     def onSlideDurationFocusIn(self, event):
@@ -1116,7 +1219,7 @@ class InfoFrame(tb.Frame):
     def setTransitionSpeed(self, event):
         #Check if it is a valid number.
         try:
-            float(self.transitionSpeed.get())
+            speed = float(self.transitionSpeed.get())
         except:
             print("Invalid input for transition speed.")
             self.transitionSpeed.delete(0, tk.END)
@@ -1129,9 +1232,9 @@ class InfoFrame(tb.Frame):
         #No errors
         self.transitionSpeed.config(style="TEntry")
         # print(f"Slide Duration: {self.transitionSpeed.get()}")
-        self.__icon.slide['transitionSpeed'] = self.transitionSpeed.get()
+        self.__icon.slide['transitionSpeed'] = speed
         self.winfo_toplevel().focus_set()
-        self._transitionSpeedTemp = self.transitionSpeed.get()
+        self._transitionSpeedTemp = speed
         return
 
     def onTransitionSpeedFocusIn(self, event):
@@ -1170,7 +1273,9 @@ class InfoFrame(tb.Frame):
     def previewTransition(self):
         print("Previewing Transition")
         #Have the image previewer do a transition
-        #not yet implemented.
+        
+        if type(self.__icon) == SlideIcon:
+            self.__icon.linkedViewer.executeTransition(self.__icon.slide, self.slideshow, preview=True)
         return
 
     def addSlide(self):
