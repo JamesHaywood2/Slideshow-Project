@@ -190,12 +190,23 @@ class SlideshowPlayer(tb.Frame):
             self.transition_checker = self.after(16, self.checkTransition, imagePath)
         else:
             #Once transitioning is complete, make sure the correct image is displayed.
+            try:
+                self.after_cancel(self.transition_checker)
+            except:
+                pass
             self.transition_checker = None
             self.imageViewer.loadImage(imagePath)
             self.automaticNext()
 
     def nextSlide(self):
-        self.imageViewer.cancelTransition()
+        if self.imageViewer.transitioning:
+            try:
+                self.after_cancel(self.transition_checker)
+            except:
+                pass
+            self.imageViewer.cancelTransition()
+            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            return
         if self.transition_checker:
             self.after_cancel(self.transition_checker)
         self.currentSlide += 1
@@ -235,11 +246,52 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def prevSlide(self):
-        self.imageViewer.cancelTransition()
+        #If a transition is in progress, cancel it and just load the image before returning.
+        if self.imageViewer.transitioning:
+            try:
+                self.after_cancel(self.transition_checker)
+            except:
+                pass
+            self.imageViewer.cancelTransition()
+            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            return
+        
         self.currentSlide -= 1
         if self.currentSlide < 0:
+            nextSlide = self.slideList[-1]
+            previousSlide = self.slideList[0]
             self.currentSlide = len(self.slideList)-1
-        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        else:
+            nextSlide = self.slideList[self.currentSlide]
+            previousSlide = self.slideList[self.currentSlide+1]
+
+        def reverseTransition(transition:str):
+            if transition == FP.transitionType.FADE:
+                return FP.transitionType.FADE
+            elif transition == FP.transitionType.WIPELEFT:
+                return FP.transitionType.WIPERIGHT
+            elif transition == FP.transitionType.WIPERIGHT:
+                return FP.transitionType.WIPELEFT
+            elif transition == FP.transitionType.WIPEDOWN:
+                return FP.transitionType.WIPEUP
+            elif transition == FP.transitionType.WIPEUP:
+                return FP.transitionType.WIPEDOWN
+            else:
+                return FP.transitionType.DEFAULT
+
+        #Gets the slide we're transitioning to and the previous slide.
+        #Then gets the images and correctly sizes them.
+        transition = reverseTransition(previousSlide['transition'])
+        transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        previousImage = previousSlide['imagePath']
+        previousImage = Image.open(previousImage)
+        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        nextImage = nextSlide['imagePath']
+        nextImage = Image.open(nextImage)
+        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+
+        #It will then execute the transition and do a constant check to see if the transition is complete.
+        self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
 
         #Update the slide counter
         self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
