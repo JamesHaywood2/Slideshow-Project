@@ -938,6 +938,9 @@ class InfoFrame(tb.Frame):
         self.playlistDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
         self.playlistDuration.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
+        #Fill the playlist duration
+        duration = self.playlist.getDuration()
+        self.playlistDuration.config(text=FP.formatTime(duration))
 
         #ShufflePlaylist toggle button
         rowNumber += 1
@@ -1070,6 +1073,7 @@ class InfoFrame(tb.Frame):
         return
 
     def playListRemove(self):
+        print("\n")
         #Get the selected item
         selected = self.playlistTree.selection()
         print(self.playlist.songs)
@@ -1080,20 +1084,36 @@ class InfoFrame(tb.Frame):
         
         #Get the song that was selected
         song = self.playlistTree.item(selected)['values'][0]
-        print(f"Song: {song}")
 
         #Search for the song in the playlist
-        for songPath in self.playlist.songs:
-            if FP.getBaseName([songPath])[0] == song:
-                print(f"Removing {songPath} from the playlist")
-                self.playlist.removeSong(songPath)
+        songToRemove: FP.Song = None
+        for s in self.playlist.songs:
+            songPath = FP.getBaseName([s.filePath])[0]
+            if songPath == song:
+                songToRemove = s
                 break
+
+        if songToRemove == None:
+            print(f"Could not find {song} in the playlist.")
+            print(songToRemove.__dict__)
+            return
+        
+        #Remove the song from the playlist
+        print(f"Removing {songToRemove} from the playlist")
+        self.playlist.removeSong(songToRemove)
 
         #Remove the song from the treeview
         self.playlistTree.delete(selected)
+        self.update_idletasks()
+        #Redo the order numbers
+        for i in range(len(self.playlist.songs)):
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
+        duration = self.playlist.getDuration()
+        self.playlistDuration.config(text=FP.formatTime(duration))
         return
 
     def playListAdd(self):
+        print("")
         #Open a file dialog to select a .mp3, .mp4, .wav, or .aiff file
         filetypes = [("Audio Files", "*.mp3 *.mp4 *.wav *.aiff")]
         file = filedialog.askopenfile(filetypes=filetypes, title="Select a song to add to the playlist")
@@ -1102,8 +1122,8 @@ class InfoFrame(tb.Frame):
 
         #Check if file is already in the playlist
         for song in self.playlist.songs:
-            if song == file.name:
-                print(f"{file.name} is already in the playlist")
+            if song.filePath == file.name:
+                print(f"{file.name} is already in the playlist as {song}")
                 return
 
         #Add the file to the playlist
@@ -1111,6 +1131,10 @@ class InfoFrame(tb.Frame):
         songCount = len(self.playlist.songs)
         self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1))
         self.playlist.addSong(file.name)
+        # for song in self.playlist.songs:
+        #     print(song)
+        duration = self.playlist.getDuration()
+        self.playlistDuration.config(text=FP.formatTime(duration))
         return
     
 

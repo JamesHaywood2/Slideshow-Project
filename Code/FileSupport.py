@@ -2,7 +2,8 @@ import os
 import random
 from PIL import Image
 import json
-
+import pydub
+from pydub import AudioSegment
 
 MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
 ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
@@ -23,6 +24,10 @@ def getJPEG(folderPath:str, recursive:bool=False):
 
     #replace the forward slashes with backslashes
     return [f.replace("\\", "/") for f in files]
+
+def getLastModified(fileName:str):
+    """Get the last modified time of a file."""
+    return os.path.getmtime(fileName)
 
 
 #Get the base file name from a list of file paths
@@ -313,8 +318,8 @@ class Song:
         self.filePath: str = None
         self.name: str = None
         self.duration: int = 0
-        self.artist: str = None
-        self.album: str = None
+        # self.artist: str = None
+        # self.album: str = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
         try:
@@ -322,26 +327,43 @@ class Song:
             if not os.path.exists(songPath):
                 raise FileNotFoundError(f"File {songPath} not found.")
             #Check if the file is of a valid type
-            if not os.path.splitext(songPath)[1] in ['.mp3', '.mp4', '.wav', '.AAIF']:
+            if not os.path.splitext(songPath)[1] in ['.mp3', '.mp4', '.wav', '.aiff']:
                 raise FileNotFoundError(f"File {songPath} is not a valid song file.")
             self.filePath = songPath
             self.name = removePath([self.filePath])[0]
-
-            #Get the duration of the song. ffprobe maybe??
-
         except:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
             self.name = "Error: Missing Song"
+            return -1
+        
+        #Get the duration of the song
+        fileType = os.path.splitext(self.filePath)[1]
+        if fileType == ".mp3":
+            audio = AudioSegment.from_mp3(self.filePath)
+        elif fileType == ".wav":
+            audio = AudioSegment.from_wav(self.filePath)
+        elif fileType == ".mp4":
+            audio = AudioSegment.from_file(self.filePath, "mp4")
+        elif fileType == ".aiff":
+            audio = AudioSegment.from_file(self.filePath, "aiff")
+
+        self.duration = audio.duration_seconds
+
 
     def __str__(self) -> str:
         """Print definition for debugging."""
-        #Print __dict__ for debugging
+        #Print the object as a readable string
         return str(self.__dict__)
     
+def formatTime(seconds:int):
+    """Format the time in seconds to a string."""
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes:02d}:{seconds:02d}"
 class Playlist:
     def __init__(self):
-        self.name: str = None
+        # self.name: str = None
         self.songs: list[Song] = []
         self.__count: int = 0
         self.__duration: int = 0
@@ -351,31 +373,42 @@ class Playlist:
     def addSong(self, song:str, index:int=-1):
         """Will insert a song at the index, then push the rest of the songs down one index.
         If the index is -1, it will append the song to the end of the list."""
+        newSong = Song(song)
+        #Check if the song is valid
+        if Song == -1:
+            return
         #Check if the song already exists in the playlist
+        for s in self.songs:
+
+            if s.filePath == newSong.filePath:
+                print(f"{newSong} already exists in the playlist.")
+                return
 
         if index == -1:
-            self.songs.append(song)
+            self.songs.append(newSong)
         else:
-            self.songs.insert(index, song)
+            self.songs.insert(index, newSong)
         self.__count += 1
         #Update the duration
         self.validate()
 
     def removeSong(self, song:Song):
+        print(type(song))
+        print(self.songs)
         self.songs.remove(song)
         self.__count -= 1
         #Update the duration
+        self.validate()
 
     def validate(self):
         #Just update values.
         self.__count = len(self.songs)
         self.__duration = 0
         for song in self.songs:
-            song = Song(song)
             self.__duration += song.duration
-        print(f"Playlist duration: {self.__duration} seconds")
+            print(f"{song.name} - {formatTime(song.duration)}")
+        print(f"Playlist duration: {formatTime(self.__duration)}")
             
-
     def getDuration(self):
         return self.__duration
     
