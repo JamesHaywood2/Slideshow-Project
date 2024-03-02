@@ -273,28 +273,42 @@ class ImageViewer(tb.Canvas):
             self.after(3000, self.setBlankImage)
         return
     
-    def executeTransition(self, slide, slideshow):
-        # Default
-        test = FP.transitionType.DEFAULT
-        print("execute transition", slide['transition'])
-        if test == FP.transitionType.DEFAULT:
+    def executeTransition(self, transition, slide, slideshow):
+        print("execute transition", transition)
+        dur = slide['duration']*1000
+        transitionDur = slide['transitionSpeed'] * 1000
+        if transition == FP.transitionType.DEFAULT:
             self.loadImage(slide['imagePath'])
-            self.after(slide['duration']*500, self.loadImage(slideshow.getSlide(slide['slideID'] + 1)['imagePath']))
-            #self.after(slide['duration']*500, self.loadImage(slide['imagePath']))
-            print("End of transition")
+            self.after(dur, self.loadImage, slideshow.getSlide(slide['slideID'] + 1)['imagePath'])
         else:
             startImg = Image.open(slide['imagePath'])
             endImg = Image.open(slideshow.getSlide(slide['slideID'] + 1)['imagePath'])
             imgWidth, imgHeight = startImg.size
-            dur = slide['duration']*1000
-            incY = imgHeight/10
+            maxIterations = (int)(transitionDur/100)
+            incY = (int)(imgHeight/maxIterations)
+            
 
-            self.setBlankImage()
-            if test == FP.transitionType.WIPEDOWN:
-                self.wipeDownTransition(0,startImg,endImg,incY,imgWidth)
+            if transition == FP.transitionType.WIPEDOWN:
+                self.wipeDownTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.WIPEUP:
+                self.wipeUpTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.WIPELEFT:
+                self.wipeLeftTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.WIPERIGHT:
+                self.wipeRightTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.FADE:
+                self.crossFadeTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.PUSHDOWN:
+                self.pushDownTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.PUSHUP:
+                self.pushUpTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.PUSHLEFT:
+                self.pushLeftTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
+            elif transition == FP.transitionType.PUSHRIGHT:
+                self.pushRightTransition(0,startImg,endImg,incY,imgWidth, maxIterations)
         return
 
-    def draw_image(self, draw:ImageDraw, sourceImg, destImg, dest_rect, source_rect):
+    def draw_image(self, draw:ImageDraw, destImg, sourceImg, dest_rect, source_rect):
         """
         Draws the specified region of the source image onto the destination image.
 
@@ -309,25 +323,206 @@ class ImageViewer(tb.Canvas):
         destImg.paste(cropped_img, dest_rect[:2], mask=cropped_img.convert("RGBA").split()[3])
         return destImg
 
-    def wipeDownTransition(self, iteration, sourceImg, destImg, incY, width):
+    def wipeUpTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        draw = ImageDraw.Draw(destImg)
+        dest_rect = (0, width-(iteration*incY), width, width)
+        source_rect = (0, width-(iteration*incY), width, width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect, source_rect)
+
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Wipe Up Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.wipeUpTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+    
+    def wipeDownTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
         draw = ImageDraw.Draw(destImg)
         dest_rect = (0, 0, width, (iteration*incY)+incY)
         source_rect = (0, 0, width, (iteration*incY)+incY)
-        tempImg = self.draw_image(draw, sourceImg, destImg, dest_rect, source_rect)
+        self.draw_image(draw, destImg, sourceImg, dest_rect, source_rect)
 
-        destImg = Image(tempImg)
-        tempImg.thumbnail((self.canvasWidth, self.canvasHeight))
-        tk_image = ImageTk.PhotoImage(tempImg)
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
         
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=tk_image)
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.create_text(10, 10, anchor="nw", text="Wipe Down Preview", font=("Arial", 16), fill="#FF1D8E")
-        if iteration < 9:
-            print(iteration)
+        if iteration < maxIterations:
+            #print(iteration)
             # Schedule the next update after 1000ms (1 second)
-            self.after(1000, self.wipeDownTransition, iteration+1, sourceImg, destImg, incY, width)
+            self.after(100, self.wipeDownTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
         else:
             print('done')
+    
+    def wipeLeftTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        draw = ImageDraw.Draw(destImg)
+        dest_rect = (width-(iteration*incY), 0, width, width)
+        source_rect = (width-(iteration*incY), 0, width, width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect, source_rect)
+
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
         
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Wipe Right Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.wipeLeftTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+
+    def wipeRightTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        draw = ImageDraw.Draw(destImg)
+        dest_rect = (0, width-(iteration*incY), width, width)
+        source_rect = (0, width-(iteration*incY), width, width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect, source_rect)
+        
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Wipe Left Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.wipeRightTransition, iteration+1, destImg, sourceImg, incY, width)
+        else:
+            print('done')
+    
+    # OLD VERSION OF FADE
+    def fadeTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        if iteration < (maxIterations/2):
+            destImg.putalpha(255-(int)(iteration*(255/maxIterations)))
+            self.delete("all")
+            self.image = ImageTk.PhotoImage(destImg)
+        
+            self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+            self.imageLabel = self.create_text(10, 10, anchor="nw", text="Fade Preview", font=("Arial", 16), fill="#FF1D8E")
+            self.after(100, self.fadeTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        elif iteration < maxIterations:
+            sourceImg.putalpha((int)(iteration*(255/maxIterations)))
+            self.delete("all")
+            self.image = ImageTk.PhotoImage(sourceImg)        
+            self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+            self.imageLabel = self.create_text(10, 10, anchor="nw", text="Fade Preview", font=("Arial", 16), fill="#FF1D8E")
+            self.after(100, self.fadeTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+
+    # CURRENT VERSION OF FADE
+    def crossFadeTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        destImg.putalpha(255-(int)(iteration*(255/maxIterations)))
+        sourceImg.putalpha((int)(iteration*(255/maxIterations)))
+        dest_rect = (0, 0, width, width)
+        destImg.paste(sourceImg, dest_rect[:2], mask=sourceImg.convert("RGBA").split()[3])
+
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+    
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Fade Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations:
+            self.after(100, self.crossFadeTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+
+    def pushLeftTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        startImg2 = Image.open(self.imagePath)
+        draw = ImageDraw.Draw(destImg)
+        
+        dest_rect = (0, 0, width-(iteration*incY), width)
+        source_rect = ((incY*iteration), 0, width, width)
+        self.draw_image(draw, destImg, startImg2, dest_rect, source_rect)
+        dest_rect2 = (width-(iteration*incY), 0, width, width)
+        source_rect2 = (0, 0, (incY*iteration), width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect2, source_rect2)
+        
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Push Left Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations-1:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.pushLeftTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+    
+    def pushRightTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        startImg2 = Image.open(self.imagePath)
+        draw = ImageDraw.Draw(destImg)
+        
+        dest_rect = ((incY*iteration), 0, width, width)
+        source_rect = (0, 0, width-(iteration*incY), width)
+        self.draw_image(draw, destImg, startImg2, dest_rect, source_rect)
+        dest_rect2 = (0, 0, (incY*iteration), width)
+        source_rect2 = (width-(iteration*incY), 0, width, width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect2, source_rect2)
+        
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Push Right Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations-1:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.pushRightTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+
+    def pushUpTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        startImg2 = Image.open(self.imagePath)
+        draw = ImageDraw.Draw(destImg)
+        
+        dest_rect = (0, 0, width, width-(iteration*incY))
+        source_rect = (0, (incY*iteration), width, width)
+        self.draw_image(draw, destImg, startImg2, dest_rect, source_rect)
+        dest_rect2 = (0, width-(iteration*incY), width, width)
+        source_rect2 = (0, 0, width, (iteration*incY))
+        self.draw_image(draw, destImg, sourceImg, dest_rect2, source_rect2)
+        
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Push Up Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations-1:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.pushUpTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
+    
+    def pushDownTransition(self, iteration, destImg, sourceImg, incY, width, maxIterations):
+        startImg2 = Image.open(self.imagePath)
+        draw = ImageDraw.Draw(destImg)
+
+        dest_rect = (0, (incY*iteration), width, width)
+        source_rect = (0, 0, width, width-(iteration*incY))
+        self.draw_image(draw, destImg, startImg2, dest_rect, source_rect)
+        dest_rect2 = (0, 0, width, (iteration*incY))
+        source_rect2 = (0, width-(iteration*incY), width, width)
+        self.draw_image(draw, destImg, sourceImg, dest_rect2, source_rect2)
+        
+        self.delete("all")
+        self.image = ImageTk.PhotoImage(destImg)
+        
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.imageLabel = self.create_text(10, 10, anchor="nw", text="Push Down Preview", font=("Arial", 16), fill="#FF1D8E")
+        if iteration < maxIterations-1:
+            #print(iteration)
+            # Schedule the next update after 1000ms (1 second)
+            self.after(100, self.pushDownTransition, iteration+1, destImg, sourceImg, incY, width, maxIterations)
+        else:
+            print('done')
 
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
@@ -913,7 +1108,7 @@ class InfoFrame(tb.Frame):
         self.transitionTypeLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
         self.transitionType = tb.Combobox(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
         self.transitionType.config(width=7)
-        self.transitionType['values'] = ("Default", "Fade", "Wipe_Up", "Wipe_Down", "Wipe_Left", "Wipe_Right")
+        self.transitionType['values'] = ("Default", "Fade", "Wipe_Up", "Wipe_Down", "Wipe_Left", "Wipe_Right", "Push_Up", "Push_Down", "Push_Left", "Push_Right")
         self.transitionType.current(0)
         self.transitionType.grid(row=rowNum, column=3, columnspan=1, sticky="ew")
 
@@ -1028,13 +1223,19 @@ class InfoFrame(tb.Frame):
         return
     
     def previewTransition(self):
-        print("Previewing Transition")
+        self.previewTransitionButton.config(state=tk.DISABLED)
         
+        self.__icon.slide['duration'] = (int)(self.slideDuration.get())
+        self.__icon.slide['transitionSpeed'] = (int)(self.transitionSpeed.get())
+        self.__icon.slide['transition'] = self.transitionType.get()
+        print("Slide Duration:", self.__icon.slide['duration'], "  T:", self.__icon.slide['transitionSpeed'])
+        delay = self.__icon.slide['transitionSpeed']*1000 + self.__icon.slide['duration']*2000
         if type(self.__icon) == SlideIcon:
-            self.__icon.linkedViewer.executeTransition(self.__icon.slide, self.slideshow)
-        print(" of transition")
+            self.__icon.linkedViewer.executeTransition(self.__icon.slide['transition'], self.__icon.slide, self.slideshow)
+        #self.after_idle(self.__icon.linkedViewer.loadImage, self.__icon.slide['imagePath'])
+        self.after(delay, self.__icon.linkedViewer.loadImage, self.__icon.slide['imagePath'])
+        self.after(delay + 1, self.previewTransitionButton.config, {'state': tk.NORMAL})
         #Have the image previewer do a transition
-        #not yet implemented.
         return
 
     def addSlide(self):

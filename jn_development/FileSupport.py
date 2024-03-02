@@ -137,6 +137,10 @@ class transitionType:
     WIPEDOWN = "Wipe_Down"
     WIPELEFT = "Wipe_Left"
     WIPERIGHT = "Wipe_Right"
+    PUSHUP = "Push_Up"
+    PUSHDOWN = "Push_Down"
+    PUSHLEFT = "Push_Left"
+    PUSHRIGHT = "Push_Right"
 
 class Slideshow:
     """

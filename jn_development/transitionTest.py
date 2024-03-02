@@ -2,7 +2,6 @@ import tkinter as tk
 from PIL import Image, ImageDraw, ImageTk
 import time
 
-transitionDone = False
 def draw_image(draw:ImageDraw, img, dest_rect, source_rect):
     draw.rectangle(dest_rect, fill=None, outline=None)
     cropped_img = img.crop(source_rect)
@@ -53,23 +52,14 @@ def update_image2(iteration):
 def transition():
     global transitionDone
     imgWidth, imgHeight = endImg.size
-    
-    dur = (int)(inputtxt.get(1.0, "end-1c"))
-    speedDur = (int)(input2txt.get(1.0, "end-1c"))
-    choice = (int)(input3txt.get(1.0, "end-1c"))
     incY = 10
     #(int)(imgHeight/(speedDur*1000.0))
     if (incY<1.0):
         incY = 1
     print(imgHeight, incY)
-    if choice == 1:
-        root.after(dur*1000, wipeRight, 0, 100, incY, imgWidth)
-    if choice == 2:
-        root.after(dur*1000, wipeLeft, 0, 100, incY, imgWidth)
-    if choice == 3:
-        root.after(dur*1000, wipeUp, 0, 100, incY, imgWidth)
-    if choice == 4:
-        root.after(dur*1000, wipeDown, 0, 100, incY, imgWidth)
+    
+    #root.after(dur*1000, wipeDown, 0, 100, incY, imgWidth)
+    crossFade(0, 100, incY, imgWidth)
 
         
 def wipeDown(i, max, incY, width):
@@ -140,29 +130,130 @@ def wipeRight(i, max, incY, width):
         transitionDone = True
         #root.after(100, )
 
+def pushRight(i, max, incY, width):
+    startImg2 = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
+    draw = ImageDraw.Draw(startImg)
+    dest_rect = ((incY*i), 0, width, width)
+    source_rect = (0, 0, width-(i*incY), width)
+    draw_image(draw, startImg2, dest_rect, source_rect)
+    dest_rect2 = (0, 0, (incY*i), width)
+    source_rect2 = (width-(i*incY), 0, width, width)
+    draw_image(draw, endImg, dest_rect2, source_rect2)
+
+    tk_image = ImageTk.PhotoImage(startImg)
+    label.config(image=tk_image)
+    label.image = tk_image
+    if i < max-1:
+        # Schedule the next update after 1000ms (1 second)
+        root.after(10, pushRight, i+1, max, incY, width)
+    else:
+        print('done')
+        tk_image = ImageTk.PhotoImage(endImg)
+        label.config(image=tk_image)
+        label.image = tk_image
+        #root.after(100, )
+
+def pushLeft(i, max, incY, width):
+    startImg2 = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
+    draw = ImageDraw.Draw(startImg)
+    
+    dest_rect = (0, 0, width-(i*incY), width)
+    source_rect = ((incY*i), 0, width, width)
+    draw_image(draw, startImg2, dest_rect, source_rect)
+    dest_rect2 = (width-(i*incY), 0, width, width)
+    source_rect2 = (0, 0, (incY*i), width)
+    draw_image(draw, endImg, dest_rect2, source_rect2)
+
+    tk_image = ImageTk.PhotoImage(startImg)
+    label.config(image=tk_image)
+    label.image = tk_image
+    if i < max-1:
+        # Schedule the next update after 1000ms (1 second)
+        root.after(10, pushLeft, i+1, max, incY, width)
+    else:
+        print('done')
+        tk_image = ImageTk.PhotoImage(endImg)
+        label.config(image=tk_image)
+        label.image = tk_image
+        #root.after(100, )
+
+def pushUp(i, max, incY, width):
+    startImg2 = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
+    draw = ImageDraw.Draw(startImg)
+    #sAY1 =  incY;         dAY2 = imgHeight - incY; // bottom Y of rectangle to move upward in A
+    #sBY2 = incY;          dBY1
+    #0, 0, imgWidth, dAY2, 0, sAY1, imgWidth, imgHeight
+    dest_rect = (0, 0, width, width-(i*incY))
+    source_rect = (0, (incY*i), width, width)
+    draw_image(draw, startImg2, dest_rect, source_rect)
+    #0, dAY2, imgWidth, imgHeight, 0, 0, imgWidth, sBY2
+    dest_rect2 = (0, width-(i*incY), width, width)
+    source_rect2 = (0, 0, width, (i*incY))
+    draw_image(draw, endImg, dest_rect2, source_rect2)
+
+    tk_image = ImageTk.PhotoImage(startImg)
+    label.config(image=tk_image)
+    label.image = tk_image
+    if i < max-1:
+        # Schedule the next update after 1000ms (1 second)
+        root.after(10, pushUp, i+1, max, incY, width)
+    else:
+        print('done')
+        tk_image = ImageTk.PhotoImage(endImg)
+        label.config(image=tk_image)
+        label.image = tk_image
+
+def pushDown(i, max, incY, width):
+    startImg2 = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
+    draw = ImageDraw.Draw(startImg)
+    #sAY2 = imgHeight - incY;          dAY1 = incY;
+    #dBY2 = incY;        sBY1 = imgHeight - incY;
+    #0, dAY1, imgWidth, imgHeight, 0, 0, imgWidth, sAY2
+    dest_rect = (0, (incY*i), width, width)
+    source_rect = (0, 0, width, width-(i*incY))
+    draw_image(draw, startImg2, dest_rect, source_rect)
+    #0, 0, imgWidth, dBY2, 0, sBY1, imgWidth, imgHeight
+    dest_rect2 = (0, 0, width, (i*incY))
+    source_rect2 = (0, width-(i*incY), width, width)
+    draw_image(draw, endImg, dest_rect2, source_rect2)
+
+    tk_image = ImageTk.PhotoImage(startImg)
+    label.config(image=tk_image)
+    label.image = tk_image
+    if i < max-1:
+        # Schedule the next update after 1000ms (1 second)
+        root.after(10, pushDown, i+1, max, incY, width)
+    else:
+        print('done')
+        tk_image = ImageTk.PhotoImage(endImg)
+        label.config(image=tk_image)
+        label.image = tk_image
+
+def crossFade(i, max, incY, width):
+    # = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
+    startImg.putalpha(255-(int)(i*255/max))
+    endImg.putalpha((int)(i*255/max))
+    draw = ImageDraw.Draw(startImg)
+    dest_rect = (0, 0, width, width)
+    startImg.paste(endImg, dest_rect[:2], mask=endImg.convert("RGBA").split()[3])
+
+    tk_image = ImageTk.PhotoImage(startImg)
+    label.config(image=tk_image)
+    label.image = tk_image
+    if i < max-1:
+        # Schedule the next update after 1000ms (1 second)
+        root.after(10, crossFade, i+1, max, incY, width)
+    else:
+        print('done')
+        tk_image = ImageTk.PhotoImage(endImg)
+        label.config(image=tk_image)
+        label.image = tk_image
+
 root = tk.Tk()
 root.title("Tkinter Window with ImageDraw")
 
 startImg = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ball.jpg")
 endImg = Image.open(r"C:\Users\JKMJKM\Documents\uah\spring2024\CS499\test\proto\Creator\ballOrange.jpg")
-
-l = tk.Label(root, text = "Duration")
-l.config(font =("Courier", 12))
-l.pack()
-inputtxt = tk.Text(root, name = "slideDur", height = 1, width = 10)
-inputtxt.pack()
-
-l2 = tk.Label(root, text = "Speed")
-l2.config(font =("Courier", 12))
-l2.pack()
-input2txt = tk.Text(root, name = "transitionSpeed", height = 1, width = 10)
-input2txt.pack()
-
-l3 = tk.Label(root, text = "Choice (1-R, 2-L, 3-U, 4-D)")
-l3.config(font =("Courier", 12))
-l3.pack()
-input3txt = tk.Text(root, name = "choice", height = 1, width = 10)
-input3txt.pack()
 
 label = tk.Label(root)
 label.pack()
