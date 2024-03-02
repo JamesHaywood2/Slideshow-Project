@@ -20,14 +20,37 @@ class SlideshowCreatorStart(tb.Frame):
     def create_widgets(self):
         """Creates the widgets for the start window."""
         self.label = tb.Label(self, text="Slideshow Creator", font=("Arial", 24))
-        self.label.pack(anchor="center", expand=True)
         self.buttonFrame = tb.Frame(self)
-        self.buttonFrame.pack(anchor="center", expand=True, fill="both")
         self.newProjectButton = tb.Button(self.buttonFrame, text="New Project", command=self.newProject)
-        self.newProjectButton.pack(anchor="center", pady=10)
         self.openProjectButton = tb.Button(self.buttonFrame, text="Open Project", command=self.openProject)
-        self.openProjectButton.pack(anchor="center", pady=10)
+        self.recentSlideshowList = RecentSlideshowList(self)
 
+        self.label.place(relx=0.5, rely=0.15, anchor="center")
+        self.buttonFrame.place(relx=0.5, rely=0.25, anchor="center")
+        self.newProjectButton.pack(padx=10, side="left")
+        self.openProjectButton.pack(padx=10, side="right")
+        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center")
+
+        #Set window size
+        self.master.geometry("800x600")
+        #Resizable window false
+        self.master.resizable(False, False)
+
+        #Bind double clicking the recentSlideshowList to open the project
+        self.recentSlideshowList.tableView.view.bind("<Double-1>", self.openRecentProject)
+
+    def openRecentProject(self, event):
+        #Get the selected item
+        item = self.recentSlideshowList.tableView.view.selection()
+        if len(item) == 0:
+            return
+        #Get the project path
+        projectPath = self.recentSlideshowList.tableView.view.item(item, "values")[2]
+        print(f"Opening project: {projectPath}")
+        #Open the project
+        self.openProjectPath(projectPath)
+
+        
     def newProject(self):
         """Loads the slideshow creator window without a project file. This will create a new project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
@@ -47,6 +70,22 @@ class SlideshowCreatorStart(tb.Frame):
         self.destroy()
         self = SlideshowCreator(self.master, projectPath=projectPath)
         self.pack(expand=True, fill="both")
+
+    def openProjectPath(self, projectPath: str):
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
+        #Create a SlideshowCreator object, destroy the current window, and pack the new window
+        #check if the projectPath even exists
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
+        #Check if it's a .pyslide file
+        if not projectPath.endswith(".pyslide"):
+            projectPath = "New Project"
+        self.destroy()
+        self = SlideshowCreator(self.master, projectPath=projectPath)
+        self.pack(expand=True, fill="both")
   
 class SlideshowCreator(tb.Frame):
     """
@@ -60,6 +99,8 @@ class SlideshowCreator(tb.Frame):
     redraw(): Redraws the ImageViewer, MediaBucket, and SlideReel. 
     """
     def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
+        master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+        master.resizable(True, True)
         super().__init__(master, **kw)
         self.debug = debug
         #Check if the projectPath even exists
@@ -71,10 +112,17 @@ class SlideshowCreator(tb.Frame):
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         
+        self.update_idletasks()
         try:
             FP.initializeCache()
         except:
             print("Cache initialziation failed")
+
+        try:
+            FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
+        except:
+            print("Failed to update the slideshow cache list")
+
         tb.Style().theme_use(FP.getPreferences())
 
         ######################
@@ -344,6 +392,10 @@ class SlideshowCreator(tb.Frame):
         else:
             self.slideshow.save()
             self.redraw()
+            try:
+                FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
+            except:
+                print("Failed to update the slideshow cache list")
         
     def saveAs(self):
         print("Save As")
@@ -466,12 +518,12 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    # app = SlideshowCreatorStart(root)
+    app = SlideshowCreatorStart(root)
     #User HOME directory
     usrDir = FP.getUserHome()
     testPath = usrDir + "\Pictures\cat\kitty.pyslide"
     # testPath = usrDir + "\OneDrive - uah.edu\CS499\TestSlideshow.pyslide"
-    app = SlideshowCreator(root, debug=False, projectPath=testPath)
+    # app = SlideshowCreator(root, debug=False, projectPath=testPath)
     app.pack(expand=True, fill="both")
 
     app.mainloop()

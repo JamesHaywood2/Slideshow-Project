@@ -1,4 +1,5 @@
 import os
+import time
 import random
 from PIL import Image
 import json
@@ -24,10 +25,6 @@ def getJPEG(folderPath:str, recursive:bool=False):
 
     #replace the forward slashes with backslashes
     return [f.replace("\\", "/") for f in files]
-
-def getLastModified(fileName:str):
-    """Get the last modified time of a file."""
-    return os.path.getmtime(fileName)
 
 
 #Get the base file name from a list of file paths
@@ -75,6 +72,13 @@ def initializeCache():
         with open(os.path.join(cacheDir, "preferences.txt"), 'w') as f:
             f.write("litera")
 
+    #RecentSlideshows file can just be a text file containing the file paths of the recent slideshows.
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        validateRecentSlideshows()
+
 def updatePreferences(theme:str):
     """Update the user preferences file with the theme."""
     cacheDir = getUserCacheDir()
@@ -91,6 +95,71 @@ def getPreferences():
     else:
         with open(os.path.join(cacheDir, "preferences.txt"), 'r') as f:
             return f.read().strip()
+        
+def getLastModified(fileName:str):
+    """Get the last modified time of a file."""
+    mod_time = os.path.getmtime(fileName)
+    return time.ctime(mod_time)
+
+def updateSlideshowCacheList(slideshowPath:str):
+    #Get the cache directory
+    cacheDir = getUserCacheDir()
+    #Convert the slideshowPath "\" to "/" for the cache file
+    slideshowPath = slideshowPath.replace("\\", "/")
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            lastModified = getLastModified(slideshowPath)
+            f.write(f"{slideshowPath}${lastModified}\n")
+    else:
+        #If the file exists, check if the slideshow is already in the list. If it is, remove it.
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            for i, s in enumerate(slideshows):
+                if s.split("$")[0] == slideshowPath:
+                    slideshows.pop(i)
+                    break
+        #Add the slideshow to the top of the list
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            lastModified = getLastModified(slideshowPath)
+            f.write(f"{slideshowPath}${lastModified}\n")
+            #Add the rest of the slideshows to the list
+            for s in slideshows:
+                f.write(s + "\n")
+
+def getRecentSlideshows() -> list[str]:
+    cacheDir = getUserCacheDir()
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        #If the file exists, return the list of recent slideshows
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            return slideshows
+    return []
+        
+def validateRecentSlideshows():
+    """Validate the recent slideshows list. Remove any invalid file paths from the list."""
+    cacheDir = getUserCacheDir()
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        #If the file exists, return the list of recent slideshows
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            for i, s in enumerate(slideshows):
+                if not os.path.exists(s.split("$")[0]):
+                    slideshows.pop(i)
+            with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+                for s in slideshows:
+                    f.write(s + "\n")
 
 def clearCache():
     """Clear the cache folder."""
@@ -102,6 +171,7 @@ def clearCache():
 def resetPreferences():
     """Reset the preferences file to the default theme."""
     updatePreferences("litera")
+
 
 class Slide:
     """

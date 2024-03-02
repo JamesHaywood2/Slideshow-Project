@@ -1,6 +1,7 @@
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.scrolled import ScrolledFrame
+from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
@@ -1823,3 +1824,46 @@ class MediaBucket(tb.Frame):
         else:
             return False
     
+class RecentSlideshowList(tk.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        slideshows = FP.getRecentSlideshows()
+        for s in slideshows:
+            print(s)
+
+
+        #Create a label frame
+        self.labelFrame = tb.LabelFrame(self, text="Recent Slideshows", bootstyle="primary")
+        self.labelFrame.pack(expand=True, fill="both", padx=10, pady=10)
+
+        #Create a tableView
+        col_names = [
+            "Name",
+            "Date Modified",
+            {"text": "Path", "stretch": True}
+        ]
+
+        row_data = []
+        for s in slideshows:
+            #Split using '$' as a delimiter
+            s = s.split("$")
+            name = FP.getBaseName([s[0]])[0]
+            # print(name)
+            row_data.append((name, s[1], s[0]))
+        self.tableView = Tableview(master=self.labelFrame, 
+                                    coldata=col_names, 
+                                    rowdata=row_data, 
+                                    bootstyle=tb.PRIMARY,
+                                    searchable=True,
+                                    autofit=True)
+        self.tableView.pack(expand=True, fill="both")
+        
+        #Bind the double click event to open the slideshow
+        # self.tableView.view.bind("<Double-1>", self.openSlideshow)
+        return
+    
+
+
+    
+    
+

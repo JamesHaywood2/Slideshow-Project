@@ -8,6 +8,61 @@ import random
 
 import time
 
+class SlideshowPlayerStart(tb.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
+        self.pack(expand=True, fill="both")
+        self.label = tb.Label(self, text="Slideshow Player", font=("Arial", 24))
+        self.openProjectButton = tb.Button(self, text="Open Project", command=self.openProject)
+        self.recentSlideshowList = RecentSlideshowList(self)
+
+        self.label.place(relx=0.5, rely=0.15, anchor="center")
+        self.openProjectButton.place(anchor="center", relx=0.5, rely=0.3)
+        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center")
+
+        #Set window size
+        self.master.geometry("800x600")
+        #Resizable window false
+        self.master.resizable(False, False)
+
+        #Bind double clicking the recentSlideshowList to open the project
+        self.recentSlideshowList.tableView.view.bind("<Double-1>", self.openRecentProject)
+        return
+    
+    def openRecentProject(self, event):
+        #Get the selected item
+        item = self.recentSlideshowList.tableView.view.selection()
+        if len(item) == 0:
+            return
+        #Get the project path
+        projectPath = self.recentSlideshowList.tableView.view.item(item, "values")[2]
+        print(f"Opening project: {projectPath}")
+        #Open the project
+        self.openProjectPath(projectPath)
+
+    def openProject(self):
+        file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
+        #If not file was selected, return. Effectively cancels.
+        if not file:
+            return
+        self.destroy()
+        self = SlideshowPlayer(self.master, projectPath=file[0])
+        self.pack(expand=True, fill="both")
+
+    def openProjectPath(self, projectPath: str):
+        #Make sure the projectPath is valid
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
+        #Make sure it's a .pyslide file
+        if not projectPath.endswith(".pyslide"):
+            projectPath = "New Project"
+        self.destroy()
+        self = SlideshowPlayer(self.master, projectPath=projectPath)
+        self.pack(expand=True, fill="both")
 
 
 class SlideshowPlayer(tb.Frame):
@@ -345,7 +400,8 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    app = SlideshowPlayer(root)
+    # app = SlideshowPlayer(root)
+    app = SlideshowPlayerStart(root)
     app.pack(expand=True, fill="both")
 
     app.mainloop()
