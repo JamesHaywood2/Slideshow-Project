@@ -146,6 +146,7 @@ class SlideshowPlayer(tb.Frame):
 
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
+        self.transition_checker = None
         return
 
     def motionEvent(self):
@@ -184,25 +185,57 @@ class SlideshowPlayer(tb.Frame):
         self = SlideshowPlayer(self.master, projectPath=file[0])
         self.pack(expand=True, fill="both")
 
+    def checkTransition(self, imagePath: str):
+        if self.imageViewer.transitioning:
+            self.transition_checker = self.after(16, self.checkTransition, imagePath)
+        else:
+            #Once transitioning is complete, make sure the correct image is displayed.
+            self.transition_checker = None
+            self.imageViewer.loadImage(imagePath)
+            self.automaticNext()
+
     def nextSlide(self):
+        self.imageViewer.cancelTransition()
+        if self.transition_checker:
+            self.after_cancel(self.transition_checker)
         self.currentSlide += 1
         if self.currentSlide > len(self.slideList)-1:
             self.currentSlide = 0
-        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+
+        #Gets the slide we're transitioning to and the previous slide.
+        #Then gets the images and correctly sizes them.
+        nextSlide = self.slideList[self.currentSlide]
+        transition = nextSlide['transition']
+        transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        previousImage = self.slideList[self.currentSlide-1]['imagePath']
+        previousImage = Image.open(previousImage)
+        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        nextImage = nextSlide['imagePath']
+        nextImage = Image.open(nextImage)
+        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+
+        #It will then execute the transition and do a constant check to see if the transition is complete.
+        self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
+        self.update()
+        self.checkTransition(nextSlide['imagePath'])
 
         #Update the slide counter
         self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
         
+    def automaticNext(self):
         if not self.manual and not self.isPaused:
+            #Automatic transitions
             if self.slideChangeAfter:
                 self.after_cancel(self.slideChangeAfter)
             changeTime = self.slideList[self.currentSlide]['duration'] * 1000
             self.slideChangeAfter = self.after(changeTime, self.nextSlide)
+            print(f"Next slide in {changeTime}ms")
 
         print(f"Current slide: {self.slideList[self.currentSlide]}")
         return
     
     def prevSlide(self):
+        self.imageViewer.cancelTransition()
         self.currentSlide -= 1
         if self.currentSlide < 0:
             self.currentSlide = len(self.slideList)-1
@@ -225,9 +258,7 @@ class SlideshowPlayer(tb.Frame):
         else: 
             #Set slideshow to start playing
             self.pauseButton.config(text="Pause")
-            if not self.manual:
-                changeTime = self.slideList[self.currentSlide]['duration'] * 1000
-                self.slideChangeAfter = self.after(changeTime, self.nextSlide)
+            self.automaticNext()
 
         self.showOverlay()
         return
