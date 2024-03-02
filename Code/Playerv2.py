@@ -4,10 +4,16 @@ from ttkbootstrap.constants import *
 from Widgets import *
 from tkinter import filedialog
 import FileSupport as FP
+import random
+
+import time
+
 
 
 class SlideshowPlayer(tb.Frame):
     def __init__(self, master, debug:bool= False, projectPath: str="New Project"):
+        self.START = time.time()
+        self.END = time.time()
         super().__init__(master)
         print("\nNEW SLIDESHOW PLAYER\n")
         self.master = master
@@ -79,6 +85,18 @@ class SlideshowPlayer(tb.Frame):
                 print(f"Loop Playlist: {self.loopPlaylist}")
             except:
                 print("Error loading loop setting")
+
+
+        # self.shuffleSlideshow:bool = True
+        ##### Shuffle stuff #####
+        if self.shuffleSlideshow:
+            #Randomize the order of the slides
+            random.shuffle(self.slideList)
+            print("Shuffling slideshow")
+        if self.shufflePlaylist:
+            random.shuffle(self.playlist.songs)
+            print("Shuffling playlist")
+
 
         ########################
         ######   Layout  #######
@@ -195,30 +213,34 @@ class SlideshowPlayer(tb.Frame):
             except:
                 pass
             self.transition_checker = None
+            print(f"Transition complete, loading {imagePath}")
             self.imageViewer.loadImage(imagePath)
             self.automaticNext()
+            self.END = time.time()
+            print(f"Transition took {self.END - self.START} seconds")
 
     def nextSlide(self):
+        print("")
+        self.START = time.time()
         if self.imageViewer.transitioning:
-            try:
-                self.after_cancel(self.transition_checker)
-            except:
-                pass
             self.imageViewer.cancelTransition()
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             return
-        if self.transition_checker:
-            self.after_cancel(self.transition_checker)
+
         self.currentSlide += 1
         if self.currentSlide > len(self.slideList)-1:
             self.currentSlide = 0
+            nextSlide = self.slideList[0]
+            previousSlide = self.slideList[-1]
+        else:
+            nextSlide = self.slideList[self.currentSlide]
+            previousSlide = self.slideList[self.currentSlide-1]
 
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
-        nextSlide = self.slideList[self.currentSlide]
         transition = nextSlide['transition']
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        previousImage = self.slideList[self.currentSlide-1]['imagePath']
+        previousImage = previousSlide['imagePath']
         previousImage = Image.open(previousImage)
         previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
         nextImage = nextSlide['imagePath']
@@ -246,12 +268,10 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def prevSlide(self):
+        print("")
+        self.START = time.time()
         #If a transition is in progress, cancel it and just load the image before returning.
         if self.imageViewer.transitioning:
-            try:
-                self.after_cancel(self.transition_checker)
-            except:
-                pass
             self.imageViewer.cancelTransition()
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             return
@@ -292,6 +312,7 @@ class SlideshowPlayer(tb.Frame):
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
+        self.checkTransition(nextSlide['imagePath'])
 
         #Update the slide counter
         self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")

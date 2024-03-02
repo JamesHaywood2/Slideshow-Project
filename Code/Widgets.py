@@ -272,6 +272,19 @@ class ImageViewer(tb.Canvas):
         self.redrawImage()
         return
     
+    def loadImagePIL(self, imagePIL:Image):
+        self.cancelTransition()
+        #Clear the canvas
+        self.delete("all")
+        self.imagePath = None
+        self.imagePIL = imagePIL
+        #Resize the image while using the aspect ratio
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.image = ImageTk.PhotoImage(self.imagePIL)
+        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
+        self.redrawImage()
+        return
+    
     def getImage(self):
         return self.imagePIL
 
@@ -301,7 +314,6 @@ class ImageViewer(tb.Canvas):
             self.after(3000, self.setBlankImage)
         return
     
-
     def executeTransition(self, transitionType: str, transitionTime, endImg:Image, startImg:Image=None):
         if startImg == None:
             #Use a blank black image as the start image
@@ -316,6 +328,7 @@ class ImageViewer(tb.Canvas):
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
             print(f"Default transition. Nothing to really preview")
+            self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
             incY = endImg.height / (transitionTime)
             incY = int(incY * FPS)
@@ -451,11 +464,9 @@ class ImageViewer(tb.Canvas):
         #Get the next image, change the opacity, then draw it on the canvas.
         #Get color of background
         bg1 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x1 = (bg1.width - startImg.width) // 2
-        y1 = (bg1.height - startImg.height) // 2
+        x1, y1 = (bg1.width - startImg.width) // 2, (bg1.height - startImg.height) // 2
         bg2 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x2 = (bg2.width - endImg.width) // 2
-        y2 = (bg2.height - endImg.height) // 2
+        x2, y2 = (bg2.width - endImg.width) // 2, (bg2.height - endImg.height) // 2
         bg1.paste(startImg.convert("RGBA"), (x1,y1), startImg.convert("RGBA"))
         bg2.paste(endImg.convert("RGBA"), (x2,y2), endImg.convert("RGBA"))
 
