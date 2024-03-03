@@ -11,6 +11,11 @@ import time
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
         super().__init__(master)
+        try:
+            FP.initializeCache()
+        except:
+            print("Cache initialziation failed")
+        tb.Style().theme_use(FP.getPreferences())
         self.master = master
         self.pack(expand=True, fill="both")
         self.label = tb.Label(self, text="Slideshow Player", font=("Arial", 24))
@@ -67,6 +72,10 @@ class SlideshowPlayerStart(tb.Frame):
 
 class SlideshowPlayer(tb.Frame):
     def __init__(self, master, debug:bool= False, projectPath: str="New Project"):
+        screen_width = master.winfo_screenwidth()
+        screen_height = master.winfo_screenheight()
+        master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+        master.resizable(True, True)
         self.START = time.time()
         self.END = time.time()
         super().__init__(master)
@@ -165,7 +174,7 @@ class SlideshowPlayer(tb.Frame):
             #Add first slide to the ImageViewer
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             self.imageViewer.autoResizeToggle()
-            self.imageViewer.config(bg="black")
+            # self.imageViewer.config(bg="black")
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -178,8 +187,29 @@ class SlideshowPlayer(tb.Frame):
             self.pauseButton.place(relx=0.5, rely=0.85, anchor="center")
 
             #Add a slide counter in the top right corner
-            self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
-            self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+            self.slideMeterBroken: bool = False
+            # self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+            # self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+
+            #Add a slide counter in the top right corner using a bootstrap meter
+            #Go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work
+            try:
+                self.slideCounter = tb.Meter(self, 
+                                         bootstyle="primary",
+                                         metersize=100,
+                                         textright=f"/{len(self.slideList)}",
+                                         metertype="semi",
+                                         amounttotal=len(self.slideList),
+                                         amountused=self.currentSlide+1,
+                                         stripethickness=35,)
+                self.slideCounter.place(relx=1, rely=0, anchor="ne")
+            except:
+                self.slideMeterBroken = True
+                self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+                self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+                #Throw an error message: f"Error: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label."
+                print(f"\nError: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label.\n")
+
 
             if self.playlistExists:
                 #Add a music player (probably gonna be a widegt)
@@ -237,6 +267,7 @@ class SlideshowPlayer(tb.Frame):
         self.slideCounter.place_forget()
         
         self.master.bind("<h>", lambda e: self.showOverlay())
+        self.config(cursor="none")
         return
 
     def showOverlay(self):
@@ -244,9 +275,13 @@ class SlideshowPlayer(tb.Frame):
         self.nextButton.place(relx=0.8, rely=0.85, anchor="center")
         self.prevButton.place(relx=0.2, rely=0.85, anchor="center")
         self.pauseButton.place(relx=0.5, rely=0.85, anchor="center")
-        self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+        if not self.slideMeterBroken:
+            self.slideCounter.place(relx=1, rely=0, anchor="ne")
+        else:
+            self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
 
         self.master.bind("<h>", lambda e: self.hideOverlay())
+        self.config(cursor="")
         return
 
     def openProject(self):
@@ -276,6 +311,8 @@ class SlideshowPlayer(tb.Frame):
 
     def nextSlide(self):
         print("")
+        #Launch a motion event to show the overlay
+        self.event_generate("<Motion>")
         self.START = time.time()
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
@@ -308,7 +345,25 @@ class SlideshowPlayer(tb.Frame):
         self.checkTransition(nextSlide['imagePath'])
 
         #Update the slide counter
-        self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+        if not self.slideMeterBroken:
+            try:
+                self.slideCounter.amountusedvar.set(self.currentSlide+1)
+            except:
+                self.slideMeterBroken = True
+                print("Slide meter broken")
+                try:
+                    #Destroy the old meter
+                    self.slideCounter.destroy()
+                    self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+                    self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+                except:
+                    print("Something is seriously wrong lmao")
+        try:
+            self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+        except:
+            pass
+
+        return
         
     def automaticNext(self):
         if not self.manual and not self.isPaused:
@@ -324,6 +379,7 @@ class SlideshowPlayer(tb.Frame):
     
     def prevSlide(self):
         print("")
+        self.event_generate("<Motion>")
         self.START = time.time()
         #If a transition is in progress, cancel it and just load the image before returning.
         if self.imageViewer.transitioning:
@@ -370,7 +426,24 @@ class SlideshowPlayer(tb.Frame):
         self.checkTransition(nextSlide['imagePath'])
 
         #Update the slide counter
-        self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+        #Update the slide counter
+        if not self.slideMeterBroken:
+            try:
+                self.slideCounter.amountusedvar.set(self.currentSlide+1)
+            except:
+                self.slideMeterBroken = True
+                print("Slide meter broken")
+                try:
+                    #Destroy the old meter
+                    self.slideCounter.destroy()
+                    self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+                    self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+                except:
+                    print("Something is seriously wrong lmao")
+        try:
+            self.slideCounter.config(text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+        except:
+            pass
         return
     
     def pause(self):

@@ -473,7 +473,8 @@ class SlideshowCreator(tb.Frame):
 
         #List of themes in TTKBootstrap
         #https://ttkbootstrap.readthedocs.io/en/latest/themes/
-        themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        # themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        themes = tb.Style().theme_names()
         #combobox for the themes
         themeList = tb.Combobox(window, values=themes)
         themeList.pack(expand=False, fill="none", pady=10)
