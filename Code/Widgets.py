@@ -218,6 +218,7 @@ class ImageViewer(tb.Canvas):
 
         self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         self.transitioning: bool = False #If a transition is currently happening
+        self.FPS = 80
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -267,7 +268,7 @@ class ImageViewer(tb.Canvas):
             print(f"Loaded {imagePath} into ImageViewer as Missing Image")
 
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.redrawImage()
@@ -280,11 +281,12 @@ class ImageViewer(tb.Canvas):
         self.imagePath = None
         self.imagePIL = imagePIL
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.redrawImage()
         return
+    
     
     def getImage(self):
         return self.imagePIL
@@ -306,7 +308,7 @@ class ImageViewer(tb.Canvas):
         #Resize the image while using the aspect ratio
         img = Image.open(self.imagePath)
         self.imagePIL = img
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
@@ -315,7 +317,7 @@ class ImageViewer(tb.Canvas):
             self.after(3000, self.setBlankImage)
         return
     
-    def executeTransition(self, transitionType: str, transitionTime, endImg:Image, startImg:Image=None):
+    def executeTransition(self, transitionType: str, transitionTime, endImg: Image, startImg: Image=None):
         if startImg == None:
             #Use a blank black image as the start image
             startImg = Image.new("RGB", (self.canvasWidth, self.canvasHeight), (0, 0, 0))
@@ -324,7 +326,7 @@ class ImageViewer(tb.Canvas):
         print(f"startImg: {startImg.width}x{startImg.height}")
         print(f"transitionTime: {transitionTime}ms")
 
-        FPS = 40
+        self.FPS = 40
 
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
@@ -332,14 +334,14 @@ class ImageViewer(tb.Canvas):
             self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
             incY = endImg.height / (transitionTime)
-            incY = int(incY * FPS)
+            incY = int(incY * self.FPS * 2)
             self.transitioning = True
             self.transition_WipeDown(startImg, endImg, 0, incY)
 
 
         elif transitionType == FP.transitionType.WIPEUP:
             incY = endImg.height / (transitionTime)
-            incY = int(incY * FPS) #40ms per iteration
+            incY = int(incY * self.FPS * 2)
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
@@ -347,7 +349,7 @@ class ImageViewer(tb.Canvas):
 
         elif transitionType == FP.transitionType.WIPELEFT:
             incX = endImg.width / (transitionTime)
-            incX = int(incX * FPS) #40ms per iteration
+            incX = int(incX * self.FPS * 2) #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
@@ -355,7 +357,7 @@ class ImageViewer(tb.Canvas):
 
         elif transitionType == FP.transitionType.WIPERIGHT:
             incX = endImg.width / (transitionTime)
-            incX = int(incX * FPS) #40ms per iteration
+            incX = int(incX * self.FPS* 2) #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
@@ -363,7 +365,7 @@ class ImageViewer(tb.Canvas):
 
         elif transitionType == FP.transitionType.FADE:
             inc = 255 / (transitionTime)
-            inc = int(inc * FPS)
+            inc = int(inc * self.FPS * 2)
             self.transitioning = True
             self.transition_Fade(startImg, endImg, 0, inc)
 
@@ -387,7 +389,7 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += incX
         #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeRight, startImg, endImg, counter, incX)
+        self.transition_id = self.after(self.FPS, self.transition_WipeRight, startImg, endImg, counter, incX)
         return
     
     def transition_WipeLeft(self, startImg, endImg, counter, incX):
@@ -409,7 +411,7 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += incX
         #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeLeft, startImg, endImg, counter, incX)
+        self.transition_id = self.after(self.FPS, self.transition_WipeLeft, startImg, endImg, counter, incX)
         return
     
     def transition_WipeDown(self, startImg, endImg, counter, incY):
@@ -431,7 +433,7 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += incY
         #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeDown, startImg, endImg, counter, incY)
+        self.transition_id = self.after(self.FPS, self.transition_WipeDown, startImg, endImg, counter, incY)
         return
     
     def transition_WipeUp(self, startImg, endImg, counter, incY):
@@ -453,7 +455,7 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += incY
         #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeUp, startImg, endImg, counter, incY)
+        self.transition_id = self.after(self.FPS, self.transition_WipeUp, startImg, endImg, counter, incY)
         return
     
     def transition_Fade(self, startImg, endImg, counter, increment):
@@ -479,11 +481,9 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += increment
         #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_Fade, startImg, endImg, counter, increment)
+        self.transition_id = self.after(self.FPS, self.transition_Fade, startImg, endImg, counter, increment)
         return
         
-
-
            
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
@@ -555,7 +555,7 @@ class FileIcon(tk.Frame):
             self.__imagePIL = img
             self.imagepath = imagepath
             self.name = "File Not Found"
-        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
 
@@ -1414,8 +1414,8 @@ class InfoFrame(tb.Frame):
                 startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
             else:
                 startImg = Image.open(previousSlide['imagePath'])
-            startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight))
-            endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight))
+            startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+            endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             
             self.__icon.linkedViewer.executeTransition(transitionType, transitionSpeed, endImg, startImg)
             self.checkTransition(self.__icon.slide['imagePath'])
@@ -1861,9 +1861,3 @@ class RecentSlideshowList(tk.Frame):
         #Bind the double click event to open the slideshow
         # self.tableView.view.bind("<Double-1>", self.openSlideshow)
         return
-    
-
-
-    
-    
-

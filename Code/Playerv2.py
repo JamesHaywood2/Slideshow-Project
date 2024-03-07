@@ -23,8 +23,8 @@ class SlideshowPlayerStart(tb.Frame):
         self.recentSlideshowList = RecentSlideshowList(self)
 
         self.label.place(relx=0.5, rely=0.15, anchor="center")
-        self.openProjectButton.place(anchor="center", relx=0.5, rely=0.3)
-        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center")
+        self.openProjectButton.place(anchor="center", relx=0.5, rely=0.25)
+        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
 
         #Set window size
         self.master.geometry("800x600")
@@ -201,7 +201,7 @@ class SlideshowPlayer(tb.Frame):
                                          metertype="semi",
                                          amounttotal=len(self.slideList),
                                          amountused=self.currentSlide+1,
-                                         stripethickness=35,)
+                                         stripethickness=0,)
                 self.slideCounter.place(relx=1, rely=0, anchor="ne")
             except:
                 self.slideMeterBroken = True
@@ -295,7 +295,7 @@ class SlideshowPlayer(tb.Frame):
 
     def checkTransition(self, imagePath: str):
         if self.imageViewer.transitioning:
-            self.transition_checker = self.after(16, self.checkTransition, imagePath)
+            self.transition_checker = self.after(32, self.checkTransition, imagePath)
         else:
             #Once transitioning is complete, make sure the correct image is displayed.
             try:
@@ -334,14 +334,13 @@ class SlideshowPlayer(tb.Frame):
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
         previousImage = previousSlide['imagePath']
         previousImage = Image.open(previousImage)
-        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         nextImage = nextSlide['imagePath']
         nextImage = Image.open(nextImage)
-        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
-        self.update()
         self.checkTransition(nextSlide['imagePath'])
 
         #Update the slide counter
@@ -416,10 +415,10 @@ class SlideshowPlayer(tb.Frame):
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
         previousImage = previousSlide['imagePath']
         previousImage = Image.open(previousImage)
-        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         nextImage = nextSlide['imagePath']
         nextImage = Image.open(nextImage)
-        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight))
+        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
