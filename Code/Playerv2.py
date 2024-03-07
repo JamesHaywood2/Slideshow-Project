@@ -75,7 +75,11 @@ class SlideshowPlayer(tb.Frame):
         screen_width = master.winfo_screenwidth()
         screen_height = master.winfo_screenheight()
         master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
-        master.resizable(True, True)
+        master.resizable(True, True) #Resizable window
+        master.attributes("-fullscreen", True) #Fullscreen
+        #Bind escape to exit fullscreen
+        master.bind("<Escape>", lambda e: self.quit())
+
         self.START = time.time()
         self.END = time.time()
         super().__init__(master)
@@ -161,7 +165,6 @@ class SlideshowPlayer(tb.Frame):
             random.shuffle(self.playlist.songs)
             print("Shuffling playlist")
 
-
         ########################
         ######   Layout  #######
         ########################
@@ -174,7 +177,42 @@ class SlideshowPlayer(tb.Frame):
             #Add first slide to the ImageViewer
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             self.imageViewer.autoResizeToggle()
-            # self.imageViewer.config(bg="black")
+
+            ###### LOAD THE SLIDES ######
+            screen_height = self.master.winfo_screenheight()
+            screen_width = self.master.winfo_screenwidth()
+            #We want to get every slide image in the slideshow and prepare them for display.
+            self.ImageList = {} #Key: Slide number, Value: Image object
+            for slide in self.slideList:
+                print(f"Loading image: {slide['imagePath']} for slide {slide['slideID']}")
+                try:
+                    slideImage = Image.open(slide['imagePath']).convert("RGBA")
+                    #Resize the image to fit the canvas size.
+                    slideImage.thumbnail((screen_width, screen_height), resample=Image.NEAREST, reducing_gap=None)
+                except:
+                    print(f"Error loading image: {slide['imagePath']}")
+
+                try:
+                    #Background will be a transparent square fit to the canvas size.
+                    #Background will insure that every image is the same size and dimensions.
+                    bg = Image.new("RGBA", (screen_width, screen_height), (255, 255, 255, 0))
+                except:
+                    print("Error creating background")
+
+                try:
+                    x, y = (bg.width - slideImage.width) // 2, (bg.height - slideImage.height) // 2
+                    #Paste the image onto the background
+                    bg.paste(slideImage, (x, y), slideImage)      
+                except:
+                    print("Error pasting image onto background")
+                    print(f"Slide image dimensions: {slideImage.size}")
+                    print(f"Background dimensions: {bg.size}")
+                    quit()
+
+                #Add the image to the ImageList
+                self.ImageList[slide['slideID']] = bg
+
+            self.update()
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -303,11 +341,11 @@ class SlideshowPlayer(tb.Frame):
             except:
                 pass
             self.transition_checker = None
-            print(f"Transition complete, loading {imagePath}")
-            self.imageViewer.loadImage(imagePath)
-            self.automaticNext()
             self.END = time.time()
             print(f"Transition took {self.END - self.START} seconds")
+            print(f"Transition complete, reloading the image to be safe.")
+            self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            self.automaticNext()
 
     def nextSlide(self):
         print("")
@@ -316,7 +354,8 @@ class SlideshowPlayer(tb.Frame):
         self.START = time.time()
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
-            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            # self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
             return
 
         self.currentSlide += 1
@@ -332,12 +371,14 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        previousImage = previousSlide['imagePath']
-        previousImage = Image.open(previousImage)
-        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        nextImage = nextSlide['imagePath']
-        nextImage = Image.open(nextImage)
-        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        # previousImage = previousSlide['imagePath']
+        # previousImage = Image.open(previousImage)
+        # nextImage = nextSlide['imagePath']
+        # nextImage = Image.open(nextImage)
+        # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        previousImage = self.ImageList[previousSlide['slideID']]
+        nextImage = self.ImageList[nextSlide['slideID']]
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
@@ -413,12 +454,14 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = reverseTransition(previousSlide['transition'])
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        previousImage = previousSlide['imagePath']
-        previousImage = Image.open(previousImage)
-        previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        nextImage = nextSlide['imagePath']
-        nextImage = Image.open(nextImage)
-        nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        # previousImage = previousSlide['imagePath']
+        # previousImage = Image.open(previousImage)
+        # nextImage = nextSlide['imagePath']
+        # nextImage = Image.open(nextImage)
+        # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        previousImage = self.ImageList[previousSlide['slideID']]
+        nextImage = self.ImageList[nextSlide['slideID']]
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)

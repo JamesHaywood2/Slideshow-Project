@@ -218,7 +218,7 @@ class ImageViewer(tb.Canvas):
 
         self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         self.transitioning: bool = False #If a transition is currently happening
-        self.FPS = 80
+        self.FPS = 16
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -259,7 +259,7 @@ class ImageViewer(tb.Canvas):
             self.imagePIL = img
             #Delete & replace old label
             self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
-            print(f"Loaded {imagePath} into ImageViewer")
+            # print(f"Loaded {imagePath} into ImageViewer")
         except:
             print(f"{imagePath} is not a valid image file.")
             self.imagePath = FP.MissingImage
@@ -281,20 +281,17 @@ class ImageViewer(tb.Canvas):
         self.imagePath = None
         self.imagePIL = imagePIL
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        self.redrawImage()
         return
-    
     
     def getImage(self):
         return self.imagePIL
 
     def redrawImage(self):
-        print("Redrawing Image")
+        # print("Redrawing Image")
         #Return early if there is no image
-        if self.imagePath == None:
+        if self.imagePIL == None:
             self.delete("all")
             return
 
@@ -466,15 +463,16 @@ class ImageViewer(tb.Canvas):
             return 1
         #Get the next image, change the opacity, then draw it on the canvas.
         #Get color of background
-        bg1 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x1, y1 = (bg1.width - startImg.width) // 2, (bg1.height - startImg.height) // 2
-        bg2 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x2, y2 = (bg2.width - endImg.width) // 2, (bg2.height - endImg.height) // 2
-        bg1.paste(startImg.convert("RGBA"), (x1,y1), startImg.convert("RGBA"))
-        bg2.paste(endImg.convert("RGBA"), (x2,y2), endImg.convert("RGBA"))
+        # bg1 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
+        # x1, y1 = (bg1.width - startImg.width) // 2, (bg1.height - startImg.height) // 2
+        # bg2 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
+        # x2, y2 = (bg2.width - endImg.width) // 2, (bg2.height - endImg.height) // 2
+        # bg1.paste(startImg.convert("RGBA"), (x1,y1), startImg.convert("RGBA"))
+        # bg2.paste(endImg.convert("RGBA"), (x2,y2), endImg.convert("RGBA"))
 
         #Interpolate the two images
-        newImg = Image.blend(bg1, bg2, counter/255)
+        # newImg = Image.blend(bg1, bg2, counter/255)
+        newImg = Image.blend(startImg, endImg, counter/255)
 
         self.image = ImageTk.PhotoImage(newImg)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
