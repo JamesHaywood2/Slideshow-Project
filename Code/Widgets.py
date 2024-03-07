@@ -218,7 +218,8 @@ class ImageViewer(tb.Canvas):
 
         self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         self.transitioning: bool = False #If a transition is currently happening
-        self.FPS = 16
+        self.deltaTime = 40 #Target time between frames in ms
+        self.frameCounter = 0
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -322,48 +323,60 @@ class ImageViewer(tb.Canvas):
         print(f"endImg: {endImg.width}x{endImg.height}")
         print(f"startImg: {startImg.width}x{startImg.height}")
         print(f"transitionTime: {transitionTime}ms")
+        # transitionTime = transitionTime//1000 #Convert to seconds
 
-        self.FPS = 40
+        #Check if the images are the same size. If they are good. If not then resize the start image to the same size as the end image.
+        if startImg.width != endImg.width or startImg.height != endImg.height:
+            print("Resizing start image to match end image")
+            startImg = startImg.resize((endImg.width, endImg.height), resample=Image.NEAREST)
+
+        booster = 1
+        self.frameCounter = 0
 
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
             print(f"Default transition. Nothing to really preview")
             self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
-            incY = endImg.height / (transitionTime)
-            incY = int(incY * self.FPS * 2)
+            incY = endImg.height / (transitionTime) #Unit per ms
+            incY = int(incY * self.deltaTime * booster)
             self.transitioning = True
+            print(f"Increment: {incY}")
             self.transition_WipeDown(startImg, endImg, 0, incY)
 
 
         elif transitionType == FP.transitionType.WIPEUP:
-            incY = endImg.height / (transitionTime)
-            incY = int(incY * self.FPS * 2)
+            incY = endImg.height / (transitionTime) #Unit per ms
+            incY = int(incY * self.deltaTime * booster)
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
+            print(f"Increment: {incY}")
             self.transition_WipeUp(startImg, endImg, 0, incY)
 
         elif transitionType == FP.transitionType.WIPELEFT:
-            incX = endImg.width / (transitionTime)
-            incX = int(incX * self.FPS * 2) #40ms per iteration
+            incX = endImg.width / (transitionTime) #Unit per ms
+            incX = int(incX * self.deltaTime * booster) #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
+            print(f"Increment: {incX}")
             self.transition_WipeLeft(startImg, endImg, 0, incX)
 
         elif transitionType == FP.transitionType.WIPERIGHT:
-            incX = endImg.width / (transitionTime)
-            incX = int(incX * self.FPS* 2) #40ms per iteration
+            incX = endImg.width / (transitionTime) #Unit per ms
+            incX = int(incX * self.deltaTime * booster) #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
+            print(f"Increment: {incX}")
             self.transition_WipeRight(startImg, endImg, 0, incX)
 
         elif transitionType == FP.transitionType.FADE:
-            inc = 255 / (transitionTime)
-            inc = int(inc * self.FPS * 2)
+            inc = 255 / (transitionTime) #Unit per ms
+            inc = int(inc * self.deltaTime * booster)
             self.transitioning = True
+            print(f"Increment: {inc}")
             self.transition_Fade(startImg, endImg, 0, inc)
 
 
@@ -385,8 +398,9 @@ class ImageViewer(tb.Canvas):
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         #Increment the counter
         counter += incX
+        self.frameCounter += 1
         #Call this function again after 40ms
-        self.transition_id = self.after(self.FPS, self.transition_WipeRight, startImg, endImg, counter, incX)
+        self.transition_id = self.after(self.deltaTime, self.transition_WipeRight, startImg, endImg, counter, incX)
         return
     
     def transition_WipeLeft(self, startImg, endImg, counter, incX):
@@ -408,7 +422,7 @@ class ImageViewer(tb.Canvas):
         #Increment the counter
         counter += incX
         #Call this function again after 40ms
-        self.transition_id = self.after(self.FPS, self.transition_WipeLeft, startImg, endImg, counter, incX)
+        self.transition_id = self.after(self.deltaTime, self.transition_WipeLeft, startImg, endImg, counter, incX)
         return
     
     def transition_WipeDown(self, startImg, endImg, counter, incY):
@@ -429,8 +443,9 @@ class ImageViewer(tb.Canvas):
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         #Increment the counter
         counter += incY
+        self.frameCounter += 1
         #Call this function again after 40ms
-        self.transition_id = self.after(self.FPS, self.transition_WipeDown, startImg, endImg, counter, incY)
+        self.transition_id = self.after(self.deltaTime, self.transition_WipeDown, startImg, endImg, counter, incY)
         return
     
     def transition_WipeUp(self, startImg, endImg, counter, incY):
@@ -451,8 +466,9 @@ class ImageViewer(tb.Canvas):
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         #Increment the counter
         counter += incY
+        self.frameCounter += 1
         #Call this function again after 40ms
-        self.transition_id = self.after(self.FPS, self.transition_WipeUp, startImg, endImg, counter, incY)
+        self.transition_id = self.after(self.deltaTime, self.transition_WipeUp, startImg, endImg, counter, incY)
         return
     
     def transition_Fade(self, startImg, endImg, counter, increment):
@@ -478,8 +494,9 @@ class ImageViewer(tb.Canvas):
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         #Increment the counter
         counter += increment
+        self.frameCounter += 1
         #Call this function again after 40ms
-        self.transition_id = self.after(self.FPS, self.transition_Fade, startImg, endImg, counter, increment)
+        self.transition_id = self.after(self.deltaTime, self.transition_Fade, startImg, endImg, counter, increment)
         return
         
            

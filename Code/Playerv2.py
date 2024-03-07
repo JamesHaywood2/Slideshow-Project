@@ -168,34 +168,75 @@ class SlideshowPlayer(tb.Frame):
         ########################
         ######   Layout  #######
         ########################
-
-        #Only construct the layout if the project is not empty of slides.
+            
         if len(self.slideList) > 0:
             #Add an ImageViewer to the canvas
             self.imageViewer = ImageViewer(self)
             self.imageViewer.pack(expand=True, fill="both")
-            #Add first slide to the ImageViewer
-            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             self.imageViewer.autoResizeToggle()
 
-            ###### LOAD THE SLIDES ######
+            ######
+            #Will call the create components method after the window is created and image viewer is packed.
+        
+
+        else:
+            #If there are no slides/project is empty, display a message.
+            self.emptyLabel = tb.Label(self, text="Error: No slides in project", font=("Comic Sans MS", 20))
+            self.emptyLabel.place(relx=0.5, rely=0.5, anchor="center")
+            #Button to open a new project
+            self.openButton = tb.Button(self, text="Open Project", command=self.openProject)
+            self.openButton.place(relx=0.5, rely=0.6, anchor="center")
+
+        ########################
+        ######  MENU BAR #######
+        ########################
+        self.menuBar = tb.Menu(self)
+        self.master.config(menu=self.menuBar)
+        #Only two menus: Open and exit
+        self.fileMenu = tb.Menu(self.menuBar, tearoff=0)
+        self.fileMenu.add_command(label="Open", command=self.openProject)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Exit", command=self.quit)
+        self.menuBar.add_cascade(label="File", menu=self.fileMenu)
+
+        #After variable to keep track of slide changes.
+        self.slideChangeAfter = None
+        self.transition_checker = None
+
+        #Bind a configure event to the window so we can create the components after the window is resized.
+        self.bind("<Configure>", lambda e: self.createComponents())
+        return
+    
+    def createComponents(self):
+        #Unbind the configure event so it doesn't keep creating components.
+        self.unbind("<Configure>")
+        self.update_idletasks()
+        #Only construct the layout if the project is not empty of slides.
+        if len(self.slideList) > 0:
+            
+            #Add first slide to the ImageViewer
+            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+
+            ###### PRE-RENDER THE IMAGES ######
             screen_height = self.master.winfo_screenheight()
             screen_width = self.master.winfo_screenwidth()
+            canvas_width = self.imageViewer.canvasWidth
+            canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
-            self.ImageList = {} #Key: Slide number, Value: Image object
+            self.ImageList = {} #Key: Slide number, name of the image file in the cache
             for slide in self.slideList:
-                print(f"Loading image: {slide['imagePath']} for slide {slide['slideID']}")
+                # print(f"Loading image: {slide['imagePath']} for slide {slide['slideID']}")
                 try:
                     slideImage = Image.open(slide['imagePath']).convert("RGBA")
                     #Resize the image to fit the canvas size.
-                    slideImage.thumbnail((screen_width, screen_height), resample=Image.NEAREST, reducing_gap=None)
+                    slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=None)
                 except:
                     print(f"Error loading image: {slide['imagePath']}")
 
                 try:
                     #Background will be a transparent square fit to the canvas size.
                     #Background will insure that every image is the same size and dimensions.
-                    bg = Image.new("RGBA", (screen_width, screen_height), (255, 255, 255, 0))
+                    bg = Image.new("RGBA", (canvas_width, canvas_height), (255, 255, 255, 0))
                 except:
                     print("Error creating background")
 
@@ -209,10 +250,13 @@ class SlideshowPlayer(tb.Frame):
                     print(f"Background dimensions: {bg.size}")
                     quit()
 
+                #Generate a name for the image
+                name = f"{FP.removeExtension(self.slideshow.name)}__{slide['slideID']}_{slide['transition']}_{FP.removeExtension(slide['imageName'])}.png"
+                # print(f"Saving image to cache: {name}")
+                #Save the image to the cache
+                FP.saveImageToCache(bg, name)
                 #Add the image to the ImageList
-                self.ImageList[slide['slideID']] = bg
-
-            self.update()
+                self.ImageList[slide['slideID']] = name
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -253,42 +297,18 @@ class SlideshowPlayer(tb.Frame):
                 #Add a music player (probably gonna be a widegt)
                 pass
 
-            
-            # self.hideOverlay()
-            # self.master.bind("<Enter>", lambda e: self.showOverlay())
-            # self.master.bind("<Leave>", lambda e: self.hideOverlay())
-            self.master.bind("<Right>", lambda e: self.nextSlide())
-            self.master.bind("<Left>", lambda e: self.prevSlide())
-            self.master.bind("<space>", lambda e: self.pause())
-            self.master.bind("<h>", lambda e: self.hideOverlay())
-            self.mouse_after_id = None
-            self.master.bind("<Motion>", lambda e: self.motionEvent())
 
-        else:
-            #If there are no slides/project is empty, display a message.
-            self.emptyLabel = tb.Label(self, text="Error: No slides in project", font=("Comic Sans MS", 20))
-            self.emptyLabel.place(relx=0.5, rely=0.5, anchor="center")
-            #Button to open a new project
-            self.openButton = tb.Button(self, text="Open Project", command=self.openProject)
-            self.openButton.place(relx=0.5, rely=0.6, anchor="center")
-
-        ########################
-        ######  MENU BAR #######
-        ########################
-        self.menuBar = tb.Menu(self)
-        self.master.config(menu=self.menuBar)
-        #Only two menus: Open and exit
-        self.fileMenu = tb.Menu(self.menuBar, tearoff=0)
-        self.fileMenu.add_command(label="Open", command=self.openProject)
-        self.fileMenu.add_separator()
-        self.fileMenu.add_command(label="Exit", command=self.quit)
-        self.menuBar.add_cascade(label="File", menu=self.fileMenu)
+        # self.hideOverlay()
+        # self.master.bind("<Enter>", lambda e: self.showOverlay())
+        # self.master.bind("<Leave>", lambda e: self.hideOverlay())
+        self.master.bind("<Right>", lambda e: self.nextSlide())
+        self.master.bind("<Left>", lambda e: self.prevSlide())
+        self.master.bind("<space>", lambda e: self.pause())
+        self.master.bind("<h>", lambda e: self.hideOverlay())
+        self.mouse_after_id = None
+        self.master.bind("<Motion>", lambda e: self.motionEvent())
 
 
-        #After variable to keep track of slide changes.
-        self.slideChangeAfter = None
-        self.transition_checker = None
-        return
 
     def motionEvent(self):
         self.showOverlay()
@@ -333,7 +353,7 @@ class SlideshowPlayer(tb.Frame):
 
     def checkTransition(self, imagePath: str):
         if self.imageViewer.transitioning:
-            self.transition_checker = self.after(32, self.checkTransition, imagePath)
+            self.transition_checker = self.after(100, self.checkTransition, imagePath)
         else:
             #Once transitioning is complete, make sure the correct image is displayed.
             try:
@@ -342,9 +362,11 @@ class SlideshowPlayer(tb.Frame):
                 pass
             self.transition_checker = None
             self.END = time.time()
-            print(f"Transition took {self.END - self.START} seconds")
-            print(f"Transition complete, reloading the image to be safe.")
-            self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            print(f"Transition took {self.END - self.START} seconds and {self.imageViewer.frameCounter} frames.")
+            print(f"Transition complete, reloading the image to be safe. ")
+            # self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            self.imageViewer.loadImage(imagePath)
+            self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageList[self.slideList[self.currentSlide]['slideID']]))
             self.automaticNext()
 
     def nextSlide(self):
@@ -355,7 +377,8 @@ class SlideshowPlayer(tb.Frame):
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
             # self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
-            self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            # self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageList[self.slideList[self.currentSlide]['slideID']]))
             return
 
         self.currentSlide += 1
@@ -377,8 +400,13 @@ class SlideshowPlayer(tb.Frame):
         # nextImage = Image.open(nextImage)
         # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        previousImage = self.ImageList[previousSlide['slideID']]
-        nextImage = self.ImageList[nextSlide['slideID']]
+
+        previous_ID = previousSlide['slideID']
+        next_ID = nextSlide['slideID']
+        previousImage = FP.loadImageFromCache(self.ImageList[previous_ID])
+        nextImage = FP.loadImageFromCache(self.ImageList[next_ID])
+
+        print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
@@ -460,14 +488,18 @@ class SlideshowPlayer(tb.Frame):
         # nextImage = Image.open(nextImage)
         # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        previousImage = self.ImageList[previousSlide['slideID']]
-        nextImage = self.ImageList[nextSlide['slideID']]
+
+        previous_ID = previousSlide['slideID']
+        next_ID = nextSlide['slideID']
+        previousImage = FP.loadImageFromCache(self.ImageList[previous_ID])
+        nextImage = FP.loadImageFromCache(self.ImageList[next_ID])
+
+        print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.checkTransition(nextSlide['imagePath'])
 
-        #Update the slide counter
         #Update the slide counter
         if not self.slideMeterBroken:
             try:

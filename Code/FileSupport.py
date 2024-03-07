@@ -37,9 +37,13 @@ def randomImage(files):
     """Returns a random image from a list of file paths."""
     return random.choice(files)
 
+#Take a str or list of str file paths and return their names without the file extension
 def removeExtension(files):
     """Removes the file extension from a list of file paths."""
-    return [os.path.splitext(f)[0] for f in files]
+    if isinstance(files, list):
+        return [os.path.splitext(f)[0] for f in files]
+    else:
+        return os.path.splitext(files)[0]
 
 def getBaseName(files):
     """Returns the base name of a list of file paths."""
@@ -171,6 +175,18 @@ def clearCache():
 def resetPreferences():
     """Reset the preferences file to the default theme."""
     updatePreferences("litera")
+
+def saveImageToCache(image:Image, name:str):
+    """Save the image to the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    #Save the image to the cache folder
+    image.save(os.path.join(cacheDir, name))
+
+def loadImageFromCache(name:str):
+    """Load the image from the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    #Load the image from the cache folder
+    return Image.open(os.path.join(cacheDir, name))
 
 
 class Slide:
