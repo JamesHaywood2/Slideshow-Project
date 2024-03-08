@@ -7,6 +7,7 @@ import FileSupport as FP
 import random
 
 import time
+import copy
 
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
@@ -223,40 +224,40 @@ class SlideshowPlayer(tb.Frame):
             canvas_width = self.imageViewer.canvasWidth
             canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
-            self.ImageList = {} #Key: Slide number, name of the image file in the cache
+            self.ImageMap = {} #Key: Slide number, name of the image file in the cache
+            self.ImageList = [] #List of all the images
+            max_width = -1
+            max_height = -1
             for slide in self.slideList:
-                # print(f"Loading image: {slide['imagePath']} for slide {slide['slideID']}")
+                #Open the image
                 try:
                     slideImage = Image.open(slide['imagePath']).convert("RGBA")
-                    #Resize the image to fit the canvas size.
                     slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=None)
+                    #Add the image to the list
+                    self.ImageList.append(slideImage)
                 except:
                     print(f"Error loading image: {slide['imagePath']}")
-
-                try:
-                    #Background will be a transparent square fit to the canvas size.
-                    #Background will insure that every image is the same size and dimensions.
-                    bg = Image.new("RGBA", (canvas_width, canvas_height), (255, 255, 255, 0))
-                except:
-                    print("Error creating background")
-
-                try:
-                    x, y = (bg.width - slideImage.width) // 2, (bg.height - slideImage.height) // 2
-                    #Paste the image onto the background
-                    bg.paste(slideImage, (x, y), slideImage)      
-                except:
-                    print("Error pasting image onto background")
-                    print(f"Slide image dimensions: {slideImage.size}")
-                    print(f"Background dimensions: {bg.size}")
                     quit()
 
-                #Generate a name for the image
-                name = f"{FP.removeExtension(self.slideshow.name)}__{slide['slideID']}_{slide['transition']}_{FP.removeExtension(slide['imageName'])}.png"
-                # print(f"Saving image to cache: {name}")
-                #Save the image to the cache
-                FP.saveImageToCache(bg, name)
-                #Add the image to the ImageList
-                self.ImageList[slide['slideID']] = name
+                #check if the image is the largest so far
+                if slideImage.width > max_width:
+                    max_width = slideImage.width
+                if slideImage.height > max_height:
+                    max_height = slideImage.height
+
+            self.update_idletasks()
+
+            for i in range(len(self.ImageList)):
+                # print(f"ImageMap key: {i}")
+                bg = Image.new("RGBA", (max_width, max_height), (255, 255, 255, 0))
+                x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
+                bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
+                self.ImageMap[i] = bg
+
+            # #Print all the keys in ImageMap
+            # print(f"ImageMap keys: {self.ImageMap.keys()}")
+
+
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -364,9 +365,9 @@ class SlideshowPlayer(tb.Frame):
             self.END = time.time()
             print(f"Transition took {self.END - self.START} seconds and {self.imageViewer.frameCounter} frames.")
             print(f"Transition complete, reloading the image to be safe. ")
-            # self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
+            self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
             self.imageViewer.loadImage(imagePath)
-            self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageList[self.slideList[self.currentSlide]['slideID']]))
+            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             self.automaticNext()
 
     def nextSlide(self):
@@ -377,8 +378,8 @@ class SlideshowPlayer(tb.Frame):
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
             # self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
-            # self.imageViewer.loadImagePIL(self.ImageList[self.slideList[self.currentSlide]['slideID']])
-            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageList[self.slideList[self.currentSlide]['slideID']]))
+            # self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
+            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             return
 
         self.currentSlide += 1
@@ -394,6 +395,7 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        transitionSpeed = 2000
         # previousImage = previousSlide['imagePath']
         # previousImage = Image.open(previousImage)
         # nextImage = nextSlide['imagePath']
@@ -403,11 +405,14 @@ class SlideshowPlayer(tb.Frame):
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
-        previousImage = FP.loadImageFromCache(self.ImageList[previous_ID])
-        nextImage = FP.loadImageFromCache(self.ImageList[next_ID])
+        #Load from cache
+        # previousImage = FP.loadImageFromCache(self.ImageMap[previous_ID])
+        # nextImage = FP.loadImageFromCache(self.ImageMap[next_ID])
+        #Load from memory using deepcopy
+        previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
+        nextImage: Image = copy.deepcopy(self.ImageMap[next_ID])
 
         print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
-
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.checkTransition(nextSlide['imagePath'])
@@ -491,8 +496,12 @@ class SlideshowPlayer(tb.Frame):
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
-        previousImage = FP.loadImageFromCache(self.ImageList[previous_ID])
-        nextImage = FP.loadImageFromCache(self.ImageList[next_ID])
+        #Load from cache
+        # previousImage = FP.loadImageFromCache(self.ImageMap[previous_ID])
+        # nextImage = FP.loadImageFromCache(self.ImageMap[next_ID])
+        #Load from memory using deepcopy
+        previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
+        nextImage: Image = copy.deepcopy(self.ImageMap[next_ID])
 
         print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
 

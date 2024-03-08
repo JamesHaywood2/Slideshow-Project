@@ -421,6 +421,7 @@ class ImageViewer(tb.Canvas):
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         #Increment the counter
         counter += incX
+        self.frameCounter += 1
         #Call this function again after 40ms
         self.transition_id = self.after(self.deltaTime, self.transition_WipeLeft, startImg, endImg, counter, incX)
         return
