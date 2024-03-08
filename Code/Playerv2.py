@@ -354,7 +354,7 @@ class SlideshowPlayer(tb.Frame):
 
     def checkTransition(self, imagePath: str):
         if self.imageViewer.transitioning:
-            self.transition_checker = self.after(100, self.checkTransition, imagePath)
+            self.transition_checker = self.after(1, self.checkTransition, imagePath)
         else:
             #Once transitioning is complete, make sure the correct image is displayed.
             try:
@@ -363,8 +363,9 @@ class SlideshowPlayer(tb.Frame):
                 pass
             self.transition_checker = None
             self.END = time.time()
-            print(f"Transition took {self.END - self.START} seconds and {self.imageViewer.frameCounter} frames.")
-            print(f"Transition complete, reloading the image to be safe. ")
+            print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
+            print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
+            print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
             self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
             self.imageViewer.loadImage(imagePath)
             # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
@@ -395,13 +396,8 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        transitionSpeed = 2000
-        # previousImage = previousSlide['imagePath']
-        # previousImage = Image.open(previousImage)
-        # nextImage = nextSlide['imagePath']
-        # nextImage = Image.open(nextImage)
-        # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        transitionSpeed = 3000
+
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
@@ -414,6 +410,7 @@ class SlideshowPlayer(tb.Frame):
 
         print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
         #It will then execute the transition and do a constant check to see if the transition is complete.
+        self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.checkTransition(nextSlide['imagePath'])
 
@@ -487,6 +484,7 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = reverseTransition(previousSlide['transition'])
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        transitionSpeed = 2000
         # previousImage = previousSlide['imagePath']
         # previousImage = Image.open(previousImage)
         # nextImage = nextSlide['imagePath']
@@ -506,6 +504,7 @@ class SlideshowPlayer(tb.Frame):
         print(f"Transitioning from {previous_ID} to {next_ID} with transition {transition} at speed {transitionSpeed}ms")
 
         #It will then execute the transition and do a constant check to see if the transition is complete.
+        self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.checkTransition(nextSlide['imagePath'])
 
