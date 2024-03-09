@@ -324,12 +324,14 @@ class ImageViewer(tb.Canvas):
         return
     
     def executeTransition(self, transitionType: str, transitionTime, endImg: Image, startImg: Image=None):
+        """Execute a transition to the endImg. If startImg is None, then it will use a blank black image as the start image.\n
+        transitionType: str - The type of transition to execute. Options are: "default", "wipedown", "wipeup", "wipeleft", "wiperight", "fade" """
         if startImg == None:
             #Use a blank black image as the start image
             startImg = Image.new("RGB", (self.canvasWidth, self.canvasHeight), (0, 0, 0))
 
-        print(f"endImg: {endImg.width}x{endImg.height}")
-        print(f"startImg: {startImg.width}x{startImg.height}")
+        # print(f"endImg: {endImg.width}x{endImg.height}")
+        # print(f"startImg: {startImg.width}x{startImg.height}")
         print(f"transitionTime: {transitionTime}ms")
         # transitionTime = transitionTime//1000 #Convert to seconds
 
@@ -338,7 +340,9 @@ class ImageViewer(tb.Canvas):
             print("Resizing start image to match end image")
             startImg = startImg.resize((endImg.width, endImg.height), resample=Image.NEAREST)
 
-        booster = 1
+        #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
+        booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
+        print(f"Booster: {booster}%")
         self.frameCounter = 0
         self.totalTransitionTime = 0
 
@@ -352,11 +356,9 @@ class ImageViewer(tb.Canvas):
             self.transitioning = True
             print(f"Increment: {increment}")
             self.transition_WipeDown(startImg, endImg, 0, increment)
-
         elif transitionType == FP.transitionType.WIPEUP:
             increment = endImg.height / (transitionTime) #Unit per ms
             increment = increment * self.deltaTime * booster
-
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
             print(f"Increment: {increment}")
@@ -387,11 +389,15 @@ class ImageViewer(tb.Canvas):
             print(f"Increment: {inc:.2f}")
             self.transition_Fade(startImg, endImg, 0, inc)
 
+    #########################
+    # Could potentially just combined every wipe transition into one function. - James
 
-    def transition_WipeRight(self, startImg, endImg, counter, increment):
+    def transition_WipeRight(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
         transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width - increment:
+        if counter > endImg.width + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
@@ -417,10 +423,12 @@ class ImageViewer(tb.Canvas):
         self.transition_id = self.after(remainingTime, self.transition_WipeRight, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeLeft(self, startImg, endImg, counter, increment):
+    def transition_WipeLeft(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
         transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width - increment:
+        if counter > endImg.width + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
@@ -445,10 +453,12 @@ class ImageViewer(tb.Canvas):
         self.transition_id = self.after(remainingTime, self.transition_WipeLeft, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeDown(self, startImg, endImg, counter, increment):
+    def transition_WipeDown(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
         transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter >= endImg.height + increment:
+        if counter >= endImg.height + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
@@ -459,7 +469,7 @@ class ImageViewer(tb.Canvas):
 
         cnum = round(counter)
         #Crop the end image to counter
-        endCrop = endImg.crop((0, 0, endImg.width, cnum))
+        endCrop: Image = endImg.crop((0, 0, endImg.width, cnum))
         #Paste the end image onto the start image
         startImg.paste(endCrop, (0,0))
         #Draw the start image onto the canvas
@@ -474,10 +484,12 @@ class ImageViewer(tb.Canvas):
         self.transition_id = self.after(remainingTime, self.transition_WipeDown, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeUp(self, startImg, endImg, counter, increment):
+    def transition_WipeUp(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
         transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.height - increment:
+        if counter > endImg.height + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
@@ -504,6 +516,8 @@ class ImageViewer(tb.Canvas):
         return
     
     def transition_Fade(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """Fades from startImg to endImg. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
         transition_START = time.time()
         #If the counter is greater than the opacity of the image, then the transition is complete.
         if counter >= 255-increment:
@@ -522,7 +536,7 @@ class ImageViewer(tb.Canvas):
         transitionTime: float = (transition_END - transition_START) * 1000 #ms
         remainingTime: int = max(1, int(math.ceil(self.deltaTime - (transitionTime)-1)))
         self.totalTransitionTime += transitionTime + remainingTime
-        print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
         self.transition_id = self.after(remainingTime, self.transition_Fade, startImg, endImg, counter+increment, increment)
         return
         

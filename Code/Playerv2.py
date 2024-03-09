@@ -70,7 +70,6 @@ class SlideshowPlayerStart(tb.Frame):
         self = SlideshowPlayer(self.master, projectPath=projectPath)
         self.pack(expand=True, fill="both")
 
-
 class SlideshowPlayer(tb.Frame):
     def __init__(self, master, debug:bool= False, projectPath: str="New Project"):
         screen_width = master.winfo_screenwidth()
@@ -155,7 +154,6 @@ class SlideshowPlayer(tb.Frame):
             except:
                 print("Error loading loop setting")
 
-
         # self.shuffleSlideshow:bool = True
         ##### Shuffle stuff #####
         if self.shuffleSlideshow:
@@ -178,7 +176,7 @@ class SlideshowPlayer(tb.Frame):
 
             ######
             #Will call the create components method after the window is created and image viewer is packed.
-        
+            ######
 
         else:
             #If there are no slides/project is empty, display a message.
@@ -209,7 +207,7 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def createComponents(self):
-        #Unbind the configure event so it doesn't keep creating components.
+        #Unbind the configure event so it doesn't keep creating components. This method gets called once.
         self.unbind("<Configure>")
         self.update_idletasks()
         #Only construct the layout if the project is not empty of slides.
@@ -219,8 +217,6 @@ class SlideshowPlayer(tb.Frame):
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
 
             ###### PRE-RENDER THE IMAGES ######
-            screen_height = self.master.winfo_screenheight()
-            screen_width = self.master.winfo_screenwidth()
             canvas_width = self.imageViewer.canvasWidth
             canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
@@ -229,10 +225,10 @@ class SlideshowPlayer(tb.Frame):
             max_width = -1
             max_height = -1
             for slide in self.slideList:
-                #Open the image
+                #Open the image and convert it etc etc and resize it to the max canvas size.
                 try:
                     slideImage = Image.open(slide['imagePath']).convert("RGBA")
-                    slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=None)
+                    slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
                     #Add the image to the list
                     self.ImageList.append(slideImage)
                 except:
@@ -247,6 +243,8 @@ class SlideshowPlayer(tb.Frame):
 
             self.update_idletasks()
 
+            #Create a background image at the size of the max image sizes and then paste the images in the center.
+            #This is done so all images are the exact same size and transitions are consistent in positioning and stuff.
             for i in range(len(self.ImageList)):
                 # print(f"ImageMap key: {i}")
                 bg = Image.new("RGBA", (max_width, max_height), (255, 255, 255, 0))
@@ -254,10 +252,8 @@ class SlideshowPlayer(tb.Frame):
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
                 self.ImageMap[i] = bg
 
-            # #Print all the keys in ImageMap
-            # print(f"ImageMap keys: {self.ImageMap.keys()}")
-
-
+                
+            self.update_idletasks()
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
@@ -271,8 +267,6 @@ class SlideshowPlayer(tb.Frame):
 
             #Add a slide counter in the top right corner
             self.slideMeterBroken: bool = False
-            # self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
-            # self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
 
             #Add a slide counter in the top right corner using a bootstrap meter
             #Go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work
@@ -367,8 +361,6 @@ class SlideshowPlayer(tb.Frame):
             print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
             print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
             self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
-            self.imageViewer.loadImage(imagePath)
-            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             self.automaticNext()
 
     def nextSlide(self):
@@ -396,7 +388,7 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        transitionSpeed = 3000
+        # transitionSpeed = 10000
 
 
         previous_ID = previousSlide['slideID']
@@ -412,7 +404,7 @@ class SlideshowPlayer(tb.Frame):
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
-        self.checkTransition(nextSlide['imagePath'])
+        self.imageViewer.after(10, self.checkTransition, nextSlide['imagePath'])
 
         #Update the slide counter
         if not self.slideMeterBroken:
@@ -484,19 +476,10 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = reverseTransition(previousSlide['transition'])
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        transitionSpeed = 2000
-        # previousImage = previousSlide['imagePath']
-        # previousImage = Image.open(previousImage)
-        # nextImage = nextSlide['imagePath']
-        # nextImage = Image.open(nextImage)
-        # previousImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-        # nextImage.thumbnail((self.imageViewer.canvasWidth, self.imageViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        # transitionSpeed = 2000
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
-        #Load from cache
-        # previousImage = FP.loadImageFromCache(self.ImageMap[previous_ID])
-        # nextImage = FP.loadImageFromCache(self.ImageMap[next_ID])
         #Load from memory using deepcopy
         previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
         nextImage: Image = copy.deepcopy(self.ImageMap[next_ID])
@@ -546,7 +529,6 @@ class SlideshowPlayer(tb.Frame):
         self.showOverlay()
         return
     
-
 if __name__ == "__main__":
     root = tb.Window()
     root.title("Slideshow Viewer")
