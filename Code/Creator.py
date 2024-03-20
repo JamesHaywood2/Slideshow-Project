@@ -1,8 +1,9 @@
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-from Widgetsv2 import *
+from Widgets import *
 from tkinter import filedialog
+import Playerv2 as Player
 
 
 class SlideshowCreatorStart(tb.Frame):
@@ -19,13 +20,38 @@ class SlideshowCreatorStart(tb.Frame):
     def create_widgets(self):
         """Creates the widgets for the start window."""
         self.label = tb.Label(self, text="Slideshow Creator", font=("Arial", 24))
-        self.label.pack(anchor="center", expand=True)
         self.buttonFrame = tb.Frame(self)
-        self.buttonFrame.pack(anchor="center", expand=True, fill="both")
         self.newProjectButton = tb.Button(self.buttonFrame, text="New Project", command=self.newProject)
-        self.newProjectButton.pack(anchor="center", pady=10)
         self.openProjectButton = tb.Button(self.buttonFrame, text="Open Project", command=self.openProject)
-        self.openProjectButton.pack(anchor="center", pady=10)
+        self.recentSlideshowList = RecentSlideshowList(self)
+
+        self.label.place(relx=0.5, rely=0.15, anchor="center")
+        self.buttonFrame.place(relx=0.5, rely=0.25, anchor="center")
+        self.newProjectButton.pack(padx=10, side="left")
+        self.openProjectButton.pack(padx=10, side="right")
+        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
+
+        #Set window size
+        self.master.geometry("800x600")
+        #Resizable window false
+        self.master.resizable(False, False)
+
+        #Set the size of recentSlideshowList to be 3/4 of the window width and 1/3 of the window height
+        # self.recentSlideshowList.config(width=600, height=200)
+
+        #Bind double clicking the recentSlideshowList to open the project
+        self.recentSlideshowList.tableView.view.bind("<Double-1>", self.openRecentProject)
+
+    def openRecentProject(self, event):
+        #Get the selected item
+        item = self.recentSlideshowList.tableView.view.selection()
+        if len(item) == 0:
+            return
+        #Get the project path
+        projectPath = self.recentSlideshowList.tableView.view.item(item, "values")[2]
+        print(f"Opening project: {projectPath}")
+        #Open the project
+        self.openProjectPath(projectPath)
 
     def newProject(self):
         """Loads the slideshow creator window without a project file. This will create a new project."""
@@ -34,18 +60,34 @@ class SlideshowCreatorStart(tb.Frame):
         # if not folder:
         #     return
         self.destroy()
-        self.creator: SlideshowCreator = SlideshowCreator(self.master)
-        self.creator.pack(expand=True, fill="both")
+        self: SlideshowCreator = SlideshowCreator(self.master)
+        self.pack(expand=True, fill="both")
 
     def openProject(self):
         """Loads the slideshow creator window with a project file. This will open an existing project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
-        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")])
+        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")], multiple=False)
         if not projectPath:
             return
         self.destroy()
-        self.creator = SlideshowCreator(self.master, projectPath=projectPath)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master, projectPath=projectPath)
+        self.pack(expand=True, fill="both")
+
+    def openProjectPath(self, projectPath: str):
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
+        #Create a SlideshowCreator object, destroy the current window, and pack the new window
+        #check if the projectPath even exists
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
+        #Check if it's a .pyslide file
+        if not projectPath.endswith(".pyslide"):
+            projectPath = "New Project"
+        self.destroy()
+        self = SlideshowCreator(self.master, projectPath=projectPath)
+        self.pack(expand=True, fill="both")
   
 class SlideshowCreator(tb.Frame):
     """
@@ -59,15 +101,30 @@ class SlideshowCreator(tb.Frame):
     redraw(): Redraws the ImageViewer, MediaBucket, and SlideReel. 
     """
     def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
+        master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+        master.resizable(True, True)
         super().__init__(master, **kw)
         self.debug = debug
+        #Check if the projectPath even exists
+        try:
+            with open(projectPath, "r"):
+                pass
+        except:
+            projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
         
+        self.update_idletasks()
         try:
             FP.initializeCache()
         except:
             print("Cache initialziation failed")
+
+        try:
+            FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
+        except:
+            print("Failed to update the slideshow cache list")
+
         tb.Style().theme_use(FP.getPreferences())
 
         ######################
@@ -104,7 +161,7 @@ class SlideshowCreator(tb.Frame):
 
         self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.slideInfoFrame)
-        self.slideInfoButton: InfoFrame = None
+        self.infoViewer: InfoFrame = None
 
         self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.reelFrame)
@@ -179,6 +236,8 @@ class SlideshowCreator(tb.Frame):
         self.projectMenu.add_command(label="Save", command=self.save)
         self.projectMenu.add_command(label="Save As", command=self.saveAs)
         self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
+        self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Exit", command=self.quit)
 
         self.fileMenu = tb.Menu(self.menubar, tearoff=0)
@@ -247,9 +306,10 @@ class SlideshowCreator(tb.Frame):
             self.slideReel.refreshReel()
             self.slideReel.autoResizeToggle(True)
 
+        if self.infoViewer:
+            self.infoViewer.fillProjectInfo()
+            self.infoViewer.fillSlideInfo()
         return
-
-        
 
 
     def DebugWindow(self):
@@ -293,6 +353,11 @@ class SlideshowCreator(tb.Frame):
             self.reelCountButton = tb.Button(self.debugWindow, text="Print Reel Count", command=lambda: print(f"Reel count: {len(self.slideReel.slides)}"))
             self.slideListButton = tb.Button(self.debugWindow, text="Print Slide List", command=lambda: print(self.slideshow.printSlides()))
             self.slideListButton.pack()
+            #resize the reel
+            def resizeReel():
+                self.slideReel.scrollFrame.resizeCanvas(None)
+            self.reelResizeButton = tb.Button(self.debugWindow, text="Resize Reel", command=resizeReel)
+            self.reelResizeButton.pack()
 
         self.imageViewerSizeButton = tb.Button(self.debugWindow, text="Print ImageViewer Size", command=lambda: print(f"ImageViewer size: {self.imageViewer.winfo_width()}x{self.imageViewer.winfo_height()}"))
         self.imageViewerSizeButton.pack()
@@ -303,8 +368,8 @@ class SlideshowCreator(tb.Frame):
     def newProject(self):
         #Basically destroy the current SlideshowCreator object and create a new one
         self.destroy()
-        self.creator = SlideshowCreator(self.master)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master)
+        self.pack(expand=True, fill="both")
 
     def openProject(self):
         print("Open Project")
@@ -315,10 +380,10 @@ class SlideshowCreator(tb.Frame):
         if self.debugWindow:
             self.debugWindow.destroy()
         self.destroy()
-        self.creator = SlideshowCreator(self.master, projectPath=path)
-        self.creator.pack(expand=True, fill="both")
+        self = SlideshowCreator(self.master, projectPath=path)
+        self.pack(expand=True, fill="both")
         self.update_idletasks()
-        print(f"New slideshow name: {self.creator.slideshow.name}")
+        print(f"New slideshow name: {self.slideshow.name}")
         
 
     def save(self):
@@ -329,6 +394,10 @@ class SlideshowCreator(tb.Frame):
         else:
             self.slideshow.save()
             self.redraw()
+            try:
+                FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
+            except:
+                print("Failed to update the slideshow cache list")
         
     def saveAs(self):
         print("Save As")
@@ -338,8 +407,23 @@ class SlideshowCreator(tb.Frame):
         print(f"Path: {path}")
         self.slideshow.filesInProject = self.mediaBucket.files
         self.slideshow.setSaveLocation(path)
+        self.update_idletasks()
         self.slideshow.save()
         self.redraw()
+
+    def exportToPlayer(self):
+        #Save the project
+        self.save()
+        #Create a new top level window
+        window = tb.Toplevel()
+        # window.transient(self.master)
+        window.title("Slideshow Player")
+        window.geometry("800x600")
+        window.resizable(True, True)
+        #Create a new SlideshowPlayer object
+        player = Player.SlideshowPlayer(window, projectPath=self.slideshow.getSaveLocation())
+        player.pack(expand=True, fill="both")
+
 
     def addFile(self):
         print("Adding Image")
@@ -392,7 +476,8 @@ class SlideshowCreator(tb.Frame):
 
         #List of themes in TTKBootstrap
         #https://ttkbootstrap.readthedocs.io/en/latest/themes/
-        themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        # themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        themes = tb.Style().theme_names()
         #combobox for the themes
         themeList = tb.Combobox(window, values=themes)
         themeList.pack(expand=False, fill="none", pady=10)
@@ -437,8 +522,12 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    # app = SlideshowCreatorStart(root)
-    app = SlideshowCreator(root, debug=False, projectPath=r"C:\Users\JamesH\Pictures\cat\kitty.pyslide")
+    app = SlideshowCreatorStart(root)
+    #User HOME directory
+    usrDir = FP.getUserHome()
+    testPath = usrDir + "\Pictures\cat\kitty.pyslide"
+    # testPath = usrDir + "\OneDrive - uah.edu\CS499\TestSlideshow.pyslide"
+    # app = SlideshowCreator(root, debug=False, projectPath=testPath)
     app.pack(expand=True, fill="both")
 
     app.mainloop()
