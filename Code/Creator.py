@@ -29,12 +29,15 @@ class SlideshowCreatorStart(tb.Frame):
         self.buttonFrame.place(relx=0.5, rely=0.25, anchor="center")
         self.newProjectButton.pack(padx=10, side="left")
         self.openProjectButton.pack(padx=10, side="right")
-        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center")
+        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
 
         #Set window size
         self.master.geometry("800x600")
         #Resizable window false
         self.master.resizable(False, False)
+
+        #Set the size of recentSlideshowList to be 3/4 of the window width and 1/3 of the window height
+        # self.recentSlideshowList.config(width=600, height=200)
 
         #Bind double clicking the recentSlideshowList to open the project
         self.recentSlideshowList.tableView.view.bind("<Double-1>", self.openRecentProject)
@@ -50,7 +53,6 @@ class SlideshowCreatorStart(tb.Frame):
         #Open the project
         self.openProjectPath(projectPath)
 
-        
     def newProject(self):
         """Loads the slideshow creator window without a project file. This will create a new project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
@@ -159,7 +161,7 @@ class SlideshowCreator(tb.Frame):
 
         self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.slideInfoFrame)
-        self.slideInfoButton: InfoFrame = None
+        self.infoViewer: InfoFrame = None
 
         self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.reelFrame)
@@ -405,6 +407,7 @@ class SlideshowCreator(tb.Frame):
         print(f"Path: {path}")
         self.slideshow.filesInProject = self.mediaBucket.files
         self.slideshow.setSaveLocation(path)
+        self.update_idletasks()
         self.slideshow.save()
         self.redraw()
 

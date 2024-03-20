@@ -8,8 +8,12 @@ from tkinter import filedialog
 from PIL import Image, ImageTk, ImageDraw
 import os
 from copy import deepcopy
+import time
+import math
 
 updateRate = 100 #Milliseconds
+transition_START = time.time()
+transition_END = time.time()
     
 class ScrollableFrame(tk.Frame):
     """
@@ -218,6 +222,9 @@ class ImageViewer(tb.Canvas):
 
         self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         self.transitioning: bool = False #If a transition is currently happening
+        self.deltaTime = 80 #Target time between frames in ms
+        self.frameCounter = 0
+        self.totalTransitionTime = 0
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -258,7 +265,7 @@ class ImageViewer(tb.Canvas):
             self.imagePIL = img
             #Delete & replace old label
             self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
-            print(f"Loaded {imagePath} into ImageViewer")
+            # print(f"Loaded {imagePath} into ImageViewer")
         except:
             print(f"{imagePath} is not a valid image file.")
             self.imagePath = FP.MissingImage
@@ -267,32 +274,33 @@ class ImageViewer(tb.Canvas):
             print(f"Loaded {imagePath} into ImageViewer as Missing Image")
 
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.redrawImage()
         return
     
     def loadImagePIL(self, imagePIL:Image):
+        transition_START = time.time()
         self.cancelTransition()
         #Clear the canvas
         self.delete("all")
         self.imagePath = None
         self.imagePIL = imagePIL
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        self.redrawImage()
+        transition_END = time.time()
+        print(f"Load From PIL Time: {(transition_END - transition_START) * 1000:.2f}ms")
         return
     
     def getImage(self):
         return self.imagePIL
 
     def redrawImage(self):
-        print("Redrawing Image")
+        # print("Redrawing Image")
         #Return early if there is no image
-        if self.imagePath == None:
+        if self.imagePIL == None:
             self.delete("all")
             return
 
@@ -306,7 +314,7 @@ class ImageViewer(tb.Canvas):
         #Resize the image while using the aspect ratio
         img = Image.open(self.imagePath)
         self.imagePIL = img
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
@@ -315,175 +323,223 @@ class ImageViewer(tb.Canvas):
             self.after(3000, self.setBlankImage)
         return
     
-    def executeTransition(self, transitionType: str, transitionTime, endImg:Image, startImg:Image=None):
+    def executeTransition(self, transitionType: str, transitionTime, endImg: Image, startImg: Image=None):
+        """Execute a transition to the endImg. If startImg is None, then it will use a blank black image as the start image.\n
+        transitionType: str - The type of transition to execute. Options are: "default", "wipedown", "wipeup", "wipeleft", "wiperight", "fade" """
         if startImg == None:
             #Use a blank black image as the start image
             startImg = Image.new("RGB", (self.canvasWidth, self.canvasHeight), (0, 0, 0))
 
-        print(f"endImg: {endImg.width}x{endImg.height}")
-        print(f"startImg: {startImg.width}x{startImg.height}")
+        # print(f"endImg: {endImg.width}x{endImg.height}")
+        # print(f"startImg: {startImg.width}x{startImg.height}")
         print(f"transitionTime: {transitionTime}ms")
+        # transitionTime = transitionTime//1000 #Convert to seconds
 
-        FPS = 40
+        #Check if the images are the same size. If they are good. If not then resize the start image to the same size as the end image.
+        if startImg.width != endImg.width or startImg.height != endImg.height:
+            print("Resizing start image to match end image")
+            startImg = startImg.resize((endImg.width, endImg.height), resample=Image.NEAREST)
+
+        #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
+        booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
+        print(f"Booster: {booster}%")
+        self.frameCounter = 0
+        self.totalTransitionTime = 0
 
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
             print(f"Default transition. Nothing to really preview")
             self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
-            incY = endImg.height / (transitionTime)
-            incY = int(incY * FPS)
+            increment = endImg.height / (transitionTime) #Unit per ms
+            increment = increment * self.deltaTime * booster
             self.transitioning = True
-            self.transition_WipeDown(startImg, endImg, 0, incY)
-
-
+            print(f"Increment: {increment}")
+            self.transition_WipeDown(startImg, endImg, 0, increment)
         elif transitionType == FP.transitionType.WIPEUP:
-            incY = endImg.height / (transitionTime)
-            incY = int(incY * FPS) #40ms per iteration
-
+            increment = endImg.height / (transitionTime) #Unit per ms
+            increment = increment * self.deltaTime * booster
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            self.transition_WipeUp(startImg, endImg, 0, incY)
+            print(f"Increment: {increment}")
+            self.transition_WipeUp(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPELEFT:
-            incX = endImg.width / (transitionTime)
-            incX = int(incX * FPS) #40ms per iteration
+            increment = endImg.width / (transitionTime) #Unit per ms
+            increment = increment * self.deltaTime * booster #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            self.transition_WipeLeft(startImg, endImg, 0, incX)
+            print(f"Increment: {increment}")
+            self.transition_WipeLeft(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPERIGHT:
-            incX = endImg.width / (transitionTime)
-            incX = int(incX * FPS) #40ms per iteration
+            increment = endImg.width / (transitionTime) #Unit per ms
+            increment = increment * self.deltaTime * booster #40ms per iteration
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            self.transition_WipeRight(startImg, endImg, 0, incX)
+            print(f"Increment: {increment}")
+            self.transition_WipeRight(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.FADE:
-            inc = 255 / (transitionTime)
-            inc = int(inc * FPS)
+            inc = 255 / (transitionTime) #Unit per ms
+            inc = inc * self.deltaTime * booster
             self.transitioning = True
+            print(f"Increment: {inc:.2f}")
             self.transition_Fade(startImg, endImg, 0, inc)
 
+    #########################
+    # Could potentially just combined every wipe transition into one function. - James
 
-    def transition_WipeRight(self, startImg, endImg, counter, incX):
+    def transition_WipeRight(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
+        transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width + incX:
+        if counter > endImg.width + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
+        else:
+            self.frameCounter += 1
         #Basically next image, crop it to correct size, then paste it on top of the current image.
         #Then draw the new image on the canvas.
 
+        cnum = round(counter)
         #Crop the end image to counter
-        endCrop = endImg.crop((0, 0, counter, endImg.height))
+        endCrop = endImg.crop((0, 0, cnum, endImg.height))
         #Paste the end image onto the start image
         startImg.paste(endCrop, (0,0))
         #Draw the start image onto the canvas
         self.image = ImageTk.PhotoImage(startImg)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        #Increment the counter
-        counter += incX
-        #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeRight, startImg, endImg, counter, incX)
+        
+        transition_END = time.time()
+        transitionTime = (transition_END - transition_START) * 1000 #ms
+        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
+        self.totalTransitionTime += transitionTime + remainingTime
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        self.transition_id = self.after(remainingTime, self.transition_WipeRight, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeLeft(self, startImg, endImg, counter, incX):
+    def transition_WipeLeft(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
+        transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width + incX:
+        if counter > endImg.width + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
+        else:
+            self.frameCounter += 1
         #Basically next image, crop it to correct size, then paste it on top of the current image.
         #Then draw the new image on the canvas.
-
+        cnum = round(counter)
         #Crop the end image to counter
-        endCrop = endImg.crop((endImg.width - counter, 0, endImg.width, endImg.height))
+        endCrop = endImg.crop((endImg.width - cnum, 0, endImg.width, endImg.height))
         #Paste the end image onto the start image
-        startImg.paste(endCrop, (endImg.width - counter, 0))
+        startImg.paste(endCrop, (endImg.width - cnum, 0))
         #Draw the start image onto the canvas
         self.image = ImageTk.PhotoImage(startImg)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        #Increment the counter
-        counter += incX
-        #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeLeft, startImg, endImg, counter, incX)
+        
+        transition_END = time.time()
+        transitionTime = (transition_END - transition_START) * 1000 #ms
+        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
+        self.totalTransitionTime += transitionTime + remainingTime
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        self.transition_id = self.after(remainingTime, self.transition_WipeLeft, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeDown(self, startImg, endImg, counter, incY):
+    def transition_WipeDown(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
+        transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.height + incY:
+        if counter >= endImg.height + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
+        else:
+            self.frameCounter += 1
         #Basically next image, crop it to correct size, then paste it on top of the current image.
         #Then draw the new image on the canvas.
 
+        cnum = round(counter)
         #Crop the end image to counter
-        endCrop = endImg.crop((0, 0, endImg.width, counter))
+        endCrop: Image = endImg.crop((0, 0, endImg.width, cnum))
         #Paste the end image onto the start image
         startImg.paste(endCrop, (0,0))
         #Draw the start image onto the canvas
         self.image = ImageTk.PhotoImage(startImg)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        #Increment the counter
-        counter += incY
-        #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeDown, startImg, endImg, counter, incY)
+       
+        transition_END = time.time()
+        transitionTime = (transition_END - transition_START) * 1000 #ms
+        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
+        self.totalTransitionTime += transitionTime + remainingTime
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        self.transition_id = self.after(remainingTime, self.transition_WipeDown, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_WipeUp(self, startImg, endImg, counter, incY):
+    def transition_WipeUp(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
+        transition_START = time.time()
         #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.height + incY:
+        if counter > endImg.height + 10:
             print("Transition Complete")
             self.cancelTransition()
             return 1
+        else:
+            self.frameCounter += 1
         #Basically next image, crop it to correct size, then paste it on top of the current image.
         #Then draw the new image on the canvas.
 
         #Crop the end image to counter
-        endCrop = endImg.crop((0, endImg.height - counter, endImg.width, endImg.height))
+        cnum = round(counter)
+        endCrop = endImg.crop((0, endImg.height - cnum, endImg.width, endImg.height))
         #Paste the end image onto the start image
-        startImg.paste(endCrop, (0, endImg.height - counter))
+        startImg.paste(endCrop, (0, endImg.height - cnum))
         #Draw the start image onto the canvas
         self.image = ImageTk.PhotoImage(startImg)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        #Increment the counter
-        counter += incY
-        #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_WipeUp, startImg, endImg, counter, incY)
+        
+        transition_END = time.time()
+        transitionTime = (transition_END - transition_START) * 1000 #ms
+        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
+        self.totalTransitionTime += transitionTime + remainingTime
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        self.transition_id = self.after(remainingTime, self.transition_WipeUp, startImg, endImg, counter+increment, increment)
         return
     
-    def transition_Fade(self, startImg, endImg, counter, increment):
+    def transition_Fade(self, startImg: Image, endImg: Image, counter: float, increment: float):
+        """Fades from startImg to endImg. Time is deteremined by the increment ammount.\n  
+        Timing is (255/increment) * self.deltaTime."""
+        transition_START = time.time()
         #If the counter is greater than the opacity of the image, then the transition is complete.
-        if counter >= 255:
+        if counter >= 255-increment:
             print("Transition Complete")
             self.cancelTransition()
             return 1
-        #Get the next image, change the opacity, then draw it on the canvas.
-        #Get color of background
-        bg1 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x1, y1 = (bg1.width - startImg.width) // 2, (bg1.height - startImg.height) // 2
-        bg2 = Image.new("RGBA", (self.canvasWidth, self.canvasHeight), (255, 255, 255, 0))
-        x2, y2 = (bg2.width - endImg.width) // 2, (bg2.height - endImg.height) // 2
-        bg1.paste(startImg.convert("RGBA"), (x1,y1), startImg.convert("RGBA"))
-        bg2.paste(endImg.convert("RGBA"), (x2,y2), endImg.convert("RGBA"))
-
+        else:
+            self.frameCounter += 1           
         #Interpolate the two images
-        newImg = Image.blend(bg1, bg2, counter/255)
-
+        newImg = Image.blend(startImg, endImg, counter/255)
         self.image = ImageTk.PhotoImage(newImg)
+        # transition_START = time.time()
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        #Increment the counter
-        counter += increment
-        #Call this function again after 40ms
-        self.transition_id = self.after(40, self.transition_Fade, startImg, endImg, counter, increment)
+        
+        transition_END: float = time.time()
+        transitionTime: float = (transition_END - transition_START) * 1000 #ms
+        remainingTime: int = max(1, int(math.ceil(self.deltaTime - (transitionTime)-1)))
+        self.totalTransitionTime += transitionTime + remainingTime
+        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
+        self.transition_id = self.after(remainingTime, self.transition_Fade, startImg, endImg, counter+increment, increment)
         return
         
-
-
            
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
@@ -555,7 +611,7 @@ class FileIcon(tk.Frame):
             self.__imagePIL = img
             self.imagepath = imagepath
             self.name = "File Not Found"
-        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
+        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
 
@@ -1414,8 +1470,8 @@ class InfoFrame(tb.Frame):
                 startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
             else:
                 startImg = Image.open(previousSlide['imagePath'])
-            startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight))
-            endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight))
+            startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+            endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             
             self.__icon.linkedViewer.executeTransition(transitionType, transitionSpeed, endImg, startImg)
             self.checkTransition(self.__icon.slide['imagePath'])
@@ -1861,9 +1917,3 @@ class RecentSlideshowList(tk.Frame):
         #Bind the double click event to open the slideshow
         # self.tableView.view.bind("<Double-1>", self.openSlideshow)
         return
-    
-
-
-    
-    
-
