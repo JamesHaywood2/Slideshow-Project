@@ -1,31 +1,19 @@
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.scrolled import ScrolledFrame
-from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk
 import os
 from copy import deepcopy
-import time
-import math
 
 updateRate = 100 #Milliseconds
-transition_START = time.time()
-transition_END = time.time()
     
 class ScrollableFrame(tk.Frame):
     """
     A frame that can be scrolled vertically or horizontally.
-    Based on https://blog.teclado.com/tkinter-scrollable-frames/
-    ---------------------
-    Options:
-    - container: The parent container for the frame
-    - orient: "both", "horizontal", "vertical" - Which scrollbars to display
-    - autohide: True/False - Whether or not to hide the scrollbars when the mouse is not over the frame
-    ---------------------
-
+    From https://blog.teclado.com/tkinter-scrollable-frames/
     """
     def __init__(self, container, orient: str="both", autohide:bool = True, *args, **kwargs):
         #Scrollable Frame is a frame that houses a canvas and two scrollbars.
@@ -34,13 +22,8 @@ class ScrollableFrame(tk.Frame):
         self.orient = orient
         self.autohide = autohide
 
-        #It's going to check which scrollbar it needs to display.
         horiz = False
         vert = False
-        orient_options = ["both", "horizontal", "vertical"]
-        if orient not in orient_options:
-            print(f"Invalid orientation. Defaulting to both. Options are {orient_options}")
-            orient = "both"
         if orient == "both":
             horiz = True
             vert = True
@@ -48,14 +31,10 @@ class ScrollableFrame(tk.Frame):
             horiz = True
         if orient == "vertical":
             vert = True
-        
-        #If both are false something has gone wrong. Default to both.
+
         if horiz == False and vert == False:
             horiz = True
             vert = True
-
-        self.verticle: bool = vert
-        self.horizontal: bool = horiz
 
         if vert:
             self.scrollbar = tb.Scrollbar(self, orient="vertical", command=self.canvas.yview)
@@ -82,19 +61,21 @@ class ScrollableFrame(tk.Frame):
 
         #Wait until they have been gridded to the frame
         self.update_idletasks()
+
         self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.verticle = vert
+        self.horizontal = horiz
 
         self.hideVertical = False
         self.hideHorizontal = False
 
-        #If autohide is on, bind show/hide scrollbars to the mouse entering and leaving the frame
         if self.autohide:
             self.bind("<Enter>", self.show_scrollbars)
             self.bind("<Leave>", self.hide_scrollbars)
             self.hide_scrollbars(None)
 
-        self.update_idletasks()
-        #Whenever the frame changes size, we should resize the canvas so it fits the frame properly.
+        # self.update_idletasks()
         self.bind("<Configure>", self.resizeCanvas)
         self.canvas.bind("<Enter>", self.hoverEnter)
         self.canvas.bind("<Leave>", self.hoverLeave)
@@ -104,8 +85,7 @@ class ScrollableFrame(tk.Frame):
         canvasWidth = self.winfo_width()
         canvasHeight = self.winfo_height()
 
-        #Basically we want the canvas to be as big as it can be while fitting in the parent frame. If there are scrollbars then it needs to be slightly smaller to make room for them.
-        #Even if autohide is off, the scrollbars will be hidden if they aren't required.
+
         if self.verticle:
                 #If the canvas is tall enough to display the entire scrollable frame, then the scrollbar should be hidden
                 scrollFrameHeight = self.scrollable_frame.winfo_height()
@@ -134,19 +114,21 @@ class ScrollableFrame(tk.Frame):
                 self.hideHorizontal = False
                 # print("Not enough width to display the entire frame")
 
+        
+
         #If autohide is off (meaning scrollbars should "always" be visible), then whenever the canvas can't display all the contents, the canvas should be a little smaller to make room for the scrollbar.
         if not self.autohide:
             if not self.hideVertical:
                 canvasWidth -= self.scrollbar.winfo_width()
             if not self.hideHorizontal:
                 canvasHeight -= self.scrollbar_h.winfo_height()
+        
 
         #Make the canvas the same size as the parent
         self.canvas.configure(width=canvasWidth, height=canvasHeight)
 
         self.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        return
 
     def show_scrollbars(self, event):
         # print("Showing Scrollbars")
@@ -186,7 +168,6 @@ class ScrollableFrame(tk.Frame):
         # print("Mousewheel Scrolling")
         #If the mousewheel is scrolled, the canvas should scroll
         #Prioritize vertical scrolling over horizontal scrolling
-        #There may be a better way to do this than just prioritizng one over the other, but I think this works fine. - James
         if self.verticle and not self.hideVertical:
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         elif self.horizontal and not self.hideHorizontal:
@@ -219,12 +200,6 @@ class ImageViewer(tb.Canvas):
         self.autoResize: bool = False
         self.after_id = None
         # self.autoResizeToggle(False)
-
-        self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
-        self.transitioning: bool = False #If a transition is currently happening
-        self.deltaTime = 80 #Target time between frames in ms
-        self.frameCounter = 0
-        self.totalTransitionTime = 0
         return
 
     def autoResizeToggle(self, state: bool=True):
@@ -247,15 +222,7 @@ class ImageViewer(tb.Canvas):
         self.after_id = self.after(updateRate, self.redrawImage)
         return
 
-    def cancelTransition(self):
-        if self.transition_id:
-            self.after_cancel(self.transition_id)
-            self.transition_id = None
-            self.transitioning = False
-        return
-
     def loadImage(self, imagePath:str):
-        self.cancelTransition()
         #Clear the canvas
         self.delete("all")
         #Test if the file is a valid image file
@@ -265,7 +232,7 @@ class ImageViewer(tb.Canvas):
             self.imagePIL = img
             #Delete & replace old label
             self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
-            # print(f"Loaded {imagePath} into ImageViewer")
+            print(f"Loaded {imagePath} into ImageViewer")
         except:
             print(f"{imagePath} is not a valid image file.")
             self.imagePath = FP.MissingImage
@@ -274,33 +241,16 @@ class ImageViewer(tb.Canvas):
             print(f"Loaded {imagePath} into ImageViewer as Missing Image")
 
         #Resize the image while using the aspect ratio
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.redrawImage()
         return
-    
-    def loadImagePIL(self, imagePIL:Image):
-        transition_START = time.time()
-        self.cancelTransition()
-        #Clear the canvas
-        self.delete("all")
-        self.imagePath = None
-        self.imagePIL = imagePIL
-        #Resize the image while using the aspect ratio
-        self.image = ImageTk.PhotoImage(self.imagePIL)
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        transition_END = time.time()
-        print(f"Load From PIL Time: {(transition_END - transition_START) * 1000:.2f}ms")
-        return
-    
-    def getImage(self):
-        return self.imagePIL
 
     def redrawImage(self):
-        # print("Redrawing Image")
+        print("Redrawing Image")
         #Return early if there is no image
-        if self.imagePIL == None:
+        if self.imagePath == None:
             self.delete("all")
             return
 
@@ -314,7 +264,7 @@ class ImageViewer(tb.Canvas):
         #Resize the image while using the aspect ratio
         img = Image.open(self.imagePath)
         self.imagePIL = img
-        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
@@ -322,225 +272,7 @@ class ImageViewer(tb.Canvas):
         if self.imagePath == FP.MissingImage:
             self.after(3000, self.setBlankImage)
         return
-    
-    def executeTransition(self, transitionType: str, transitionTime, endImg: Image, startImg: Image=None):
-        """Execute a transition to the endImg. If startImg is None, then it will use a blank black image as the start image.\n
-        transitionType: str - The type of transition to execute. Options are: "default", "wipedown", "wipeup", "wipeleft", "wiperight", "fade" """
-        if startImg == None:
-            #Use a blank black image as the start image
-            startImg = Image.new("RGB", (self.canvasWidth, self.canvasHeight), (0, 0, 0))
 
-        # print(f"endImg: {endImg.width}x{endImg.height}")
-        # print(f"startImg: {startImg.width}x{startImg.height}")
-        print(f"transitionTime: {transitionTime}ms")
-        # transitionTime = transitionTime//1000 #Convert to seconds
-
-        #Check if the images are the same size. If they are good. If not then resize the start image to the same size as the end image.
-        if startImg.width != endImg.width or startImg.height != endImg.height:
-            print("Resizing start image to match end image")
-            startImg = startImg.resize((endImg.width, endImg.height), resample=Image.NEAREST)
-
-        #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
-        booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
-        print(f"Booster: {booster}%")
-        self.frameCounter = 0
-        self.totalTransitionTime = 0
-
-        if transitionType == FP.transitionType.DEFAULT:
-            #Just change the image after the transition time
-            print(f"Default transition. Nothing to really preview")
-            self.loadImagePIL(endImg)
-        elif transitionType == FP.transitionType.WIPEDOWN:
-            increment = endImg.height / (transitionTime) #Unit per ms
-            increment = increment * self.deltaTime * booster
-            self.transitioning = True
-            print(f"Increment: {increment}")
-            self.transition_WipeDown(startImg, endImg, 0, increment)
-        elif transitionType == FP.transitionType.WIPEUP:
-            increment = endImg.height / (transitionTime) #Unit per ms
-            increment = increment * self.deltaTime * booster
-            #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
-            self.transitioning = True
-            print(f"Increment: {increment}")
-            self.transition_WipeUp(startImg, endImg, 0, increment)
-
-        elif transitionType == FP.transitionType.WIPELEFT:
-            increment = endImg.width / (transitionTime) #Unit per ms
-            increment = increment * self.deltaTime * booster #40ms per iteration
-
-            #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
-            self.transitioning = True
-            print(f"Increment: {increment}")
-            self.transition_WipeLeft(startImg, endImg, 0, increment)
-
-        elif transitionType == FP.transitionType.WIPERIGHT:
-            increment = endImg.width / (transitionTime) #Unit per ms
-            increment = increment * self.deltaTime * booster #40ms per iteration
-
-            #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
-            self.transitioning = True
-            print(f"Increment: {increment}")
-            self.transition_WipeRight(startImg, endImg, 0, increment)
-
-        elif transitionType == FP.transitionType.FADE:
-            inc = 255 / (transitionTime) #Unit per ms
-            inc = inc * self.deltaTime * booster
-            self.transitioning = True
-            print(f"Increment: {inc:.2f}")
-            self.transition_Fade(startImg, endImg, 0, inc)
-
-    #########################
-    # Could potentially just combined every wipe transition into one function. - James
-
-    def transition_WipeRight(self, startImg: Image, endImg: Image, counter: float, increment: float):
-        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
-        Timing is (255/increment) * self.deltaTime."""
-        transition_START = time.time()
-        #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width + 10:
-            print("Transition Complete")
-            self.cancelTransition()
-            return 1
-        else:
-            self.frameCounter += 1
-        #Basically next image, crop it to correct size, then paste it on top of the current image.
-        #Then draw the new image on the canvas.
-
-        cnum = round(counter)
-        #Crop the end image to counter
-        endCrop = endImg.crop((0, 0, cnum, endImg.height))
-        #Paste the end image onto the start image
-        startImg.paste(endCrop, (0,0))
-        #Draw the start image onto the canvas
-        self.image = ImageTk.PhotoImage(startImg)
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        
-        transition_END = time.time()
-        transitionTime = (transition_END - transition_START) * 1000 #ms
-        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
-        self.totalTransitionTime += transitionTime + remainingTime
-        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
-        self.transition_id = self.after(remainingTime, self.transition_WipeRight, startImg, endImg, counter+increment, increment)
-        return
-    
-    def transition_WipeLeft(self, startImg: Image, endImg: Image, counter: float, increment: float):
-        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
-        Timing is (255/increment) * self.deltaTime."""
-        transition_START = time.time()
-        #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.width + 10:
-            print("Transition Complete")
-            self.cancelTransition()
-            return 1
-        else:
-            self.frameCounter += 1
-        #Basically next image, crop it to correct size, then paste it on top of the current image.
-        #Then draw the new image on the canvas.
-        cnum = round(counter)
-        #Crop the end image to counter
-        endCrop = endImg.crop((endImg.width - cnum, 0, endImg.width, endImg.height))
-        #Paste the end image onto the start image
-        startImg.paste(endCrop, (endImg.width - cnum, 0))
-        #Draw the start image onto the canvas
-        self.image = ImageTk.PhotoImage(startImg)
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        
-        transition_END = time.time()
-        transitionTime = (transition_END - transition_START) * 1000 #ms
-        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
-        self.totalTransitionTime += transitionTime + remainingTime
-        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
-        self.transition_id = self.after(remainingTime, self.transition_WipeLeft, startImg, endImg, counter+increment, increment)
-        return
-    
-    def transition_WipeDown(self, startImg: Image, endImg: Image, counter: float, increment: float):
-        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
-        Timing is (255/increment) * self.deltaTime."""
-        transition_START = time.time()
-        #If the counter is greater than the width of the image, then the transition is complete.
-        if counter >= endImg.height + 10:
-            print("Transition Complete")
-            self.cancelTransition()
-            return 1
-        else:
-            self.frameCounter += 1
-        #Basically next image, crop it to correct size, then paste it on top of the current image.
-        #Then draw the new image on the canvas.
-
-        cnum = round(counter)
-        #Crop the end image to counter
-        endCrop: Image = endImg.crop((0, 0, endImg.width, cnum))
-        #Paste the end image onto the start image
-        startImg.paste(endCrop, (0,0))
-        #Draw the start image onto the canvas
-        self.image = ImageTk.PhotoImage(startImg)
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-       
-        transition_END = time.time()
-        transitionTime = (transition_END - transition_START) * 1000 #ms
-        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
-        self.totalTransitionTime += transitionTime + remainingTime
-        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
-        self.transition_id = self.after(remainingTime, self.transition_WipeDown, startImg, endImg, counter+increment, increment)
-        return
-    
-    def transition_WipeUp(self, startImg: Image, endImg: Image, counter: float, increment: float):
-        """endImg renders in top startImg in sections in specified direciton. Time is deteremined by the increment ammount.\n  
-        Timing is (255/increment) * self.deltaTime."""
-        transition_START = time.time()
-        #If the counter is greater than the width of the image, then the transition is complete.
-        if counter > endImg.height + 10:
-            print("Transition Complete")
-            self.cancelTransition()
-            return 1
-        else:
-            self.frameCounter += 1
-        #Basically next image, crop it to correct size, then paste it on top of the current image.
-        #Then draw the new image on the canvas.
-
-        #Crop the end image to counter
-        cnum = round(counter)
-        endCrop = endImg.crop((0, endImg.height - cnum, endImg.width, endImg.height))
-        #Paste the end image onto the start image
-        startImg.paste(endCrop, (0, endImg.height - cnum))
-        #Draw the start image onto the canvas
-        self.image = ImageTk.PhotoImage(startImg)
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        
-        transition_END = time.time()
-        transitionTime = (transition_END - transition_START) * 1000 #ms
-        remainingTime = int(math.ceil(self.deltaTime - (transitionTime)-1))
-        self.totalTransitionTime += transitionTime + remainingTime
-        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
-        self.transition_id = self.after(remainingTime, self.transition_WipeUp, startImg, endImg, counter+increment, increment)
-        return
-    
-    def transition_Fade(self, startImg: Image, endImg: Image, counter: float, increment: float):
-        """Fades from startImg to endImg. Time is deteremined by the increment ammount.\n  
-        Timing is (255/increment) * self.deltaTime."""
-        transition_START = time.time()
-        #If the counter is greater than the opacity of the image, then the transition is complete.
-        if counter >= 255-increment:
-            print("Transition Complete")
-            self.cancelTransition()
-            return 1
-        else:
-            self.frameCounter += 1           
-        #Interpolate the two images
-        newImg = Image.blend(startImg, endImg, counter/255)
-        self.image = ImageTk.PhotoImage(newImg)
-        # transition_START = time.time()
-        self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
-        
-        transition_END: float = time.time()
-        transitionTime: float = (transition_END - transition_START) * 1000 #ms
-        remainingTime: int = max(1, int(math.ceil(self.deltaTime - (transitionTime)-1)))
-        self.totalTransitionTime += transitionTime + remainingTime
-        # print(f"Remaining Time: {remainingTime}ms = delta: {self.deltaTime}ms - transitionTime: {(transitionTime):.2f}ms")
-        self.transition_id = self.after(remainingTime, self.transition_Fade, startImg, endImg, counter+increment, increment)
-        return
-        
-           
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
         self.canvasHeight = self.canvas.winfo_height()
@@ -611,7 +343,7 @@ class FileIcon(tk.Frame):
             self.__imagePIL = img
             self.imagepath = imagepath
             self.name = "File Not Found"
-        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight))
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
 
@@ -680,31 +412,28 @@ class FileIcon(tk.Frame):
         #Check if the popup exists. If it does move it to the mouse position
         if self.popup:
             self.popup.geometry(f"+{event.x_root}+{event.y_root}")
-            #Check if you are within the bounds of the linked reel.
-            if self.linkedReel:
-                #Maybe have these as attributes of the reel instead of calculating them every time??
-                x, y, w, h = self.linkedReel.winfo_rootx(), self.linkedReel.winfo_rooty(), self.linkedReel.winfo_width(), self.linkedReel.winfo_height()
-                #If the mouse is within the bounds of the reel,
-                if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
-                    #If the icon is at the left/right edge of the reel, slowly scroll in that direction.
-                    
 
-                    #Check and see if the user is hovering over a divider. If they are, highlight the divider
-                    for divider in self.linkedReel.dividers:
-                        x, y, w, h = divider.winfo_rootx(), divider.winfo_rooty(), divider.winfo_width(), divider.winfo_height()
-                        if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
-                            if (type(self) == SlideIcon):
-                                #If the slideID is within two of the divider index, return early.
-                                distance: int = abs(self.slide['slideID'] - (divider.index//2))
-                                if divider.index//2 > self.slide['slideID']:
-                                    distance -= 1
-                                # print(f"Distance: {distance}")
-                                if distance == 0:
-                                    return
-                            divider.label.configure(text=" ", bootstyle="inverse-default")
-                        else:
-                            divider.label.configure(text="", bootstyle="default")
+            #Check and see if the user is hovering over a divider. If they are, highlight the divider
+            for divider in self.linkedReel.dividers:
+                x: int = divider.winfo_rootx()
+                y: int = divider.winfo_rooty()
+                w: int = divider.winfo_width()
+                h: int = divider.winfo_height()
+                if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
+                    if (type(self) == SlideIcon):
+                        #If the slideID is within two of the divider index, return early.
+                        distance: int = abs(self.slide['slideID'] - (divider.index//2))
+                        if divider.index//2 > self.slide['slideID']:
+                            distance -= 1
+                        # print(f"Distance: {distance}")
+                        if distance == 0:
+                            return
+
+                    divider.label.configure(text=" ", bootstyle="inverse-default")
+                else:
+                    divider.label.configure(text="", bootstyle="default")
             return
+
         else:
             #Create the popup which is a borderless transparent TopLevel window containing the image
             self.popup = tk.Toplevel()
@@ -732,6 +461,8 @@ class FileIcon(tk.Frame):
         self.canvas.bind("<Button-1>", self.pickup)
         self.canvas.unbind("<B1-Motion>")
         self.canvas.bind("<ButtonRelease-1>", self.clickIcon)
+
+        
         #check if the user has dropped the icon into the previewer. If they have, load the image
         if self.linkedViewer:
             x = self.linkedViewer.winfo_rootx()
@@ -775,12 +506,11 @@ class IconDivider(tb.Frame):
         self.label.pack(expand=True, fill="both")
         self.index: int = index
 
-        #Bind click - Not Needed
+        #Bind click
         self.label.bind("<ButtonRelease-1>", self.clickDivider)
 
 
     def clickDivider(self, event):
-        #Not needed.
         print(f"Clicked on divider {self.index}")
         return
 
@@ -792,8 +522,8 @@ class IconDivider(tb.Frame):
 class SlideIcon(FileIcon):
     """
     SlideIcon litteraly just a FileIcon but with the extra slide attribute. It's used in the SlideReel.\n
-    It has virtually the same functionality as file icon, execpt the drag and drop is changed to function with the SlideReel.\n
-    If you drag a slide icon around within the slide reel, it will cause dividers to show up. You can then drop the slide icon onto a divider to move the slide to that index.\n
+    Will probably need to redo drag and drop functionality specifically for this depending on how we want to organize the slides.\n
+    Since it acts just like a FileIcon there is some wierd interactions with the SlideReel. Will fix later.\n
     """
     def __init__(self, master, imgPath: str, **kwargs):
         super().__init__(master, imgPath, **kwargs)
@@ -871,8 +601,6 @@ class InfoFrame(tb.Frame):
         self.fillProjectInfo()
         self.fillSlideInfo()
         self.notebook.select(1)
-
-        self.transition_checker = None #Used to check if the imageViewer is showing a transition.
         return
 
     def fillProjectInfo(self):
@@ -995,9 +723,6 @@ class InfoFrame(tb.Frame):
         self.playlistDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
         self.playlistDuration.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
-        #Fill the playlist duration
-        duration = self.playlist.getDuration()
-        self.playlistDuration.config(text=FP.formatTime(duration))
 
         #ShufflePlaylist toggle button
         rowNumber += 1
@@ -1130,7 +855,6 @@ class InfoFrame(tb.Frame):
         return
 
     def playListRemove(self):
-        print("\n")
         #Get the selected item
         selected = self.playlistTree.selection()
         print(self.playlist.songs)
@@ -1141,36 +865,20 @@ class InfoFrame(tb.Frame):
         
         #Get the song that was selected
         song = self.playlistTree.item(selected)['values'][0]
+        print(f"Song: {song}")
 
         #Search for the song in the playlist
-        songToRemove: FP.Song = None
-        for s in self.playlist.songs:
-            songPath = FP.getBaseName([s.filePath])[0]
-            if songPath == song:
-                songToRemove = s
+        for songPath in self.playlist.songs:
+            if FP.getBaseName([songPath])[0] == song:
+                print(f"Removing {songPath} from the playlist")
+                self.playlist.removeSong(songPath)
                 break
-
-        if songToRemove == None:
-            print(f"Could not find {song} in the playlist.")
-            print(songToRemove.__dict__)
-            return
-        
-        #Remove the song from the playlist
-        print(f"Removing {songToRemove} from the playlist")
-        self.playlist.removeSong(songToRemove)
 
         #Remove the song from the treeview
         self.playlistTree.delete(selected)
-        self.update_idletasks()
-        #Redo the order numbers
-        for i in range(len(self.playlist.songs)):
-            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
-        duration = self.playlist.getDuration()
-        self.playlistDuration.config(text=FP.formatTime(duration))
         return
 
     def playListAdd(self):
-        print("")
         #Open a file dialog to select a .mp3, .mp4, .wav, or .aiff file
         filetypes = [("Audio Files", "*.mp3 *.mp4 *.wav *.aiff")]
         file = filedialog.askopenfile(filetypes=filetypes, title="Select a song to add to the playlist")
@@ -1179,8 +887,8 @@ class InfoFrame(tb.Frame):
 
         #Check if file is already in the playlist
         for song in self.playlist.songs:
-            if song.filePath == file.name:
-                print(f"{file.name} is already in the playlist as {song}")
+            if song == file.name:
+                print(f"{file.name} is already in the playlist")
                 return
 
         #Add the file to the playlist
@@ -1188,17 +896,13 @@ class InfoFrame(tb.Frame):
         songCount = len(self.playlist.songs)
         self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1))
         self.playlist.addSong(file.name)
-        # for song in self.playlist.songs:
-        #     print(song)
-        duration = self.playlist.getDuration()
-        self.playlistDuration.config(text=FP.formatTime(duration))
         return
     
 
     def setDefaultDuration(self):
         #Check if it is a valid number.
         try:
-            time = float(self.defaultSlideDuration.get())
+            float(self.defaultSlideDuration.get())
         except:
             print("Invalid input for slide duration.")
             self.defaultSlideDuration.delete(0, tk.END)
@@ -1211,8 +915,8 @@ class InfoFrame(tb.Frame):
         #No errors
         self.defaultSlideDuration.config(style="TEntry")
         # print(f"Slide Duration: {self.defaultSlideDuration.get()}")
-        self.slideshow.defaultSlideDuration = time
-        self.__defaultDurationTemp = time
+        self.slideshow.defaultSlideDuration = self.defaultSlideDuration.get()
+        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
         self.winfo_toplevel().focus_set()
         return
     
@@ -1243,7 +947,6 @@ class InfoFrame(tb.Frame):
         if self.slideshow == None:
             return
         
-        
         #Clear the project info frame
         for widget in self.slideInfoFrame.scrollable_frame.winfo_children():
             widget.destroy()
@@ -1254,13 +957,10 @@ class InfoFrame(tb.Frame):
             icon: SlideIcon = self.__icon
         elif type(self.__icon) == FileIcon:
             icon: FileIcon = self.__icon
-        elif self.__icon == None:
-            print("FillSlideInfo: No icon selected.")
-            label = tb.Label(self.slideInfoFrame.scrollable_frame, text="Select an image or slide to view info.", font=("Arial", 12))
-            label.grid(row=0, column=0, columnspan=2, sticky="w")
-            return
         else:
             print(f"FillSlideInfo: Invalid icon type. {type(self.__icon)}")
+            label = tb.Label(self.slideInfoFrame.scrollable_frame, text="Select an image or slide to view info.", font=("Arial", 12))
+            label.grid(row=0, column=0, columnspan=2, sticky="w")
             return
 
         #Grid layout for the slide info
@@ -1334,9 +1034,6 @@ class InfoFrame(tb.Frame):
 
         self.transitionType.bind("<<ComboboxSelected>>", self.setTransitionType)
 
-        #Set the transition type to the slide's transition type
-        self.transitionType.set(icon.slide['transition'])
-
         #Preview Transition - Button
         rowNum += 1
         self.previewTransitionButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Preview Transition", command=self.previewTransition, takefocus=0)
@@ -1350,7 +1047,7 @@ class InfoFrame(tb.Frame):
     def setSlideDuration(self, event):
         #Check if it is a valid number.
         try:
-            time = float(self.slideDuration.get())
+            float(self.slideDuration.get())
         except:
             print("Invalid input for slide duration.")
             self.slideDuration.delete(0, tk.END)
@@ -1363,9 +1060,9 @@ class InfoFrame(tb.Frame):
         #No errors
         self.slideDuration.config(style="TEntry")
         # print(f"Slide Duration: {self.slideDuration.get()}")
-        self.__icon.slide['duration'] = time
+        self.__icon.slide['duration'] = self.slideDuration.get()
         self.winfo_toplevel().focus_set()
-        self._slideDurationTemp = time
+        self._slideDurationTemp = self.slideDuration.get()
         return
     
     def onSlideDurationFocusIn(self, event):
@@ -1395,7 +1092,7 @@ class InfoFrame(tb.Frame):
     def setTransitionSpeed(self, event):
         #Check if it is a valid number.
         try:
-            speed = float(self.transitionSpeed.get())
+            float(self.transitionSpeed.get())
         except:
             print("Invalid input for transition speed.")
             self.transitionSpeed.delete(0, tk.END)
@@ -1408,9 +1105,9 @@ class InfoFrame(tb.Frame):
         #No errors
         self.transitionSpeed.config(style="TEntry")
         # print(f"Slide Duration: {self.transitionSpeed.get()}")
-        self.__icon.slide['transitionSpeed'] = speed
+        self.__icon.slide['transitionSpeed'] = self.transitionSpeed.get()
         self.winfo_toplevel().focus_set()
-        self._transitionSpeedTemp = speed
+        self._transitionSpeedTemp = self.transitionSpeed.get()
         return
 
     def onTransitionSpeedFocusIn(self, event):
@@ -1441,40 +1138,13 @@ class InfoFrame(tb.Frame):
         self.transitionType.selection_range(0,0)
         self.focus_set()
         print(f"Transition Type: {self.transitionType.get()}")
-        self.__icon.slide['transition'] = self.transitionType.get()
-        self.update_idletasks()
-        print(self.__icon.slide)
+        self.__icon.slide['transitionType'] = self.transitionType.get()
         return
-    
-    def checkTransition(self, imagePath):
-        if self.__icon.linkedViewer.transitioning:
-            self.transition_checker = self.after(16, self.checkTransition, imagePath)
-        else:
-            self.transition_checker = None
-            self.__icon.linkedViewer.loadImage(imagePath)
     
     def previewTransition(self):
         print("Previewing Transition")
-        if self.transition_checker:
-            self.after_cancel(self.transition_checker)
-            self.transition_checker = None
-            self.after_cancel(self.__icon.linkedViewer.transition_id)
-        #Have the image previewer do a transition 
-        if type(self.__icon) == SlideIcon:
-            transitionType = self.__icon.slide['transition']
-            transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
-            
-            endImg = Image.open(self.__icon.imagepath)
-            previousSlide = self.slideshow.getSlide(self.__icon.slide['slideID']-1)
-            if previousSlide == None:
-                startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
-            else:
-                startImg = Image.open(previousSlide['imagePath'])
-            startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-            endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
-            
-            self.__icon.linkedViewer.executeTransition(transitionType, transitionSpeed, endImg, startImg)
-            self.checkTransition(self.__icon.slide['imagePath'])
+        #Have the image previewer do a transition
+        #not yet implemented.
         return
 
     def addSlide(self):
@@ -1492,15 +1162,11 @@ class InfoFrame(tb.Frame):
         self.__icon.linkedReel.fillReel()
         return
 
-    def loadIcon(self, icon):
-        #If the new icon and old icon are the same, return early
-        if icon == self.__icon:
-            return
 
+    def loadIcon(self, icon):
         if type(icon) == SlideIcon:
             self.image = False
             self.__icon = icon
-            print(self.__icon.slide)
         elif type(icon) == FileIcon:
             self.image = True
             self.__icon = icon
@@ -1508,7 +1174,6 @@ class InfoFrame(tb.Frame):
             print("Error loading Icon into InfoFrame: Invalid icon type.")
 
         self.fillSlideInfo()
-        self.notebook.select(0)
         return
 
 class SlideReel(tk.Frame):
@@ -1627,9 +1292,6 @@ class SlideReel(tk.Frame):
         divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
         self.dividers.append(divider)
         self.infoFrame.count.config(text=str(len(self.slides)))
-
-        self.update_idletasks()
-        self.scrollFrame.resizeCanvas(None)
         return
 
     def redrawReel(self):
@@ -1648,7 +1310,9 @@ class SlideReel(tk.Frame):
                     self.fillReel()
                     return
             child.grid()
-        return
+
+
+        #Regrid the dividers and slideIcons
 
     def addSlide(self, imagePath:str, index:int=-1):
         #First check if there is a slideshow object. If there isn't there isn't a point in adding a slide.
@@ -1880,40 +1544,3 @@ class MediaBucket(tb.Frame):
         else:
             return False
     
-class RecentSlideshowList(tk.Frame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        slideshows = FP.getRecentSlideshows()
-        for s in slideshows:
-            print(s)
-
-
-        #Create a label frame
-        self.labelFrame = tb.LabelFrame(self, text="Recent Slideshows", bootstyle="primary")
-        self.labelFrame.pack(expand=True, fill="both", padx=10, pady=10)
-
-        #Create a tableView
-        col_names = [
-            "Name",
-            "Date Modified",
-            {"text": "Path", "stretch": True}
-        ]
-
-        row_data = []
-        for s in slideshows:
-            #Split using '$' as a delimiter
-            s = s.split("$")
-            name = FP.getBaseName([s[0]])[0]
-            # print(name)
-            row_data.append((name, s[1], s[0]))
-        self.tableView = Tableview(master=self.labelFrame, 
-                                    coldata=col_names, 
-                                    rowdata=row_data, 
-                                    bootstyle=tb.PRIMARY,
-                                    searchable=True,
-                                    autofit=True)
-        self.tableView.pack(expand=True, fill="both")
-        
-        #Bind the double click event to open the slideshow
-        # self.tableView.view.bind("<Double-1>", self.openSlideshow)
-        return
