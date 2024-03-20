@@ -1,8 +1,10 @@
 import os
+import time
 import random
 from PIL import Image
 import json
-
+import pydub
+from pydub import AudioSegment
 
 MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
 ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
@@ -35,9 +37,13 @@ def randomImage(files):
     """Returns a random image from a list of file paths."""
     return random.choice(files)
 
+#Take a str or list of str file paths and return their names without the file extension
 def removeExtension(files):
     """Removes the file extension from a list of file paths."""
-    return [os.path.splitext(f)[0] for f in files]
+    if isinstance(files, list):
+        return [os.path.splitext(f)[0] for f in files]
+    else:
+        return os.path.splitext(files)[0]
 
 def getBaseName(files):
     """Returns the base name of a list of file paths."""
@@ -46,6 +52,10 @@ def getBaseName(files):
 def getParentDir(files):
     """Returns the parent directory of a list of file paths."""
     return [os.path.dirname(f) for f in files]
+
+def getUserHome():
+    """Print the user's home directory. This is where the program will store its cache files."""
+    return os.path.expanduser("~")
 
 def getUserCacheDir():
     """Print the user's AppData/Local/PySlideshow directory. This is where the program will store its cache files."""
@@ -66,6 +76,13 @@ def initializeCache():
         with open(os.path.join(cacheDir, "preferences.txt"), 'w') as f:
             f.write("litera")
 
+    #RecentSlideshows file can just be a text file containing the file paths of the recent slideshows.
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        validateRecentSlideshows()
+
 def updatePreferences(theme:str):
     """Update the user preferences file with the theme."""
     cacheDir = getUserCacheDir()
@@ -82,6 +99,71 @@ def getPreferences():
     else:
         with open(os.path.join(cacheDir, "preferences.txt"), 'r') as f:
             return f.read().strip()
+        
+def getLastModified(fileName:str):
+    """Get the last modified time of a file."""
+    mod_time = os.path.getmtime(fileName)
+    return time.ctime(mod_time)
+
+def updateSlideshowCacheList(slideshowPath:str):
+    #Get the cache directory
+    cacheDir = getUserCacheDir()
+    #Convert the slideshowPath "\" to "/" for the cache file
+    slideshowPath = slideshowPath.replace("\\", "/")
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            lastModified = getLastModified(slideshowPath)
+            f.write(f"{slideshowPath}${lastModified}\n")
+    else:
+        #If the file exists, check if the slideshow is already in the list. If it is, remove it.
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            for i, s in enumerate(slideshows):
+                if s.split("$")[0] == slideshowPath:
+                    slideshows.pop(i)
+                    break
+        #Add the slideshow to the top of the list
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            lastModified = getLastModified(slideshowPath)
+            f.write(f"{slideshowPath}${lastModified}\n")
+            #Add the rest of the slideshows to the list
+            for s in slideshows:
+                f.write(s + "\n")
+
+def getRecentSlideshows() -> list[str]:
+    cacheDir = getUserCacheDir()
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        #If the file exists, return the list of recent slideshows
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            return slideshows
+    return []
+        
+def validateRecentSlideshows():
+    """Validate the recent slideshows list. Remove any invalid file paths from the list."""
+    cacheDir = getUserCacheDir()
+    #Check if the RecentSlideshows file exists
+    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+            pass
+    else:
+        #If the file exists, return the list of recent slideshows
+        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            slideshows = f.readlines()
+            slideshows = [s.strip() for s in slideshows]
+            for i, s in enumerate(slideshows):
+                if not os.path.exists(s.split("$")[0]):
+                    slideshows.pop(i)
+            with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+                for s in slideshows:
+                    f.write(s + "\n")
 
 def clearCache():
     """Clear the cache folder."""
@@ -93,6 +175,19 @@ def clearCache():
 def resetPreferences():
     """Reset the preferences file to the default theme."""
     updatePreferences("litera")
+
+def saveImageToCache(image:Image, name:str):
+    """Save the image to the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    #Save the image to the cache folder
+    image.save(os.path.join(cacheDir, name))
+
+def loadImageFromCache(name:str):
+    """Load the image from the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    #Load the image from the cache folder
+    return Image.open(os.path.join(cacheDir, name))
+
 
 class Slide:
     """
@@ -153,7 +248,7 @@ class Slideshow:
         self.name = getBaseName([self.__filePath])[0]
         self.__slides: list[Slide] = []
         self.__count: int = 0
-        self.__playlist: Playlist = Playlist()
+        self.playlist: Playlist = Playlist()
         self.manual: bool = False
         self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
@@ -241,11 +336,11 @@ class Slideshow:
     
     def getPlaylist(self):
         #If the playlist is a disctionary, convert it to a Playlist object.
-        if isinstance(self.__playlist, dict):
+        if isinstance(self.playlist, dict):
             playlist = Playlist()
-            playlist.__dict__.update(self.__playlist)
-            self.__playlist = playlist
-        return self.__playlist
+            playlist.__dict__.update(self.playlist)
+            self.playlist = playlist
+        return self.playlist
     
     def getSaveLocation(self):
         return self.__filePath
@@ -300,8 +395,6 @@ class Slideshow:
         #Print __dict__ for debugging
         return str(self.__dict__)
 
-    
-
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.
@@ -309,8 +402,9 @@ class Song:
         self.filePath: str = None
         self.name: str = None
         self.duration: int = 0
-        self.artist: str = None
-        self.album: str = None
+        # self.artist: str = None
+        # self.album: str = None
+        self.fileType: str = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
         try:
@@ -318,21 +412,45 @@ class Song:
             if not os.path.exists(songPath):
                 raise FileNotFoundError(f"File {songPath} not found.")
             #Check if the file is of a valid type
-            if not os.path.splitext(songPath)[1] in ['.mp3', '.mp4', '.wav', '.AAIF']:
+            if not os.path.splitext(songPath)[1] in ['.mp3', '.mp4', '.wav', '.aiff']:
                 raise FileNotFoundError(f"File {songPath} is not a valid song file.")
             self.filePath = songPath
             self.name = removePath([self.filePath])[0]
-
-            #Get the duration of the song. ffprobe maybe??
-
         except:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
             self.name = "Error: Missing Song"
+            return -1
+        
+        #Get the duration of the song
+        fileType = os.path.splitext(self.filePath)[1]
+        if fileType == ".mp3":
+            audio = AudioSegment.from_mp3(self.filePath)
+        elif fileType == ".wav":
+            audio = AudioSegment.from_wav(self.filePath)
+        elif fileType == ".mp4":
+            audio = AudioSegment.from_file(self.filePath, "mp4")
+        elif fileType == ".aiff":
+            audio = AudioSegment.from_file(self.filePath, "aiff")
+        self.fileType = fileType
+
+        self.duration = audio.duration_seconds
+
+
+    def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print the object as a readable string
+        return str(self.__dict__)
     
+def formatTime(seconds:int):
+    """Format the time in seconds to a string."""
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes:02d}:{seconds:02d}"
+
 class Playlist:
     def __init__(self):
-        self.name: str = None
+        # self.name: str = None
         self.songs: list[Song] = []
         self.__count: int = 0
         self.__duration: int = 0
@@ -342,31 +460,42 @@ class Playlist:
     def addSong(self, song:str, index:int=-1):
         """Will insert a song at the index, then push the rest of the songs down one index.
         If the index is -1, it will append the song to the end of the list."""
+        newSong = Song(song)
+        #Check if the song is valid
+        if Song == -1:
+            return
         #Check if the song already exists in the playlist
+        for s in self.songs:
+
+            if s.filePath == newSong.filePath:
+                print(f"{newSong} already exists in the playlist.")
+                return
 
         if index == -1:
-            self.songs.append(song)
+            self.songs.append(newSong)
         else:
-            self.songs.insert(index, song)
+            self.songs.insert(index, newSong)
         self.__count += 1
         #Update the duration
         self.validate()
 
     def removeSong(self, song:Song):
+        print(type(song))
+        print(self.songs)
         self.songs.remove(song)
         self.__count -= 1
         #Update the duration
+        self.validate()
 
     def validate(self):
         #Just update values.
         self.__count = len(self.songs)
         self.__duration = 0
         for song in self.songs:
-            song = Song(song)
             self.__duration += song.duration
-        print(f"Playlist duration: {self.__duration} seconds")
+            print(f"{song.name} - {formatTime(song.duration)}")
+        print(f"Playlist duration: {formatTime(self.__duration)}")
             
-
     def getDuration(self):
         return self.__duration
     
@@ -379,6 +508,11 @@ class Playlist:
         """Move the song at index down one index."""
         if index < self.__count - 1:
             self.songs[index], self.songs[index+1] = self.songs[index+1], self.songs[index]
+
+    def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print __dict__ for debugging
+        return str(self.__dict__)
 
     
     
