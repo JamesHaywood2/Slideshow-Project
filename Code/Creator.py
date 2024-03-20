@@ -53,7 +53,6 @@ class SlideshowCreatorStart(tb.Frame):
         #Open the project
         self.openProjectPath(projectPath)
 
-        
     def newProject(self):
         """Loads the slideshow creator window without a project file. This will create a new project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
@@ -162,7 +161,7 @@ class SlideshowCreator(tb.Frame):
 
         self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.slideInfoFrame)
-        self.slideInfoButton: InfoFrame = None
+        self.infoViewer: InfoFrame = None
 
         self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
         self.PanedWindow_Bottom.add(self.reelFrame)

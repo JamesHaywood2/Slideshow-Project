@@ -395,8 +395,6 @@ class Slideshow:
         #Print __dict__ for debugging
         return str(self.__dict__)
 
-    
-
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.
@@ -406,6 +404,7 @@ class Song:
         self.duration: int = 0
         # self.artist: str = None
         # self.album: str = None
+        self.fileType: str = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
         try:
@@ -433,6 +432,7 @@ class Song:
             audio = AudioSegment.from_file(self.filePath, "mp4")
         elif fileType == ".aiff":
             audio = AudioSegment.from_file(self.filePath, "aiff")
+        self.fileType = fileType
 
         self.duration = audio.duration_seconds
 
@@ -447,6 +447,7 @@ def formatTime(seconds:int):
     minutes = int(seconds // 60)
     seconds = int(seconds % 60)
     return f"{minutes:02d}:{seconds:02d}"
+
 class Playlist:
     def __init__(self):
         # self.name: str = None
