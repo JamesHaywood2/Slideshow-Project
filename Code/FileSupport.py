@@ -251,7 +251,6 @@ class Slideshow:
         self.playlist: Playlist = Playlist()
         self.manual: bool = False
         self.shuffle: bool = False
-        self.loop: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
 
     #Add a slide at an index
@@ -453,7 +452,6 @@ class Playlist:
         self.__count: int = 0
         self.__duration: int = 0
         self.shuffle: bool = False
-        self.loop: bool = False
 
     def addSong(self, song:str, index:int=-1):
         """Will insert a song at the index, then push the rest of the songs down one index.
