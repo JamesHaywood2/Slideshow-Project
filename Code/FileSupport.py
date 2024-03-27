@@ -206,7 +206,7 @@ class Slide:
         self.imagePath: str = None
         self.imageName: str = None
         self.transition: transitionType = transitionType.DEFAULT
-        self.transitionSpeed: int = 2
+        self.transitionSpeed: int = 1
         self.duration: int = 5
 
         #Check if the imagePath is a valid picture
@@ -250,7 +250,6 @@ class Slideshow:
         self.__count: int = 0
         self.playlist: Playlist = Playlist()
         self.manual: bool = False
-        self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
         self.loop: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
@@ -394,7 +393,6 @@ class Slideshow:
         """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
-
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.

@@ -863,7 +863,7 @@ class InfoFrame(tb.Frame):
         self.projectInfoFrame = ScrollableFrame(self.notebook, orient="both")
         self.notebook.add(self.projectInfoFrame, text="Project Info")
 
-        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
+        self.__defaultDurationTemp = 1
 
         self.image: bool = False #If True, display the image info. If False, display the slide info.
         self.__icon = None #This will be the icon that was clicked on to open the info frame.
@@ -901,17 +901,6 @@ class InfoFrame(tb.Frame):
         self.pathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
         self.path.grid(row=rowNumber, column=3, sticky="w", columnspan=4)
-
-        rowNumber += 1
-        self.defaultSlideDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Default Slide Duration: ", font=("Arial", 12))
-        self.defaultSlideDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.defaultSlideDuration = tb.Entry(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
-        self.defaultSlideDuration.config(width=7)
-        self.defaultSlideDuration.insert(0, self.slideshow.defaultSlideDuration)
-        self.defaultSlideDuration.grid(row=rowNumber, column=3, sticky="w")
-
-        self.defaultSlideDuration.bind("<FocusIn>", self.onDefaultDurationFocusIn)
-        self.defaultSlideDuration.bind("<FocusOut>", self.onDefaultDurationFocusOut)
 
         #Manual or automatic slide control
         rowNumber += 1
@@ -1195,49 +1184,6 @@ class InfoFrame(tb.Frame):
         return
     
 
-    def setDefaultDuration(self):
-        #Check if it is a valid number.
-        try:
-            time = float(self.defaultSlideDuration.get())
-        except:
-            print("Invalid input for slide duration.")
-            self.defaultSlideDuration.delete(0, tk.END)
-            self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
-
-            #Set the outline to red
-            self.defaultSlideDuration.config(style="danger.TEntry")
-            return
-        
-        #No errors
-        self.defaultSlideDuration.config(style="TEntry")
-        # print(f"Slide Duration: {self.defaultSlideDuration.get()}")
-        self.slideshow.defaultSlideDuration = time
-        self.__defaultDurationTemp = time
-        self.winfo_toplevel().focus_set()
-        return
-    
-    def onDefaultDurationFocusIn(self, event):
-        # self.defaultSlideDuration.config(state=tk.NORMAL)
-        print("Slide Duration Focused In")
-        self.defaultSlideDuration.bind("<Return>", lambda event: self.setDefaultDuration())
-        #Bind escape to unfocus the entry
-        self.defaultSlideDuration.bind("<Escape>", lambda event: self.focus_set())
-        #Set the style to normal
-        self.defaultSlideDuration.config(style="TEntry")
-        return
-    
-    def onDefaultDurationFocusOut(self, event):
-        # self.defaultSlideDuration.config(state=tk.DISABLED)
-        print("Slide Duration Focused Out")
-        self.defaultSlideDuration.unbind("<Return>")
-        self.defaultSlideDuration.unbind("<Escape>")
-        #Reset the entry
-        self.defaultSlideDuration.delete(0, tk.END)
-        self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
-
-        #Change style to normal
-        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
-        return
     
     def fillSlideInfo(self):
         if self.slideshow == None:
@@ -1369,7 +1315,6 @@ class InfoFrame(tb.Frame):
         return
     
     def onSlideDurationFocusIn(self, event):
-        # self.defaultSlideDuration.config(state=tk.NORMAL)
         print("Slide Duration Focused In")
         self.slideDuration.bind("<Return>", self.setSlideDuration)
         #Bind escape to unfocus the entry
@@ -1380,16 +1325,12 @@ class InfoFrame(tb.Frame):
         return
     
     def onSlideDurationFocusOut(self, event):
-        # self.defaultSlideDuration.config(state=tk.DISABLED)
         print("Slide Duration Focused Out")
         self.slideDuration.unbind("<Return>")
         self.slideDuration.unbind("<Escape>")
         #Reset the entry
         self.slideDuration.delete(0, tk.END)
         self.slideDuration.insert(0, self._slideDurationTemp)
-
-        #Change style to normal
-        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
         return
     
     def setTransitionSpeed(self, event):
