@@ -129,10 +129,8 @@ class ScrollableFrame(tk.Frame):
 
             if scrollFrameWidth <= canvasWidth:
                 self.hideHorizontal = True
-                # print("Enough width to display the entire frame")
             else:
                 self.hideHorizontal = False
-                # print("Not enough width to display the entire frame")
 
         #If autohide is off (meaning scrollbars should "always" be visible), then whenever the canvas can't display all the contents, the canvas should be a little smaller to make room for the scrollbar.
         if not self.autohide:
@@ -149,7 +147,6 @@ class ScrollableFrame(tk.Frame):
         return
 
     def show_scrollbars(self, event):
-        # print("Showing Scrollbars")
         self.update_idletasks()
         if self.verticle and not self.hideVertical:
             self.scrollbar.grid()
@@ -160,7 +157,6 @@ class ScrollableFrame(tk.Frame):
         return
 
     def hide_scrollbars(self, event):
-        # print("Hiding Scrollbars")
         self.update_idletasks()
         if self.verticle:
             self.scrollbar.grid_remove()
@@ -171,19 +167,16 @@ class ScrollableFrame(tk.Frame):
         return
     
     def hoverEnter(self, event):
-        # print("Hovering over the frame")
         #If you hover over the canvas, mousewheel scrolling should be enabled
         self.canvas.bind_all("<MouseWheel>", self.onMouseWheel)
         return
     
     def hoverLeave(self, event):
-        # print("Leaving the frame")
         #Once you leave the canvas, mousewheel scrolling should be disabled
         self.canvas.unbind_all("<MouseWheel>")
         return
     
     def onMouseWheel(self, event):
-        # print("Mousewheel Scrolling")
         #If the mousewheel is scrolled, the canvas should scroll
         #Prioritize vertical scrolling over horizontal scrolling
         #There may be a better way to do this than just prioritizng one over the other, but I think this works fine. - James
@@ -218,7 +211,6 @@ class ImageViewer(tb.Canvas):
         #bind a configure event to the canvas
         self.autoResize: bool = False
         self.after_id = None
-        # self.autoResizeToggle(False)
 
         self.transition_id = None #Used as after_id for transitions incase they need to be cancelled early
         self.transitioning: bool = False #If a transition is currently happening
@@ -299,7 +291,6 @@ class ImageViewer(tb.Canvas):
         return self.imagePIL
 
     def redrawImage(self):
-        # print("Redrawing Image")
         #Return early if there is no image
         if self.imagePIL == None:
             self.delete("all")
@@ -308,13 +299,10 @@ class ImageViewer(tb.Canvas):
         #Get the size of the canvas
         self.canvasWidth = self.winfo_width()
         self.canvasHeight = self.winfo_height()
-        # print(f"Current Window Size: {event.width}x{event.height}")
-        # print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
         #Clear the canvas
         self.delete("all")
         #Resize the image while using the aspect ratio
         img = Image.open(self.imagePath)
-        img = ImageOps.exif_transpose(img)
         self.imagePIL = img
         self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
@@ -332,8 +320,6 @@ class ImageViewer(tb.Canvas):
             #Use a blank black image as the start image
             startImg = Image.new("RGB", (self.canvasWidth, self.canvasHeight), (0, 0, 0))
 
-        # print(f"endImg: {endImg.width}x{endImg.height}")
-        # print(f"startImg: {startImg.width}x{startImg.height}")
         print(f"transitionTime: {transitionTime}ms")
         # transitionTime = transitionTime//1000 #Convert to seconds
 
@@ -649,7 +635,6 @@ class FileIcon(tk.Frame):
         return
 
     def clickIcon(self, event):
-        # print(f"Clicked on {self.name}")
         if self.linkedViewer != None:
             #Load image into the viewer
             self.linkedViewer.loadImage(self.imagepath)
@@ -662,7 +647,6 @@ class FileIcon(tk.Frame):
         return
      
     def pickup(self, event):
-        # print(f"Click at {event.x}, {event.y} on {self.name}")
         self.__startX = event.x
         self.__startY = event.y
         #If missing image, don't allow dragging
@@ -691,7 +675,6 @@ class FileIcon(tk.Frame):
                 if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                     #If the icon is at the left/right edge of the reel, slowly scroll in that direction.
                     
-
                     #Check and see if the user is hovering over a divider. If they are, highlight the divider
                     for divider in self.linkedReel.dividers:
                         x, y, w, h = divider.winfo_rootx(), divider.winfo_rooty(), divider.winfo_width(), divider.winfo_height()
@@ -778,15 +761,6 @@ class IconDivider(tb.Frame):
         self.label.pack(expand=True, fill="both")
         self.index: int = index
 
-        #Bind click - Not Needed
-        self.label.bind("<ButtonRelease-1>", self.clickDivider)
-
-
-    def clickDivider(self, event):
-        #Not needed.
-        print(f"Clicked on divider {self.index}")
-        return
-
     def reset(self):
         self.label.configure(text="", bootstyle="default")
         self.configure(relief=tk.FLAT, borderwidth=0)
@@ -828,6 +802,7 @@ class SlideIcon(FileIcon):
             if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                 self.linkedViewer.loadImage(self.imagepath)
                 self.linkedViewer.redrawImage()
+                return
 
         if self.linkedReel:
             #Check if the dividers exist.
@@ -846,6 +821,7 @@ class SlideIcon(FileIcon):
                         self.linkedReel.slideshow.moveSlide(slideID, divider.index//2)
                         self.update_idletasks()
                         self.after(33, self.linkedReel.fillReel)
+                        return
         return
 
 
@@ -866,7 +842,7 @@ class InfoFrame(tb.Frame):
         self.projectInfoFrame = ScrollableFrame(self.notebook, orient="both")
         self.notebook.add(self.projectInfoFrame, text="Project Info")
 
-        self.__defaultDurationTemp = self.slideshow.defaultSlideDuration
+        self.__defaultDurationTemp = 1
 
         self.image: bool = False #If True, display the image info. If False, display the slide info.
         self.__icon = None #This will be the icon that was clicked on to open the info frame.
@@ -904,17 +880,6 @@ class InfoFrame(tb.Frame):
         self.pathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
         self.path.grid(row=rowNumber, column=3, sticky="w", columnspan=4)
-
-        rowNumber += 1
-        self.defaultSlideDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Default Slide Duration: ", font=("Arial", 12))
-        self.defaultSlideDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.defaultSlideDuration = tb.Entry(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
-        self.defaultSlideDuration.config(width=7)
-        self.defaultSlideDuration.insert(0, self.slideshow.defaultSlideDuration)
-        self.defaultSlideDuration.grid(row=rowNumber, column=3, sticky="w")
-
-        self.defaultSlideDuration.bind("<FocusIn>", self.onDefaultDurationFocusIn)
-        self.defaultSlideDuration.bind("<FocusOut>", self.onDefaultDurationFocusOut)
 
         #Manual or automatic slide control
         rowNumber += 1
@@ -957,23 +922,17 @@ class InfoFrame(tb.Frame):
         self.slideShuffle.bind("<ButtonRelease-1>", toggleShuffle)
 
         rowNumber += 1
-        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop: ", font=("Arial", 12))
-        self.loopLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.loop = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.loop.grid(row=rowNumber, column=3, sticky="w")
-
-        #Set self.slideshow.loop as the control variable
-        self.loop.var = tk.BooleanVar()
-        self.loop.var.set(self.slideshow.loop)
-        #If self.slideshow.loop is true, then the button should be toggled
-        if self.slideshow.loop:
-            self.loop.invoke()
-        #bind the toggle button to the slideshow
-        def toggleLoop(event):
-            self.slideshow.loop = not self.slideshow.loop
-            return
-        #Bind toggling the button to the control variable
-        self.loop.bind("<ButtonRelease-1>", toggleLoop)
+        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Fomerly Loop. Replace with Option Selector. ", font=("Arial", 12))
+        self.loopLabel.grid(row=rowNumber, column=0, columnspan=6, sticky="w")
+        #Loop will be replaced with an option selector
+        #Option 1: They both loop indefinitely until told to stop (program closed). Default.
+        #Option 2: Slideshow loops itself until the playlist finishes playing.
+        #          Once the playlist reaches the end it either just pauses the slideshow or closes the viewer.
+        #Option 3: Slideshow ends once it has displayed all the slides. It pauses the music once that is the case.
+        #          Could also make it loop N times??
+        #Option 4: The slideshow timings are changed to sync with the playlists duration.
+        
+        #If manual slide control is enabled, then only option 1 should be available.
 
         #Separator
         rowNumber += 1
@@ -1021,27 +980,6 @@ class InfoFrame(tb.Frame):
             return
         #Bind toggling the button to the control variable
         self.shufflePlaylist.bind("<ButtonRelease-1>", togglePlaylistShuffle)
-
-        #Loop toggle button
-        rowNumber += 1
-        self.loopPlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Playlist: ", font=("Arial", 12))
-        self.loopPlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.loopPlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
-        self.loopPlaylist.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
-
-
-        #Set self.playlist.loop as the control variable
-        self.loopPlaylist.var = tk.BooleanVar()
-        self.loopPlaylist.var.set(self.playlist.loop)
-        #If self.playlist.loop is true, then the button should be toggled
-        if self.playlist.loop:
-            self.loopPlaylist.invoke()
-        #bind the toggle button to the playlist
-        def togglePlaylistLoop(event):
-            self.playlist.loop = not self.playlist.loop
-            return
-        #Bind toggling the button to the control variable
-        self.loopPlaylist.bind("<ButtonRelease-1>", togglePlaylistLoop)
 
         rowNumber += 1
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
@@ -1091,11 +1029,11 @@ class InfoFrame(tb.Frame):
         #Get the song that was selected
         song = self.playlistTree.item(selected)['values'][0]
         print(f"Song: {song} moving up in the playlist")
-        for songPath in self.playlist.songs:
+        for songT in self.playlist.songs:
+            songPath = songT.filePath
             if FP.getBaseName([songPath])[0] == song:
-                # print(f"Moving {songPath} up in the playlist")
                 #Get the index of the song
-                index = self.playlist.songs.index(songPath)
+                index = self.playlist.songs.index(songT)
                 self.playlist.moveSongUp(index)
                 break
         
@@ -1117,12 +1055,12 @@ class InfoFrame(tb.Frame):
         #Get the song that was selected
         song = self.playlistTree.item(selected)['values'][0]
         print(f"Song: {song} moving down in the playlist")
-        for songPath in self.playlist.songs:
+        for songT in self.playlist.songs:
+            songPath = songT.filePath
             if FP.getBaseName([songPath])[0] == song:
-                # print(f"Moving {songPath} down in the playlist")
                 #Get the index of the song
-                index = self.playlist.songs.index(songPath)
-                self.playlist.moveSongDown(index)
+                index = self.playlist.songs.index(songT)
+                self.playlist.moveSongUp(index)
                 break
 
         #Move the song down in the treeview
@@ -1191,66 +1129,18 @@ class InfoFrame(tb.Frame):
         songCount = len(self.playlist.songs)
         self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1))
         self.playlist.addSong(file.name)
-        # for song in self.playlist.songs:
-        #     print(song)
         duration = self.playlist.getDuration()
         self.playlistDuration.config(text=FP.formatTime(duration))
         return
     
-
-    def setDefaultDuration(self):
-        #Check if it is a valid number.
-        try:
-            time = float(self.defaultSlideDuration.get())
-        except:
-            print("Invalid input for slide duration.")
-            self.defaultSlideDuration.delete(0, tk.END)
-            self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
-
-            #Set the outline to red
-            self.defaultSlideDuration.config(style="danger.TEntry")
-            return
-        
-        #No errors
-        self.defaultSlideDuration.config(style="TEntry")
-        # print(f"Slide Duration: {self.defaultSlideDuration.get()}")
-        self.slideshow.defaultSlideDuration = time
-        self.__defaultDurationTemp = time
-        self.winfo_toplevel().focus_set()
-        return
-    
-    def onDefaultDurationFocusIn(self, event):
-        # self.defaultSlideDuration.config(state=tk.NORMAL)
-        print("Slide Duration Focused In")
-        self.defaultSlideDuration.bind("<Return>", lambda event: self.setDefaultDuration())
-        #Bind escape to unfocus the entry
-        self.defaultSlideDuration.bind("<Escape>", lambda event: self.focus_set())
-        #Set the style to normal
-        self.defaultSlideDuration.config(style="TEntry")
-        return
-    
-    def onDefaultDurationFocusOut(self, event):
-        # self.defaultSlideDuration.config(state=tk.DISABLED)
-        print("Slide Duration Focused Out")
-        self.defaultSlideDuration.unbind("<Return>")
-        self.defaultSlideDuration.unbind("<Escape>")
-        #Reset the entry
-        self.defaultSlideDuration.delete(0, tk.END)
-        self.defaultSlideDuration.insert(0, self.__defaultDurationTemp)
-
-        #Change style to normal
-        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
-        return
     
     def fillSlideInfo(self):
         if self.slideshow == None:
             return
         
-        
         #Clear the project info frame
         for widget in self.slideInfoFrame.scrollable_frame.winfo_children():
             widget.destroy()
-
 
         #If the icon is an image, display the image info. If it is a slide, display the slide info.
         if type(self.__icon) == SlideIcon:
@@ -1372,7 +1262,6 @@ class InfoFrame(tb.Frame):
         return
     
     def onSlideDurationFocusIn(self, event):
-        # self.defaultSlideDuration.config(state=tk.NORMAL)
         print("Slide Duration Focused In")
         self.slideDuration.bind("<Return>", self.setSlideDuration)
         #Bind escape to unfocus the entry
@@ -1383,16 +1272,12 @@ class InfoFrame(tb.Frame):
         return
     
     def onSlideDurationFocusOut(self, event):
-        # self.defaultSlideDuration.config(state=tk.DISABLED)
         print("Slide Duration Focused Out")
         self.slideDuration.unbind("<Return>")
         self.slideDuration.unbind("<Escape>")
         #Reset the entry
         self.slideDuration.delete(0, tk.END)
         self.slideDuration.insert(0, self._slideDurationTemp)
-
-        #Change style to normal
-        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
         return
     
     def setTransitionSpeed(self, event):
@@ -1663,8 +1548,6 @@ class SlideReel(tk.Frame):
 
         #Add the slide to the slideshow object
         slide = FP.Slide(imagePath)
-        # print("\n")
-        # print(f"Adding slide for {imagePath}")
         self.slideshow.addSlide(slide, index)
         self.fillReel()
         return
