@@ -111,6 +111,7 @@ class SlideshowPlayer(tb.Frame):
         self.currentSlide:int = 0
         self.manual:bool = True #If false the slideshow will automatically advance to the next slide after a set time.
         self.isPaused: bool = True
+        self.loopSlideshow:bool = False
         self.shuffleSlideshow:bool = False
         try:
             self.manual = self.slideshow.manual
@@ -118,6 +119,11 @@ class SlideshowPlayer(tb.Frame):
         except:
             print("Error loading manual setting")
 
+        try:
+            self.loopSlideshow = self.slideshow.loop
+            print(f"Loop Slideshow: {self.loopSlideshow}")
+        except:
+            print("Error loading loop setting")
         try:
             self.shuffleSlideshow = self.slideshow.shuffle
             print(f"Shuffle Slideshow: {self.shuffleSlideshow}")
@@ -132,6 +138,7 @@ class SlideshowPlayer(tb.Frame):
             print("Error loading playlists")
         self.currentSong:int = 0
         self.shufflePlaylist:bool = False
+        self.loopPlaylist:bool = False
         self.playlistExists:bool = False
         if len(self.playlist.songs) > 0:
             print("Playlist exists")
@@ -141,7 +148,11 @@ class SlideshowPlayer(tb.Frame):
                 print(f"Shuffle Playlist: {self.shufflePlaylist}")
             except:
                 print("Error loading shuffle setting")
-
+            try:
+                self.loopPlaylist = self.playlist.loop
+                print(f"Loop Playlist: {self.loopPlaylist}")
+            except:
+                print("Error loading loop setting")
 
         # self.shuffleSlideshow:bool = True
         ##### Shuffle stuff #####
