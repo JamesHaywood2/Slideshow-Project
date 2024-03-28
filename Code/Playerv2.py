@@ -216,7 +216,7 @@ class SlideshowPlayer(tb.Frame):
             for slide in self.slideList:
                 #Open the image and convert it etc etc and resize it to the max canvas size.
                 try:
-                    slideImage = Image.open(slide['imagePath']).convert("RGBA")
+                    slideImage = ImageOps.exif_transpose(Image.open(slide['imagePath'])).convert("RGBA")
                     slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
                     #Add the image to the list
                     self.ImageList.append(slideImage)

@@ -1,7 +1,7 @@
 import os
 import time
 import random
-from PIL import Image
+from PIL import Image, ImageOps
 import json
 import pydub
 from pydub import AudioSegment
@@ -186,7 +186,7 @@ def loadImageFromCache(name:str):
     """Load the image from the cache folder."""
     cacheDir = os.path.join(getUserCacheDir(), "cache")
     #Load the image from the cache folder
-    return Image.open(os.path.join(cacheDir, name))
+    return ImageOps.exif_transpose(Image.open(os.path.join(cacheDir, name)))
 
 
 class Slide:
@@ -206,7 +206,7 @@ class Slide:
         self.imagePath: str = None
         self.imageName: str = None
         self.transition: transitionType = transitionType.DEFAULT
-        self.transitionSpeed: int = 1
+        self.transitionSpeed: int = 2
         self.duration: int = 5
 
         #Check if the imagePath is a valid picture
@@ -392,6 +392,7 @@ class Slideshow:
         """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
+
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.

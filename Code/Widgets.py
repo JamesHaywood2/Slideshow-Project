@@ -5,7 +5,7 @@ from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk, ImageDraw, ImageOps
 import os
 from copy import deepcopy
 import time
@@ -253,6 +253,7 @@ class ImageViewer(tb.Canvas):
         #Test if the file is a valid image file
         try:
             img = Image.open(imagePath)
+            img = ImageOps.exif_transpose(img)
             self.imagePath = imagePath
             self.imagePIL = img
             #Delete & replace old label
@@ -302,6 +303,7 @@ class ImageViewer(tb.Canvas):
         self.delete("all")
         #Resize the image while using the aspect ratio
         img = Image.open(self.imagePath)
+        img = ImageOps.exif_transpose(img)
         self.imagePIL = img
         self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
@@ -589,6 +591,7 @@ class FileIcon(tk.Frame):
         #Test if the file is a valid image file
         try:
             img = Image.open(imagepath)
+            img = ImageOps.exif_transpose(img)
             self.imagepath = imagepath
             self.__imagePIL = img
         except:
@@ -1351,11 +1354,13 @@ class InfoFrame(tb.Frame):
             transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
             
             endImg = Image.open(self.__icon.imagepath)
+            endImg = ImageOps.exif_transpose(endImg)
             previousSlide = self.slideshow.getSlide(self.__icon.slide['slideID']-1)
             if previousSlide == None:
                 startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
             else:
                 startImg = Image.open(previousSlide['imagePath'])
+                startImg = ImageOps.exif_transpose(startImg)
             startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             
