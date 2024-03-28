@@ -1,7 +1,7 @@
 import os
 import time
 import random
-from PIL import Image
+from PIL import Image, ImageOps
 import json
 import pydub
 from pydub import AudioSegment
@@ -186,7 +186,7 @@ def loadImageFromCache(name:str):
     """Load the image from the cache folder."""
     cacheDir = os.path.join(getUserCacheDir(), "cache")
     #Load the image from the cache folder
-    return Image.open(os.path.join(cacheDir, name))
+    return ImageOps.exif_transpose(Image.open(os.path.join(cacheDir, name)))
 
 
 class Slide:
