@@ -125,8 +125,8 @@ class SlideshowPlayer(tb.Frame):
         except:
             print("Error loading shuffle setting")
 
-        ######Playlist stuff
-        self.playlist: list[FP.Playlist] = []
+        ######Playlist stuff######
+        self.playlist:FP.Playlist = FP.Playlist() #Empty playlist``
         try:
             self.playlist = self.slideshow.getPlaylist()
         except:
@@ -143,8 +143,9 @@ class SlideshowPlayer(tb.Frame):
             except:
                 print("Error loading shuffle setting")
 
+        # print(f"Playlist: \n{self.playlist.songs}")
+        
 
-        # self.shuffleSlideshow:bool = True
         ##### Shuffle stuff #####
         if self.shuffleSlideshow:
             #Randomize the order of the slides
@@ -153,6 +154,16 @@ class SlideshowPlayer(tb.Frame):
         if self.shufflePlaylist:
             random.shuffle(self.playlist.songs)
             print("Shuffling playlist")
+
+        print(f"Playlist: \n{self.playlist.songs}")
+
+        #Create AudioPlayer
+        self.audioPlayer = FP.AudioPlayer()
+        
+        #Load first song into the audio player
+        if self.playlistExists:
+            song = self.playlist.songs[self.currentSong]
+            self.audioPlayer.loadSong(song)
 
         ########################
         ######   Layout  #######
@@ -223,7 +234,7 @@ class SlideshowPlayer(tb.Frame):
                     self.ImageList.append(slideImage)
                 except:
                     print(f"Error loading image: {slide['imagePath']}")
-                    quit()
+                    self.quit()
 
                 #check if the image is the largest so far
                 if slideImage.width > max_width:
@@ -243,17 +254,18 @@ class SlideshowPlayer(tb.Frame):
                 self.ImageMap[i] = bg
 
                 
+            
             self.update_idletasks()
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
-            self.nextButton.place(relx=0.8, rely=0.85, anchor="center")
             self.prevButton = tb.Button(self, text="Previous", command=self.prevSlide)
-            self.prevButton.place(relx=0.2, rely=0.85, anchor="center")
 
             #Pause button
             self.pauseButton = tb.Button(self, text="Play", command=self.pause)
-            self.pauseButton.place(relx=0.5, rely=0.85, anchor="center")
+            self.nextButton.place(relx=0.8, rely=0.93, anchor="center")
+            self.prevButton.place(relx=0.2, rely=0.93, anchor="center")
+            self.pauseButton.place(relx=0.5, rely=0.93, anchor="center")
 
             #Add a slide counter in the top right corner
             self.slideMeterBroken: bool = False
@@ -279,10 +291,17 @@ class SlideshowPlayer(tb.Frame):
 
 
             if self.playlistExists:
-                #Add a music player (probably gonna be a widegt)
-                pass
+                #Add a tb.Progressbar to the bottom of the screen
+                self.progressBar = tb.Progressbar(self, orient="horizontal", mode="determinate")
+                self.progressBar.place(relx=0.5, rely=0.95, anchor="center", relwidth=0.8, relheight=0.015)
+                self.progressBar["value"] = 0
+                self.progressBar_maxLabel = tb.Label(self, text="0:00")
+                self.progressBar_maxLabel.place(relx=0.9, rely=0.95, anchor="center")
+                self.progressBar_progressLabel = tb.Label(self, text="0:00")
+                self.progressBar_progressLabel.place(relx=0.1, rely=0.95, anchor="center")
+                self.update_ProgressBar()
 
-
+            
         # self.hideOverlay()
         # self.master.bind("<Enter>", lambda e: self.showOverlay())
         # self.master.bind("<Leave>", lambda e: self.hideOverlay())
@@ -293,7 +312,11 @@ class SlideshowPlayer(tb.Frame):
         self.mouse_after_id = None
         self.master.bind("<Motion>", lambda e: self.motionEvent())
 
-
+        #bind t to toggle pause the music, y to next song, u to previous song
+        #Remove later just for testing right now
+        self.master.bind("<t>", lambda e: self.pause())
+        self.master.bind("<y>", lambda e: self.nextSong())
+        self.master.bind("<r>", lambda e: self.previousSong())
 
     def motionEvent(self):
         self.showOverlay()
@@ -308,6 +331,11 @@ class SlideshowPlayer(tb.Frame):
         self.prevButton.place_forget()
         self.pauseButton.place_forget()
         self.slideCounter.place_forget()
+
+        if self.playlistExists:
+            self.progressBar.place_forget()
+            self.progressBar_maxLabel.place_forget()
+            self.progressBar_progressLabel.place_forget()
         
         self.master.bind("<h>", lambda e: self.showOverlay())
         self.config(cursor="none")
@@ -315,13 +343,18 @@ class SlideshowPlayer(tb.Frame):
 
     def showOverlay(self):
         #Show slide buttons
-        self.nextButton.place(relx=0.8, rely=0.85, anchor="center")
-        self.prevButton.place(relx=0.2, rely=0.85, anchor="center")
-        self.pauseButton.place(relx=0.5, rely=0.85, anchor="center")
+        self.nextButton.place(relx=0.8, rely=0.93, anchor="center")
+        self.prevButton.place(relx=0.2, rely=0.93, anchor="center")
+        self.pauseButton.place(relx=0.5, rely=0.93, anchor="center")
         if not self.slideMeterBroken:
             self.slideCounter.place(relx=1, rely=0, anchor="ne")
         else:
             self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+
+        if self.playlistExists:
+            self.progressBar.place(relx=0.5, rely=0.95, anchor="center", relwidth=0.8, relheight=0.015)
+            self.progressBar_maxLabel.place(relx=0.9, rely=0.95, anchor="center")
+            self.progressBar_progressLabel.place(relx=0.1, rely=0.95, anchor="center")
 
         self.master.bind("<h>", lambda e: self.hideOverlay())
         self.config(cursor="")
@@ -356,7 +389,7 @@ class SlideshowPlayer(tb.Frame):
     def nextSlide(self):
         print("")
         #Launch a motion event to show the overlay
-        self.event_generate("<Motion>")
+        # self.event_generate("<Motion>")
         self.START = time.time()
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
@@ -431,7 +464,7 @@ class SlideshowPlayer(tb.Frame):
     
     def prevSlide(self):
         print("")
-        self.event_generate("<Motion>")
+        # self.event_generate("<Motion>")
         self.START = time.time()
         #If a transition is in progress, cancel it and just load the image before returning.
         if self.imageViewer.transitioning:
@@ -511,14 +544,81 @@ class SlideshowPlayer(tb.Frame):
             self.pauseButton.config(text="Play")
             if not self.manual: #If the slideshow is automatic transition and you pause, stop that transition.
                 self.after_cancel(self.slideChangeAfter)
+            
+            #Audio player
+            if self.playlistExists:
+                #If the audio Player is playing, pause it.
+                if self.audioPlayer.state == FP.AudioPlayer.State.PLAYING:
+                    self.audioPlayer.pause()
         else: 
             #Set slideshow to start playing
             self.pauseButton.config(text="Pause")
             self.automaticNext()
 
+            #Audio player
+            if self.playlistExists:
+                #If the audio Player is paused, play it.
+                if self.audioPlayer.state == FP.AudioPlayer.State.PAUSED:
+                    self.audioPlayer.resume()
+                elif self.audioPlayer.state == FP.AudioPlayer.State.STOPPED:
+                    self.audioPlayer.play()
+
         self.showOverlay()
         return
     
+    def update_ProgressBar(self):
+        if self.playlistExists:
+            
+            #Update the progress bar
+            self.progressBar["value"] = self.audioPlayer.getProgress()
+            self.progressBar['maximum'] = self.audioPlayer.duration
+            self.progressBar_maxLabel.config(text=FP.formatTime(self.audioPlayer.duration))
+            self.progressBar_progressLabel.config(text=FP.formatTime(self.audioPlayer.progress))
+
+            #If the song is over, move to the next song.
+            if self.audioPlayer.isFinished():
+                self.nextSong()
+
+            self.after(100, self.update_ProgressBar)
+        return
+    
+    def nextSong(self):
+        if self.playlistExists:
+            self.currentSong += 1
+            #If we're at the end of the playlist, loop back to the beginning.
+            if self.currentSong > len(self.playlist.songs)-1:
+                self.currentSong = 0
+            song = self.playlist.songs[self.currentSong]
+            #unload the current song
+            self.audioPlayer.unloadSong()
+            self.audioPlayer.loadSong(song)
+            #If the slideshow is playing, play the song.
+            if not self.isPaused:
+                self.audioPlayer.play()
+                
+        return
+    
+    def previousSong(self):
+        if self.playlistExists:
+            self.currentSong -= 1
+            #If we're at the beginning of the playlist, loop back to the end.
+            if self.currentSong < 0:
+                self.currentSong = len(self.playlist.songs)-1
+            song = self.playlist.songs[self.currentSong]
+            #unload the current song
+            self.audioPlayer.unloadSong()
+            self.audioPlayer.loadSong(song)
+            #If the slideshow is playing, play the song.
+            if not self.isPaused:
+                self.audioPlayer.play()
+        return
+    
+    def quit(self):
+        #Just close the window
+        self.master.destroy()
+        return
+
+
 if __name__ == "__main__":
     root = tb.Window()
     root.title("Slideshow Viewer")

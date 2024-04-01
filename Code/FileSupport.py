@@ -3,8 +3,17 @@ import time
 import random
 from PIL import Image, ImageOps
 import json
+
+# import mutagen
+from mutagen.mp3 import MP3
+from mutagen.mp4 import MP4
+from mutagen.aiff import AIFF
+from mutagen.wave import WAVE
 import pydub
-from pydub import AudioSegment
+
+import pygame
+from pygame import mixer
+from enum import Enum
 
 MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
 ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
@@ -47,6 +56,7 @@ def removeExtension(files):
 
 def getBaseName(files):
     """Returns the base name of a list of file paths."""
+    print(files)
     return [os.path.basename(f) for f in files]
 
 def getParentDir(files):
@@ -338,6 +348,14 @@ class Slideshow:
             playlist = Playlist()
             playlist.__dict__.update(self.playlist)
             self.playlist = playlist
+        
+        #Convert the songs to Song objects
+        for i, song in enumerate(self.playlist.songs):
+            if isinstance(song, dict):
+                s = Song(song['filePath'])
+                s.__dict__.update(song)
+                self.playlist.songs[i] = s
+
         return self.playlist
     
     def getSaveLocation(self):
@@ -387,11 +405,11 @@ class Slideshow:
         self.__filePath = tempPath
         self.name = tempName
 
-    
     def __str__(self) -> str:
         """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
+    
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.
@@ -399,8 +417,6 @@ class Song:
         self.filePath: str = None
         self.name: str = None
         self.duration: int = 0
-        # self.artist: str = None
-        # self.album: str = None
         self.fileType: str = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
@@ -422,19 +438,23 @@ class Song:
         #Get the duration of the song
         fileType = os.path.splitext(self.filePath)[1]
         if fileType == ".mp3":
-            audio = AudioSegment.from_mp3(self.filePath)
+            audio = MP3(self.filePath)
         elif fileType == ".wav":
-            audio = AudioSegment.from_wav(self.filePath)
+            audio = WAVE(self.filePath)
         elif fileType == ".mp4":
-            audio = AudioSegment.from_file(self.filePath, "mp4")
+            audio = MP4(self.filePath)
         elif fileType == ".aiff":
-            audio = AudioSegment.from_file(self.filePath, "aiff")
+            audio = AIFF(self.filePath)
         self.fileType = fileType
 
-        self.duration = audio.duration_seconds
-
+        self.duration = audio.info.length
 
     def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print the object as a readable string
+        return str(self.__dict__)
+    
+    def __repr__(self) -> str:
         """Print definition for debugging."""
         #Print the object as a readable string
         return str(self.__dict__)
@@ -488,6 +508,11 @@ class Playlist:
         self.__count = len(self.songs)
         self.__duration = 0
         for song in self.songs:
+            #If song is a dictionary, convert it to a Song object.
+            if isinstance(song, dict):
+                s = Song(song['filePath'])
+                s.__dict__.update(song)
+                song = s
             self.__duration += song.duration
             print(f"{song.name} - {formatTime(song.duration)}")
         print(f"Playlist duration: {formatTime(self.__duration)}")
@@ -510,5 +535,156 @@ class Playlist:
         #Print __dict__ for debugging
         return str(self.__dict__)
 
+class AudioPlayer:
+    """
+    First create an AudioPlayer object. Then load a song into the player with load_song().\n
+    You can then play the song with play(), pause it with pause(), resume it with resume(), or stop it with stop().\n
+    """
+    class State(Enum):
+        """
+        UNLOADED: No song is loaded into the player.\n
+        FAILED_TO_LOAD: The song failed to load.\n
+        STOPPED: The song is stopped and at the very beginning.\n
+        PLAYING: The song is currently playing.\n
+        PAUSED: The song is paused.\n
+        """
+        UNLOADED = 0
+        FAILED_TO_LOAD = 1
+        STOPPED = 2
+        PLAYING = 3
+        PAUSED = 4
+
+    def __init__(self) -> None:
+        #Initialize pygame mixer
+        pygame.init()
+        self.mixer = mixer.init()
+
+        self.current_song: Song = None
+        self.duration = 0
+        self.progress = 0
+        self.state = AudioPlayer.State.UNLOADED
+        
+        self.SONG_END = pygame.USEREVENT + 1
+
+    def isFinished(self):
+        # print(f"Song progress: {formatTime(self.progress)} / {formatTime(self.duration)} and state: {self.state}")
+        for event in pygame.event.get():
+            if event.type == self.SONG_END:
+                self.unloadSong()
+                return True
+        return False
+
+    def loadSong(self, song):
+        #song must either be a path to a file or a Song object
+        if isinstance(song, Song):
+            self.current_song = song
+        elif isinstance(song, str):
+            self.current_song = Song(song)
+            if self.current_song == -1:
+                self.state = AudioPlayer.State.FAILED_TO_LOAD
+                print("Failed to create song object.")
+                return -1
+        else:
+            print("Invalid song type. Must be a path to a file or a Song object.")
+            self.state = AudioPlayer.State.FAILED_TO_LOAD
+            return -1
+        
+        #If mp4, convert to .wav, save to cache, and load the .wav file.
+        if self.current_song.fileType == ".mp4":
+            #Convert the mp4 to wav
+            audio = pydub.AudioSegment.from_file(self.current_song.filePath, format="mp4")
+            audio.export(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"), format="wav")
+            #Load the wav file
+            self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
+
+
+        #Set end of song event to change state to unload the song.
+        mixer.music.set_endevent(self.SONG_END)
+        mixer.music.load(self.current_song.filePath)
+        self.state = AudioPlayer.State.STOPPED
+        self.progress = 0
+        self.duration = self.current_song.duration
+
+        
+        return 0
+
+    def unloadSong(self):
+        #If the song is unloaded or failed to load, don't do anything.
+        if self.state == AudioPlayer.State.UNLOADED or self.state == AudioPlayer.State.FAILED_TO_LOAD:
+            return -1
+        mixer.music.unload()
+        self.state = AudioPlayer.State.UNLOADED
+        self.progress = 0
+        self.duration = 0
+
+    def play(self):
+        #Song must be stopped for play to do anything.
+        if self.state != AudioPlayer.State.STOPPED:
+            if self.state == AudioPlayer.State.FAILED_TO_LOAD:
+                print("Failed to load song.")
+                return -1
+            elif self.state == AudioPlayer.State.PLAYING:
+                print("Song is already playing.")
+                return -1
+            elif self.state == AudioPlayer.State.PAUSED:
+                print("Song is currently paused. Use resume() to continue playing.")
+                return -1
+            elif self.state == AudioPlayer.State.UNLOADED:
+                print("No song loaded. Use load_song() to load a song.")
+                return -1
+            
+        mixer.music.play()
+        self.state = AudioPlayer.State.PLAYING
+
+    def pause(self):
+        if self.state == AudioPlayer.State.PLAYING:
+            mixer.music.pause()
+            self.state = AudioPlayer.State.PAUSED
+        else:
+            print("Song is not playing.")
+
+    def resume(self):
+        if self.state == AudioPlayer.State.PAUSED:
+            mixer.music.unpause()
+            self.state = AudioPlayer.State.PLAYING
+        else:
+            print("Song is not paused.")
+
+    def stop(self):
+        if self.state == AudioPlayer.State.PLAYING or self.state == AudioPlayer.State.PAUSED:
+            mixer.music.stop()
+            self.state = AudioPlayer.State.STOPPED
+            self.progress = 0
+        else:
+            print("Song is not playing or paused.")
+
+    def togglePause(self):
+        if self.state == AudioPlayer.State.PLAYING:
+            self.pause()
+            print("Song paused.")
+        elif self.state == AudioPlayer.State.PAUSED:
+            self.resume()
+            print("Song resumed.")
+        else:
+            print("Song is not playing or paused.")
+
+    def getProgress(self):
+        if self.state != AudioPlayer.State.UNLOADED and self.state != AudioPlayer.State.FAILED_TO_LOAD:
+            self.progress = mixer.music.get_pos() / 1000
+        else:
+            self.progress = 0
+        return self.progress
+            
+        
+        
+        
+        
+
+
     
+
+
+        
+        
+        
     

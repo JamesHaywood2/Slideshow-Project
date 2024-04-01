@@ -1010,7 +1010,12 @@ class InfoFrame(tb.Frame):
 
         #Fill the treeview with the playlist
         for i in range(len(self.playlist.songs)):
-            self.playlistTree.insert("", "end", values=(FP.getBaseName([self.playlist.songs[i]])[0], i+1))
+            song = self.playlist.songs[i]
+            #Convert the song to a Song object
+            if isinstance(song, dict):
+                song = FP.Song(song['filePath'])
+            song_name = FP.getBaseName([song.filePath])[0]
+            self.playlistTree.insert("", "end", values=(song_name, i+1))
 
         #Empty space to pad the bottom of grid
         rowNumber += 7
