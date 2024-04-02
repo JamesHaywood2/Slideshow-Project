@@ -790,7 +790,7 @@ def file_check(file_path:str, project_path:str=None):
     if project_path != None:
         project_folder = os.path.dirname(project_path)
         path = os.path.join(project_folder, os.path.basename(file_path))
-        print(f"Checking project folder: {path}")
+        # print(f"Checking project folder: {path}")
         if os.path.exists(path):
             print(f"Found {path} in project folder.")
             return os.path.join(path)

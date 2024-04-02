@@ -632,6 +632,26 @@ class FileIcon(tk.Frame):
         self.__startY: int = 0
         self.popup: tk.Toplevel = None
 
+    def refreshImage(self):
+        pth = self.imagepath
+        if isinstance(self, SlideIcon):
+            pth = FP.file_check(self.imagepath, FP.relative_project_path)
+
+        #Test if the file is a valid image file
+        try:
+            img = Image.open(pth)
+        except:
+            # print(f"{imagepath} is not a valid image file.")
+            self.missing = True
+            img = Image.open(FP.MissingImage)
+            self.name = "File Not Found"
+
+        img = ImageOps.exif_transpose(img)
+        self.__imagePIL = img
+        self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        self.image = ImageTk.PhotoImage(self.__imagePIL)
+        self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
+
     def openImage(self, event):
         os.startfile(self.imagepath)
         return
@@ -661,9 +681,7 @@ class FileIcon(tk.Frame):
         else:
             print(f"No InfoFrame linked to {self.name}")
 
-        # self.slideInfoFrame.scrollable_frame
-        # if self.missing == True:
-        #     tb.Label(self.linkedInfo.slideInfoFrame.scrollable_frame, text="Hello", font=("Arial", 12)).grid(row=4, column=0,columnspan=10)
+        self.refreshImage()
         return
      
     def pickup(self, event):
@@ -862,7 +880,8 @@ class InfoFrame(tb.Frame):
         self.projectInfoFrame = ScrollableFrame(self.notebook, orient="both")
         self.notebook.add(self.projectInfoFrame, text="Project Info")
 
-        self.__defaultDurationTemp = 1
+        self.defaultSlideDuration = 5
+        self.defaultTransitionDuration = 1
 
         self.image: bool = False #If True, display the image info. If False, display the slide info.
         self.__icon = None #This will be the icon that was clicked on to open the info frame.
@@ -1263,12 +1282,17 @@ class InfoFrame(tb.Frame):
         self.durationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.slideDuration.config(width=7)
-        self.slideDuration.insert(0, icon.slide['duration'])
+        self.slideDuration.insert(0, float(icon.slide['duration']))
+        self.slideDuration.insert(tk.END, "s")
         self.slideDuration.grid(row=rowNumber, column=3, sticky="w")
-        self._slideDurationTemp = icon.slide['duration']
+        self._slideDurationTemp = float(icon.slide['duration'])
 
         self.slideDuration.bind("<FocusIn>", self.onSlideDurationFocusIn)
         self.slideDuration.bind("<FocusOut>", self.onSlideDurationFocusOut)
+
+        self.slideDurationRangeLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Must be between 1 and 60 seconds.", font=("Arial", 10), style="danger.TLabel")
+        self.slideDurationRangeLabel.grid(row=rowNumber, column=4, columnspan=1, sticky="w")
+        self.slideDurationRangeLabel.grid_remove()
 
         #Transition Speed - Entry
         rowNumber += 1
@@ -1276,12 +1300,17 @@ class InfoFrame(tb.Frame):
         self.transitionSpeedLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.transitionSpeed.config(width=7)
-        self.transitionSpeed.insert(0, icon.slide['transitionSpeed'])
+        self.transitionSpeed.insert(0, float(icon.slide['transitionSpeed']))
+        self.transitionSpeed.insert(tk.END, "s")
         self.transitionSpeed.grid(row=rowNumber, column=3, sticky="w")
-        self._transitionSpeedTemp = icon.slide['transitionSpeed']
+        self._transitionSpeedTemp = float(icon.slide['transitionSpeed'])
 
         self.transitionSpeed.bind("<FocusIn>", self.onTransitionSpeedFocusIn)
         self.transitionSpeed.bind("<FocusOut>", self.onTransitionSpeedFocusOut)
+
+        self.transitionSpeedRangeLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Must be between 0.5 and 10 seconds.", font=("Arial", 10), style="danger.TLabel")
+        self.transitionSpeedRangeLabel.grid(row=rowNumber, column=4, columnspan=1, sticky="w")
+        self.transitionSpeedRangeLabel.grid_remove()
 
         #Transition Type - Dropdown
         rowNumber+= 1
@@ -1335,26 +1364,43 @@ class InfoFrame(tb.Frame):
 
         #Update the name label
         self.name.config(text=FP.getBaseName([file.name])[0])
-
-
         return
     
+    
     def setSlideDuration(self, event):
-        #Check if it is a valid number.
+        text = self.slideDuration.get()
+        #If the last character is an s, remove it.
+        if text[-1] == "s":
+            text = text[:-1]
+        
+        #If the number can be converted to a float it should be valid.
         try:
-            time = float(self.slideDuration.get())
+            time = float(text)
         except:
             print("Invalid input for slide duration.")
             self.slideDuration.delete(0, tk.END)
-            self.slideDuration.insert(0, 3)
-
+            self.slideDuration.insert(0, self._slideDurationTemp)
             #Set the outline to red
             self.slideDuration.config(style="danger.TEntry")
             return
         
-        #No errors
+        #The duration must be between 1 and 60 seconds
+        if time < 1 or time > 60:
+            self.slideDurationRangeLabel.grid()
+            self.slideDuration.config(style="danger.TEntry")
+            #clamp the value
+            if time < 1:
+                time = 1
+            elif time > 60:
+                time = 60
+            self.slideDuration.delete(0, tk.END)
+            self.slideDuration.insert(0, time)
+            return
+        
+        #Input was a valid number
+        self.slideDurationRangeLabel.grid_remove()
+        #Insert an s character at the end of the number
         self.slideDuration.config(style="TEntry")
-        # print(f"Slide Duration: {self.slideDuration.get()}")
         self.__icon.slide['duration'] = time
         self.winfo_toplevel().focus_set()
         self._slideDurationTemp = time
@@ -1365,7 +1411,12 @@ class InfoFrame(tb.Frame):
         self.slideDuration.bind("<Return>", self.setSlideDuration)
         #Bind escape to unfocus the entry
         self.slideDuration.bind("<Escape>", lambda event: self.focus_set())
-        self._slideDurationTemp = self.slideDuration.get()
+        text = self.slideDuration.get()
+        if text[-1] == "s":
+            text = text[:-1]
+        self._slideDurationTemp = float(text)
+        self.slideDuration.delete(0, tk.END)
+        self.slideDuration.insert(0, self._slideDurationTemp)
         #Set the style to normal
         self.slideDuration.config(style="TEntry")
         return
@@ -1375,24 +1426,43 @@ class InfoFrame(tb.Frame):
         self.slideDuration.unbind("<Return>")
         self.slideDuration.unbind("<Escape>")
         #Reset the entry
+        text = str(self._slideDurationTemp) + "s"
         self.slideDuration.delete(0, tk.END)
-        self.slideDuration.insert(0, self._slideDurationTemp)
+        self.slideDuration.insert(0, text)
         return
     
     def setTransitionSpeed(self, event):
+        text = self.slideDuration.get()
+        #If the last character is an s, remove it.
+        if text[-1] == "s":
+            text = text[:-1]
+
         #Check if it is a valid number.
         try:
             speed = float(self.transitionSpeed.get())
         except:
             print("Invalid input for transition speed.")
             self.transitionSpeed.delete(0, tk.END)
-            self.transitionSpeed.insert(0, 3)
-
+            self.transitionSpeed.insert(0, self._transitionSpeedTemp)
             #Set the outline to red
             self.transitionSpeed.config(style="danger.TEntry")
             return
         
+        #Must be between 0.5 and 10 seconds
+        if speed < 0.5 or speed > 10:
+            self.transitionSpeedRangeLabel.grid()
+            self.transitionSpeed.config(style="danger.TEntry")
+            #clamp the value
+            if speed < 0.5:
+                speed = 0.5
+            elif speed > 10:
+                speed = 10
+            self.transitionSpeed.delete(0, tk.END)
+            self.transitionSpeed.insert(0, speed)
+            return
+        
         #No errors
+        self.transitionSpeedRangeLabel.grid_remove()
         self.transitionSpeed.config(style="TEntry")
         # print(f"Slide Duration: {self.transitionSpeed.get()}")
         self.__icon.slide['transitionSpeed'] = speed
@@ -1401,27 +1471,28 @@ class InfoFrame(tb.Frame):
         return
 
     def onTransitionSpeedFocusIn(self, event):
-        # self.defaultSlideDuration.config(state=tk.NORMAL)
         print("Transition Speed Focused In")
         self.transitionSpeed.bind("<Return>", self.setTransitionSpeed)
         #Bind escape to unfocus the entry
         self.transitionSpeed.bind("<Escape>", lambda event: self.focus_set())
-        self._transitionSpeedTemp = self.transitionSpeed.get()
+        text = self.transitionSpeed.get()
+        if text[-1] == "s":
+            text = text[:-1]
+        self._transitionSpeedTemp = float(text)
+        self.transitionSpeed.delete(0, tk.END)
+        self.transitionSpeed.insert(0, self._transitionSpeedTemp)
         #Set the style to normal
         self.transitionSpeed.config(style="TEntry")
         return
     
     def onTransitionSpeedFocusOut(self, event):
-        # self.defaultSlideDuration.config(state=tk.DISABLED)
         print("Transition Speed Focused Out")
         self.transitionSpeed.unbind("<Return>")
         self.transitionSpeed.unbind("<Escape>")
         #Reset the entry
+        text = str(self._transitionSpeedTemp) + "s"
         self.transitionSpeed.delete(0, tk.END)
-        self.transitionSpeed.insert(0, self._transitionSpeedTemp)
-
-        #Change style to normal
-        # self.defaultSlideDuration.config(style="TEntry", bootstyle="normal")
+        self.transitionSpeed.insert(0, text)
         return
 
     def setTransitionType(self, event):
@@ -1636,6 +1707,7 @@ class SlideReel(tk.Frame):
                     print("Redraw Error: SlideID is None")
                     self.fillReel()
                     return
+                child.refreshImage()
             child.grid()
         return
 
@@ -1754,15 +1826,17 @@ class MediaBucket(tb.Frame):
 
         #If the column count is the same as before, don't do anything
         if columnCount == self.columnCount and len(self.icons) == filecount:
+            #Refresh the icons instead
+            for icon in self.icons:
+                icon.refreshImage()
+
             return
         self.columnCount = columnCount
         
         for icon in self.iconFrame.winfo_children():
             icon.destroy()
 
-        #If there are no files, add buttons to add files
         
-
         #Create the icons
         i=0
         j=0
