@@ -927,18 +927,8 @@ class InfoFrame(tb.Frame):
         self.manualSlideControl = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.manualSlideControl.grid(row=rowNumber, column=3, sticky="w")
 
-        #Set self.slideshow.manualSlideControl as the control variable
-        self.manualSlideControl.var = tk.BooleanVar()
-        self.manualSlideControl.var.set(self.slideshow.manual)
-        #If self.slideshow.manualSlideControl is true, then the button should be toggled
-        if self.slideshow.manual:
-            self.manualSlideControl.invoke()
-        #bind the toggle button to the slideshow
-        def toggleManualSlideControl(event):
-            self.slideshow.manual = not self.slideshow.manual
-            return
-        #Bind toggling the button to the control variable
-        self.manualSlideControl.bind("<ButtonRelease-1>", toggleManualSlideControl)
+        ###########
+        #Check after loop setting creation for manual slide control stuff.
 
         #Slide shuffle toggle button
         rowNumber += 1
@@ -962,8 +952,21 @@ class InfoFrame(tb.Frame):
         self.slideShuffle.bind("<ButtonRelease-1>", toggleShuffle)
 
         rowNumber += 1
-        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Fomerly Loop. Replace with Option Selector. ", font=("Arial", 12))
-        self.loopLabel.grid(row=rowNumber, column=0, columnspan=6, sticky="w")
+        #Loop Settings combobox
+        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Settings: ", font=("Arial", 12))
+        self.loopLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        self.loopSettingsCombo = tb.Combobox(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
+        self.loopSettingsCombo.config(width=7)
+        self.loopSettingsCombo['values'] = (FP.loopSetting.INDEFINITE, FP.loopSetting.UNTIL_PLAYLIST_ENDS, FP.loopSetting.UNTIL_SLIDES_END)
+        # self.loopSettingsCombo['values'] = ("Indefinite", "Until Playlist Ends", "Until Slides End", "Sync with Playlist")
+        self.loopSettingsCombo.current(0)
+        self.loopSettingsCombo.grid(row=rowNumber, column=3, columnspan=1, sticky="ew")
+        print("Failed to create loopSettingsCombo")
+
+        self.loopSettingsCombo.bind("<<ComboboxSelected>>", self.setLoopSettings)
+
+        #Set the transition type to the slide's transition type
+        self.loopSettingsCombo.set(self.slideshow.loopSettings)
         #Loop will be replaced with an option selector
         #Option 1: They both loop indefinitely until told to stop (program closed). Default.
         #Option 2: Slideshow loops itself until the playlist finishes playing.
@@ -973,6 +976,30 @@ class InfoFrame(tb.Frame):
         #Option 4: The slideshow timings are changed to sync with the playlists duration.
         
         #If manual slide control is enabled, then only option 1 should be available.
+
+        #Set self.slideshow.manualSlideControl as the control variable
+        self.manualSlideControl.var = tk.BooleanVar()
+        self.manualSlideControl.var.set(self.slideshow.manual)
+        #If self.slideshow.manualSlideControl is true, then the button should be toggled
+        if self.slideshow.manual:
+            self.manualSlideControl.invoke()
+
+        def updateLoopOptionMenu():
+            #If manual slide controls are enabled, then only option 1 should be available.
+            if self.slideshow.manual:
+                self.loopSettingsCombo['values'] = (FP.loopSetting.INDEFINITE,)
+                self.loopSettingsCombo.current(0)
+            else:
+                self.loopSettingsCombo['values'] = (FP.loopSetting.INDEFINITE, FP.loopSetting.UNTIL_PLAYLIST_ENDS, FP.loopSetting.UNTIL_SLIDES_END)
+                self.loopSettingsCombo.current(0)
+
+        #bind the toggle button to the slideshow
+        def toggleManualSlideControl(event):
+            self.slideshow.manual = not self.slideshow.manual
+            updateLoopOptionMenu()
+            return
+        #Bind toggling the button to the control variable
+        self.manualSlideControl.bind("<ButtonRelease-1>", toggleManualSlideControl)
 
         #Separator
         rowNumber += 1
@@ -1502,6 +1529,14 @@ class InfoFrame(tb.Frame):
         self.__icon.slide['transition'] = self.transitionType.get()
         self.update_idletasks()
         print(self.__icon.slide)
+        return
+    
+    def setLoopSettings(self, event):
+        self.loopSettingsCombo.selection_range(0,0)
+        self.focus_set()
+        print(f"Loop Settings: {self.loopSettingsCombo.get()}")
+        self.slideshow.loopSettings = self.loopSettingsCombo.get()
+        self.update_idletasks()
         return
     
     def checkTransition(self, imagePath):

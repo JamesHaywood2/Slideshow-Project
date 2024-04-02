@@ -126,6 +126,16 @@ class SlideshowPlayer(tb.Frame):
         except:
             print("Error loading shuffle setting")
 
+        #If loop setting is indefinite, then really nothing needs to be done.
+        #If it is until_playlist_ends, then we need to do a check every time we move to a new song to see if the playlist is over.
+        #If it is until_slideshow_ends, then we need to do a check every time we move to a new slide to see if the slideshow is over.
+        try:
+            self.loopSetting = self.slideshow.loopSettings
+            # print(f"Loop: {self.loopSetting}")
+        except:
+            print("Error loading loop setting")
+            self.loopSetting = FP.loopSetting.INDEFINITE
+
         ######Playlist stuff######
         self.playlist:FP.Playlist = FP.Playlist() #Empty playlist``
         try:
@@ -323,6 +333,7 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<t>", lambda e: self.pause())
         self.master.bind("<y>", lambda e: self.nextSong())
         self.master.bind("<r>", lambda e: self.previousSong())
+        self.master.bind("<e>", lambda e: self.pause(True))
 
     def motionEvent(self):
         self.showOverlay()
@@ -399,13 +410,14 @@ class SlideshowPlayer(tb.Frame):
         self.START = time.time()
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
-            # self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
-            # self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
-            # self.imageViewer.loadImagePIL(FP.loadImageFromCache(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             return
 
+        #If the current slide is the last slide, go back to the first slide.
         self.currentSlide += 1
         if self.currentSlide > len(self.slideList)-1:
+            if self.loopSetting == FP.loopSetting.UNTIL_SLIDES_END:
+                self.pause(True)
+                return
             self.currentSlide = 0
             nextSlide = self.slideList[0]
             previousSlide = self.slideList[-1]
@@ -540,16 +552,27 @@ class SlideshowPlayer(tb.Frame):
             pass
         return
     
-    def pause(self):
+    def pause(self, paused:bool=None):
         #Will pause the music and slideshow.
-        self.isPaused = not self.isPaused #Toggle the pause state
+        if paused is None:
+            self.isPaused = not self.isPaused
+        else:
+            if paused:
+                self.isPaused = True
+                print("Pausing slideshow")
+            else:
+                self.isPaused = False
+                print("Resuming slideshow")
         print(f"Pausing state: {self.isPaused}")
         self.update_idletasks()
         if self.isPaused:
             #Set slideshow to pause
             self.pauseButton.config(text="Play")
             if not self.manual: #If the slideshow is automatic transition and you pause, stop that transition.
-                self.after_cancel(self.slideChangeAfter)
+                try:
+                    self.after_cancel(self.slideChangeAfter)
+                except:
+                    pass
             
             #Audio player
             if self.playlistExists:
@@ -593,6 +616,9 @@ class SlideshowPlayer(tb.Frame):
             self.currentSong += 1
             #If we're at the end of the playlist, loop back to the beginning.
             if self.currentSong > len(self.playlist.songs)-1:
+                #If the loop setting is until_playlist_ends, then stop the slideshow.
+                if self.loopSetting == FP.loopSetting.UNTIL_PLAYLIST_ENDS:
+                    self.pause(True)
                 self.currentSong = 0
             song = self.playlist.songs[self.currentSong]
             #unload the current song
@@ -601,7 +627,6 @@ class SlideshowPlayer(tb.Frame):
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()
-                
         return
     
     def previousSong(self):

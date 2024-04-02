@@ -293,6 +293,15 @@ class transitionType:
     WIPELEFT = "Wipe_Left"
     WIPERIGHT = "Wipe_Right"
 
+class loopSetting:
+    """Loop settings enumeration for the slideshow\n 
+    "Indefinietly", "Until Playlist Ends", "Until Slides End", "Sync with Playlist"""
+    INDEFINITE = "Indefinite"
+    UNTIL_PLAYLIST_ENDS = "Until Playlist Ends"
+    UNTIL_SLIDES_END = "Until Slides End"
+    SYNC_WITH_PLAYLIST = "Sync with Playlist"
+    
+
 class Slideshow:
     """
     Slideshow class. Contains the file path, project name, list of slides, song playlist, etc. \n
@@ -310,6 +319,7 @@ class Slideshow:
         self.__slides: list[Slide] = []
         self.__count: int = 0
         self.playlist: Playlist = Playlist()
+        self.loopSettings: str = loopSetting.INDEFINITE
         self.manual: bool = False
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
