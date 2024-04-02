@@ -250,9 +250,11 @@ class ImageViewer(tb.Canvas):
         self.cancelTransition()
         #Clear the canvas
         self.delete("all")
+        pth = FP.file_check(imagePath, FP.relative_project_path)
+        print(f"Loading {pth} into ImageViewer")
         #Test if the file is a valid image file
         try:
-            img = Image.open(imagePath)
+            img = Image.open(pth)
             img = ImageOps.exif_transpose(img)
             self.imagePath = imagePath
             self.imagePIL = img
@@ -291,10 +293,13 @@ class ImageViewer(tb.Canvas):
         return self.imagePIL
 
     def redrawImage(self):
+        """Redraws the image on the canvas. Called when canvas is resized."""
         #Return early if there is no image
         if self.imagePIL == None:
+            print("No image to redraw")
             self.delete("all")
             return
+        print("Image to redraw")
 
         #Get the size of the canvas
         self.canvasWidth = self.winfo_width()
@@ -302,15 +307,17 @@ class ImageViewer(tb.Canvas):
         #Clear the canvas
         self.delete("all")
         #Resize the image while using the aspect ratio
-        img = Image.open(self.imagePath)
+        pth = FP.file_check(self.imagePath, FP.relative_project_path)
+        img = Image.open(pth)
+        img = ImageOps.exif_transpose(img)
         self.imagePIL = img
         self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
         self.imageLabel = self.create_text(10, 10, anchor="nw", text=FP.removeExtension(FP.removePath([self.imagePath]))[0], font=("Arial", 16), fill="#FF1D8E")
 
-        if self.imagePath == FP.MissingImage:
-            self.after(3000, self.setBlankImage)
+        # if self.imagePath == FP.MissingImage:
+        #     self.after(3000, self.setBlankImage)
         return
     
     def executeTransition(self, transitionType: str, transitionTime, endImg: Image, startImg: Image=None):
@@ -537,7 +544,7 @@ class ImageViewer(tb.Canvas):
 
     def setBlankImage(self):
         print("Setting Blank Image")
-        self.imagePath = None
+        self.imagePath = ""
         self.redrawImage()
         return
 
@@ -587,19 +594,24 @@ class FileIcon(tk.Frame):
         self.label.pack(expand=False, fill="none", anchor="center")
 
         self.missing: bool = False
+        
+        #If we are dealing with SliceIcons, check and see if the file is in the folder.
+        if isinstance(self, SlideIcon):
+            print(f"Relative path: {FP.relative_project_path}")
+            imagepath = FP.file_check(imagepath, FP.relative_project_path)
+            
         #Test if the file is a valid image file
         try:
             img = Image.open(imagepath)
-            img = ImageOps.exif_transpose(img)
-            self.imagepath = imagepath
-            self.__imagePIL = img
         except:
-            print(f"{imagepath} is not a valid image file.")
+            # print(f"{imagepath} is not a valid image file.")
             self.missing = True
             img = Image.open(FP.MissingImage)
-            self.__imagePIL = img
-            self.imagepath = imagepath
             self.name = "File Not Found"
+
+        img = ImageOps.exif_transpose(img)
+        self.imagepath = imagepath
+        self.__imagePIL = img
         self.__imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
         self.image = ImageTk.PhotoImage(self.__imagePIL)
         self.canvasImage = self.canvas.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image, anchor=tk.CENTER)
@@ -635,6 +647,10 @@ class FileIcon(tk.Frame):
         return
 
     def clickIcon(self, event):
+        #If the name of the icon is "File Not Found" then return early.
+        if self.missing == True:
+            return
+
         if self.linkedViewer != None:
             #Load image into the viewer
             self.linkedViewer.loadImage(self.imagepath)
@@ -908,6 +924,7 @@ class InfoFrame(tb.Frame):
         self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.slideShuffle.grid(row=rowNumber, column=3, sticky="w")
 
+
         #Set self.slideshow.shuffle as the control variable
         self.slideShuffle.var = tk.BooleanVar()
         self.slideShuffle.var.set(self.slideshow.shuffle)
@@ -1008,6 +1025,7 @@ class InfoFrame(tb.Frame):
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
         self.moveDownButton.grid(row=rowNumber+6, column=0, sticky="e", padx=5)
 
+
         #Fill the treeview with the playlist
         for i in range(len(self.playlist.songs)):
             song = self.playlist.songs[i]
@@ -1016,6 +1034,7 @@ class InfoFrame(tb.Frame):
                 song = FP.Song(song['filePath'])
             song_name = FP.getBaseName([song.filePath])[0]
             self.playlistTree.insert("", "end", values=(song_name, i+1))
+
 
         #Empty space to pad the bottom of grid
         rowNumber += 7
@@ -1079,7 +1098,7 @@ class InfoFrame(tb.Frame):
         print("\n")
         #Get the selected item
         selected = self.playlistTree.selection()
-        print(self.playlist.songs)
+        # print(self.playlist.songs)
 
         #If nothing is selected, return early
         if len(selected) == 0:
@@ -1162,73 +1181,83 @@ class InfoFrame(tb.Frame):
             return
 
         #Grid layout for the slide info
+        rowNumber = 0
         self.nameLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=0, column=0, columnspan=3, sticky="w")
+        self.nameLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.name, font=("Arial", 12))
-        self.name.grid(row=0, column=3, columnspan=10, sticky="ew")
+        self.name.grid(row=rowNumber, column=3, columnspan=10, sticky="ew")
 
         #imagePath
+        rowNumber += 1
         self.imagePathLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Image Path: ", font=("Arial", 12))
-        self.imagePathLabel.grid(row=1, column=0, columnspan=3,sticky="w")
+        self.imagePathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.imagePath = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.imagepath, font=("Arial", 12))
-        self.imagePath.grid(row=1, column=3, columnspan=10, sticky="ew",)
+        self.imagePath.grid(row=rowNumber, column=3, columnspan=10, sticky="ew",)
+
+        pth = icon.imagepath
+        if not os.path.exists(pth):
+            self.imagePath.config(style="danger.TLabel")
 
         if self.image:
+            rowNumber += 1
             #Change the notebook tab text to "Image Info"
             self.notebook.tab(0, text="Image Info")
             #Button for adding image to the slideshow
             self.addSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Add Slide", command=self.addSlide, takefocus=0, style="success.TButton")
-            self.addSlideButton.grid(row=2, column=0, sticky="w")
+            self.addSlideButton.grid(row=rowNumber, column=0, sticky="w")
             #Button to remove image from the project.
             self.removeImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Image", command=self.removeImage, takefocus=0, style="danger.TButton")
-            self.removeImageButton.grid(row=2, column=1, sticky="w")
+            self.removeImageButton.grid(row=rowNumber, column=1, sticky="w")
             return
             
         icon: SlideIcon = self.__icon
         self.notebook.tab(0, text="Slide Info")
 
         #Slide ID
-        rowNum = 2
+        rowNumber += 1
         self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: \t\t", font=("Arial", 12))
-        self.slideIDLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.slideIDLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(icon.slide['slideID']), font=("Arial", 12))
-        self.slideID.grid(row=rowNum, column=3, sticky="w")
+        self.slideID.grid(row=rowNumber, column=3, sticky="w")
+
+        rowNumber += 1
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Press Enter to set the value. Unfocus or press Escape to cancel.", font=("Arial", 10)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
 
         #Duration - Entry
-        rowNum += 1
+        rowNumber += 1
         self.durationLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
-        self.durationLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.durationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.slideDuration.config(width=7)
         self.slideDuration.insert(0, icon.slide['duration'])
-        self.slideDuration.grid(row=rowNum, column=3, sticky="w")
+        self.slideDuration.grid(row=rowNumber, column=3, sticky="w")
         self._slideDurationTemp = icon.slide['duration']
 
         self.slideDuration.bind("<FocusIn>", self.onSlideDurationFocusIn)
         self.slideDuration.bind("<FocusOut>", self.onSlideDurationFocusOut)
 
         #Transition Speed - Entry
-        rowNum += 1
+        rowNumber += 1
         self.transitionSpeedLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12))
-        self.transitionSpeedLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.transitionSpeedLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.transitionSpeed.config(width=7)
         self.transitionSpeed.insert(0, icon.slide['transitionSpeed'])
-        self.transitionSpeed.grid(row=rowNum, column=3, sticky="w")
+        self.transitionSpeed.grid(row=rowNumber, column=3, sticky="w")
         self._transitionSpeedTemp = icon.slide['transitionSpeed']
 
         self.transitionSpeed.bind("<FocusIn>", self.onTransitionSpeedFocusIn)
         self.transitionSpeed.bind("<FocusOut>", self.onTransitionSpeedFocusOut)
 
         #Transition Type - Dropdown
-        rowNum += 1
+        rowNumber+= 1
         self.transitionTypeLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Type: ", font=("Arial", 12))
-        self.transitionTypeLabel.grid(row=rowNum, column=0, columnspan=3, sticky="w")
+        self.transitionTypeLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionType = tb.Combobox(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
         self.transitionType.config(width=7)
         self.transitionType['values'] = ("Default", "Fade", "Wipe_Up", "Wipe_Down", "Wipe_Left", "Wipe_Right")
         self.transitionType.current(0)
-        self.transitionType.grid(row=rowNum, column=3, columnspan=1, sticky="ew")
+        self.transitionType.grid(row=rowNumber, column=3, columnspan=1, sticky="ew")
 
         self.transitionType.bind("<<ComboboxSelected>>", self.setTransitionType)
 
@@ -1236,13 +1265,13 @@ class InfoFrame(tb.Frame):
         self.transitionType.set(icon.slide['transition'])
 
         #Preview Transition - Button
-        rowNum += 1
+        rowNumber+= 1
         self.previewTransitionButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Preview Transition", command=self.previewTransition, takefocus=0)
-        self.previewTransitionButton.grid(row=rowNum, column=1, columnspan=2, pady=15)
+        self.previewTransitionButton.grid(row=rowNumber, column=1, columnspan=2, pady=15)
 
         #Remove slide button
         self.removeSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Slide", command=self.removeSlide, takefocus=0, style="danger.TButton")
-        self.removeSlideButton.grid(row=rowNum, column=3, columnspan=2, pady=15)
+        self.removeSlideButton.grid(row=rowNumber, column=3, columnspan=2, pady=15)
         return
     
     def setSlideDuration(self, event):
@@ -1357,13 +1386,13 @@ class InfoFrame(tb.Frame):
             transitionType = self.__icon.slide['transition']
             transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
             
-            endImg = Image.open(self.__icon.imagepath)
+            endImg = Image.open(FP.file_check(self.__icon.imagepath, FP.relative_project_path))
             endImg = ImageOps.exif_transpose(endImg)
             previousSlide = self.slideshow.getSlide(self.__icon.slide['slideID']-1)
             if previousSlide == None:
                 startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
             else:
-                startImg = Image.open(previousSlide['imagePath'])
+                startImg = Image.open(FP.file_check(previousSlide['imagePath'], FP.relative_project_path))
                 startImg = ImageOps.exif_transpose(startImg)
             startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
@@ -1667,15 +1696,7 @@ class MediaBucket(tb.Frame):
             icon.destroy()
 
         #If there are no files, add buttons to add files
-        # print(f"Files in bucket: {len(self.files)}")
-        if len(self.files) == 0:
-            print("No files in the bucket")
-            #Create buttons to add files
-            addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
-            addFileButton.pack()
-            addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
-            addFolderButton.pack()
-            return
+        
 
         #Create the icons
         i=0
@@ -1689,9 +1710,29 @@ class MediaBucket(tb.Frame):
             icon.grid(row=i, column=j, padx=3, pady=3)
             self.icons.append(icon)
             j += 1
-            if j >= self.columnCount:
+            if j == columnCount:
                 j = 0
                 i += 1
+        
+        addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
+        addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
+        addFileButton.grid(row=i, column=j, padx=3, pady=3)
+        j += 1
+        if j == columnCount:
+            j = 0
+            i += 1
+        addFolderButton.grid(row=i, column=j, padx=3, pady=3)
+
+        # # print(f"Files in bucket: {len(self.files)}")
+        # if len(self.files) == 0:
+        #     print("No files in the bucket")
+        #     #Create buttons to add files
+        #     addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
+        #     addFileButton.pack()
+        #     addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
+        #     addFolderButton.pack()
+        #     return
+        
         return
           
     def loadProject(self, project: FP.Slideshow):
@@ -1709,8 +1750,12 @@ class MediaBucket(tb.Frame):
         #Sometimes the input is a string or like a tuple. This is to catch that.
         if type(file) == str:
             # print(f"Adding {file} to the bucket")
-            self.files.append(file)
-            files.append(file)
+            #Check if the file exists
+            if os.path.exists(file):
+                self.files.append(file)
+                files.append(file)
+            else:
+                pass
         elif type(file) == tuple:
             # print(f"Adding tuple {file} to the bucket")
             for f in file:
@@ -1731,7 +1776,12 @@ class MediaBucket(tb.Frame):
         """
         files = []
         if type(folder) == str:
-            files = FP.getJPEG(folder, True) #Recursively get all the files in the folder
+            #Check if the folder exists
+            if os.path.exists(folder):
+                files = FP.getJPEG(folder, True)
+            else:
+                print(f"Folder {folder} does not exist.")
+                return
         elif type(folder) == tuple:
             for f in folder:
                 files.extend(FP.getJPEG(f, True))
@@ -1777,8 +1827,8 @@ class RecentSlideshowList(tk.Frame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         slideshows = FP.getRecentSlideshows()
-        for s in slideshows:
-            print(s)
+        # for s in slideshows:
+        #     print(s)
 
 
         #Create a label frame

@@ -4,7 +4,11 @@ from ttkbootstrap.constants import *
 from Widgets import *
 from tkinter import filedialog
 import Playerv2 as Player
+import FileSupport as FP
 
+
+
+# FP.file_check(path, RELATIVE_PROJECT_PATH)
 
 class SlideshowCreatorStart(tb.Frame):
     """Start window for the Slideshow Creator. This window will have two buttons: New Project and Open Project."""
@@ -113,6 +117,7 @@ class SlideshowCreator(tb.Frame):
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
+        FP.relative_project_path = self.slideshow.getSaveLocation()
         
         self.update_idletasks()
         try:
@@ -236,6 +241,8 @@ class SlideshowCreator(tb.Frame):
         self.projectMenu.add_command(label="Save", command=self.save)
         self.projectMenu.add_command(label="Save As", command=self.saveAs)
         self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export Project", command=self.slideshow.exportToFolder)
+        self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
         self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Exit", command=self.quit)
@@ -248,6 +255,10 @@ class SlideshowCreator(tb.Frame):
         if self.mediaBucket:
             self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
         self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Open Cache", command=FP.openCacheFolder)
+        self.fileMenu.add_command(label="Clear Cache", command=FP.clearCache)
+        self.fileMenu.add_separator()
 
         self.themeMenu = tb.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Theme", menu=self.themeMenu)
@@ -261,6 +272,8 @@ class SlideshowCreator(tb.Frame):
 
         #Bind ctrl+s to save
         self.bind_all("<Control-s>", lambda event: self.save())
+
+        self.bind_all("<Button-1>", lambda event: event.widget.focus_set())
 
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
@@ -398,6 +411,12 @@ class SlideshowCreator(tb.Frame):
                 FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
             except:
                 print("Failed to update the slideshow cache list")
+
+            try:
+                #Export the project to the cache
+                self.slideshow.exportToCache()
+            except:
+                print("Failed to export the project to the cache")
         
     def saveAs(self):
         print("Save As")

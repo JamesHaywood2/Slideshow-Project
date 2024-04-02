@@ -44,7 +44,7 @@ class SlideshowPlayerStart(tb.Frame):
             return
         #Get the project path
         projectPath = self.recentSlideshowList.tableView.view.item(item, "values")[2]
-        print(f"Opening project: {projectPath}")
+        # print(f"Opening project: {projectPath}")
         #Open the project
         self.openProjectPath(projectPath)
 
@@ -94,6 +94,7 @@ class SlideshowPlayer(tb.Frame):
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
+        FP.relative_project_path = self.slideshow.getSaveLocation()
         try:
             FP.initializeCache()
         except:
@@ -115,13 +116,13 @@ class SlideshowPlayer(tb.Frame):
         self.shuffleSlideshow:bool = False
         try:
             self.manual = self.slideshow.manual
-            print(f"Manual: {self.manual}")
+            # print(f"Manual: {self.manual}")
         except:
             print("Error loading manual setting")
 
         try:
             self.shuffleSlideshow = self.slideshow.shuffle
-            print(f"Shuffle Slideshow: {self.shuffleSlideshow}")
+            # print(f"Shuffle Slideshow: {self.shuffleSlideshow}")
         except:
             print("Error loading shuffle setting")
 
@@ -135,11 +136,11 @@ class SlideshowPlayer(tb.Frame):
         self.shufflePlaylist:bool = False
         self.playlistExists:bool = False
         if len(self.playlist.songs) > 0:
-            print("Playlist exists")
+            # print("Playlist exists")
             self.playlistExists = True
             try:
                 self.shufflePlaylist = self.playlist.shuffle
-                print(f"Shuffle Playlist: {self.shufflePlaylist}")
+                # print(f"Shuffle Playlist: {self.shufflePlaylist}")
             except:
                 print("Error loading shuffle setting")
 
@@ -150,12 +151,12 @@ class SlideshowPlayer(tb.Frame):
         if self.shuffleSlideshow:
             #Randomize the order of the slides
             random.shuffle(self.slideList)
-            print("Shuffling slideshow")
+            # print("Shuffling slideshow")
         if self.shufflePlaylist:
             random.shuffle(self.playlist.songs)
-            print("Shuffling playlist")
+            # print("Shuffling playlist")
 
-        print(f"Playlist: \n{self.playlist.songs}")
+        # print(f"Playlist: \n{self.playlist.songs}")
 
         #Create AudioPlayer
         self.audioPlayer = FP.AudioPlayer()
@@ -215,7 +216,9 @@ class SlideshowPlayer(tb.Frame):
         if len(self.slideList) > 0:
             
             #Add first slide to the ImageViewer
-            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
+            print(f"First slide: {pth}")
+            self.imageViewer.loadImage(pth)
 
             ###### PRE-RENDER THE IMAGES ######
             canvas_width = self.imageViewer.canvasWidth
@@ -227,14 +230,17 @@ class SlideshowPlayer(tb.Frame):
             max_height = -1
             for slide in self.slideList:
                 #Open the image and convert it etc etc and resize it to the max canvas size.
+                pth = FP.file_check(slide['imagePath'], FP.relative_project_path)
                 try:
-                    slideImage = ImageOps.exif_transpose(Image.open(slide['imagePath'])).convert("RGBA")
-                    slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
-                    #Add the image to the list
-                    self.ImageList.append(slideImage)
+                    slideImage = Image.open(pth)
                 except:
-                    print(f"Error loading image: {slide['imagePath']}")
-                    self.quit()
+                    print(f"Error loading image: {pth}")
+                    slideImage = Image.open(FP.MissingImage)
+
+                slideImage = ImageOps.exif_transpose(slideImage).convert("RGBA")
+                slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
+                #Add the image to the list
+                self.ImageList.append(slideImage)
 
                 #check if the image is the largest so far
                 if slideImage.width > max_width:
@@ -614,7 +620,8 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def quit(self):
-        #Just close the window
+        self.audioPlayer.stop()
+        self.audioPlayer.unloadSong()
         self.master.destroy()
         return
 

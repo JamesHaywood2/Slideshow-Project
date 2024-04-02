@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import random
 from PIL import Image, ImageOps
@@ -20,6 +21,8 @@ ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
 ball = r"../Slideshow-Project/assets/ball.jpg"
 ball2 = r"../Slideshow-Project/assets/ball2.png"
 
+relative_project_path = ""
+# FP.file_check(path, FP.reltaive_project_path)
 
 def getJPEG(folderPath:str, recursive:bool=False):
     """
@@ -55,12 +58,16 @@ def removeExtension(files):
         return os.path.splitext(files)[0]
 
 def getBaseName(files):
-    """Returns the base name of a list of file paths."""
-    print(files)
+    """Returns the base name of a list of file paths.\n
+    ex: C:/Users/James/Documents/Project1.txt -> Project1.txt
+    """
+    # print(files)
     return [os.path.basename(f) for f in files]
 
 def getParentDir(files):
-    """Returns the parent directory of a list of file paths."""
+    """Returns the parent directory of a list of file paths.\n
+    ex: C:/Users/James/Documents/Project1.txt -> C:/Users/James/Documents
+    """
     return [os.path.dirname(f) for f in files]
 
 def getUserHome():
@@ -112,6 +119,9 @@ def getPreferences():
         
 def getLastModified(fileName:str):
     """Get the last modified time of a file."""
+    #Check if the file exists
+    if not os.path.exists(fileName):
+        return time.ctime(0)
     mod_time = os.path.getmtime(fileName)
     return time.ctime(mod_time)
 
@@ -123,24 +133,37 @@ def updateSlideshowCacheList(slideshowPath:str):
     #Check if the RecentSlideshows file exists
     if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            lastModified = getLastModified(slideshowPath)
-            f.write(f"{slideshowPath}${lastModified}\n")
+            #If the path is just "New Project" don't add it to the list.
+            if slideshowPath != "New Project":
+                lastModified = getLastModified(slideshowPath)
+                f.write(f"{slideshowPath}${lastModified}\n")
+        #Close
+        f.close()
     else:
         #If the file exists, check if the slideshow is already in the list. If it is, remove it.
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
             slideshows = f.readlines()
             slideshows = [s.strip() for s in slideshows]
             for i, s in enumerate(slideshows):
-                if s.split("$")[0] == slideshowPath:
+                path = s.split("$")[0]
+                print(f"Checking {path} against {slideshowPath}")
+                if path == slideshowPath:
                     slideshows.pop(i)
+                    print(f"Removing {path} from RecentSlideshows.txt")
                     break
+        #Close
+        f.close()
         #Add the slideshow to the top of the list
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            lastModified = getLastModified(slideshowPath)
-            f.write(f"{slideshowPath}${lastModified}\n")
-            #Add the rest of the slideshows to the list
-            for s in slideshows:
-                f.write(s + "\n")
+            #If the path is just "New Project" don't add it to the list.
+            if slideshowPath != "New Project":
+                lastModified = getLastModified(slideshowPath)
+                f.write(f"{slideshowPath}${lastModified}\n")
+                #Add the rest of the slideshows to the list
+                for s in slideshows:
+                    f.write(s + "\n")
+        #Close
+        f.close()
 
 def getRecentSlideshows() -> list[str]:
     cacheDir = getUserCacheDir()
@@ -169,7 +192,9 @@ def validateRecentSlideshows():
             slideshows = f.readlines()
             slideshows = [s.strip() for s in slideshows]
             for i, s in enumerate(slideshows):
-                if not os.path.exists(s.split("$")[0]):
+                path = s.split("$")[0]
+                if not os.path.exists(path):
+                    print(f"Removing {path} from RecentSlideshows.txt")
                     slideshows.pop(i)
             with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
                 for s in slideshows:
@@ -181,6 +206,10 @@ def clearCache():
     for f in os.listdir(cacheDir):
         os.remove(os.path.join(cacheDir, f))
     print("Cache cleared.")
+
+def openCacheFolder():
+    """Open the cache folder in explorer."""
+    os.startfile(os.path.join(getUserCacheDir(), "cache"))
 
 def resetPreferences():
     """Reset the preferences file to the default theme."""
@@ -198,6 +227,17 @@ def loadImageFromCache(name:str):
     #Load the image from the cache folder
     return ImageOps.exif_transpose(Image.open(os.path.join(cacheDir, name)))
 
+def checkCache(filepath:str):
+    """Check if the file exists in the cache folder."""
+    #Get the base file name
+    baseName = os.path.basename(filepath)
+    #Get the cache folder
+    cacheFolder = os.path.join(getUserCacheDir(), "cache")
+    #Check if the file exists in the cache folder
+    if os.path.exists(os.path.join(cacheFolder, baseName)):
+        return os.path.join(cacheFolder, baseName)
+    else:
+        return None
 
 class Slide:
     """
@@ -410,6 +450,80 @@ class Slideshow:
         #Print __dict__ for debugging
         return str(self.__dict__)
     
+    def check_file_exists(self, filepath:str):
+        """Check if a file exists either at the filepath, project folder, or cache folder."""
+        #Check if the file exists at the filepath
+        if os.path.exists(filepath):
+            return filepath #File exists at the filepath so return it.
+        #Check if the file exists in the project folder
+
+        #Get the base file name
+        baseName = os.path.basename(filepath)
+        #Get the project folder
+        projectFolder = os.path.dirname(self.__filePath)
+        #Check if the file exists in the project folder
+        if os.path.exists(os.path.join(projectFolder, baseName)):
+            return os.path.join(projectFolder, baseName)
+        
+        #Check if the file exists in the cache folder
+        cacheFolder = os.path.join(getUserCacheDir(), "cache")
+        if os.path.exists(os.path.join(cacheFolder, baseName)):
+            return os.path.join(cacheFolder, baseName)
+        
+        #If the file doesn't exist in any of the locations, return None
+        return None
+    
+    def exportToCache(self):
+        """Export all project files to the cache folder."""
+        self.save()
+        #Project files include self.filesInProject and the songs in the playlist.
+        #Go through all filesInProject and export them to the cache folder.
+        for file in self.filesInProject:
+            #Check if the file exists in the cache folder
+            if checkCache(file) == None:
+                #If it doesn't exist, save it to the cache folder
+                img = Image.open(file)
+                saveImageToCache(img, os.path.basename(file))
+
+        #Go through all the songs in the playlist and export them to the cache folder.
+        for song in self.playlist.songs:
+            #Check if the song exists in the cache folder
+            if checkCache(song.filePath) == None:
+                #If it's not yet in the cache, save a copy of the audio file to the cache folder
+                audio = pydub.AudioSegment.from_file(song.filePath)
+                audio.export(os.path.join(getUserCacheDir(), "cache", os.path.basename(song.filePath)))
+
+
+    def exportToFolder(self):
+        """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
+        self.save()
+        #Create a folder in the project folder called exported_assets_{projectName}
+        projectFolder = os.path.dirname(self.__filePath)
+        exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+        if not os.path.exists(exportFolder):
+            os.makedirs(exportFolder)
+        
+        #Export all the files in the project folder to the export folder
+        for file in self.filesInProject:
+            #Copy the file to the export folder
+            img = Image.open(file)
+            img.save(os.path.join(exportFolder, os.path.basename(file)))
+
+        #Export all the songs in the playlist to the export folder
+        for song in self.playlist.songs:
+            #Copy the song to the export folder
+            audio = pydub.AudioSegment.from_file(song.filePath)
+            audio.export(os.path.join(exportFolder, os.path.basename(song.filePath)))
+
+        #Finally, copy the slideshow file to the export folder
+        saveLoc = self.getSaveLocation()
+        newSaveLoc = os.path.join(exportFolder, os.path.basename(saveLoc))
+        self.setSaveLocation(newSaveLoc)
+        self.save()
+        self.setSaveLocation(saveLoc)
+
+
+
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
     #SEE METHOD USED TO ADD SLIDES TO SLIDESHOW FOR REFERENCE.
@@ -514,8 +628,8 @@ class Playlist:
                 s.__dict__.update(song)
                 song = s
             self.__duration += song.duration
-            print(f"{song.name} - {formatTime(song.duration)}")
-        print(f"Playlist duration: {formatTime(self.__duration)}")
+            # print(f"{song.name} - {formatTime(song.duration)}")
+        # print(f"Playlist duration: {formatTime(self.__duration)}")
             
     def getDuration(self):
         return self.__duration
@@ -597,7 +711,6 @@ class AudioPlayer:
             #Load the wav file
             self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
 
-
         #Set end of song event to change state to unload the song.
         mixer.music.set_endevent(self.SONG_END)
         mixer.music.load(self.current_song.filePath)
@@ -605,7 +718,6 @@ class AudioPlayer:
         self.progress = 0
         self.duration = self.current_song.duration
 
-        
         return 0
 
     def unloadSong(self):
@@ -675,16 +787,41 @@ class AudioPlayer:
             self.progress = 0
         return self.progress
             
-        
-        
-        
-        
 
+def resource_path(relative_path):
+    """Get the absolute path to the resource, works for PyInstaller."""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
+    return os.path.join(base_path, relative_path)
+        
+        
+def file_check(file_path:str, project_path:str=None):
+    """Check if a file exists in the project folder, cache folder, or the file path."""
+    #Check if the file exists at the file path
+    # print(f"Checking full path: {file_path}")
+    if os.path.exists(file_path):
+        print(f"Found {file_path} at full path.")
+        return file_path
     
-
-
+    #Check if the file exists in the project folder
+    if project_path != None:
+        project_folder = os.path.dirname(project_path)
+        path = os.path.join(project_folder, os.path.basename(file_path))
+        # print(f"Checking project folder: {path}")
+        if os.path.exists(path):
+            print(f"Found {path} in project folder.")
+            return os.path.join(path)
         
-        
-        
+    #Check if the file exists in the cache folder
+    cache_folder = os.path.join(getUserCacheDir(), "cache")
+    path = os.path.join(cache_folder, os.path.basename(file_path))
+    # print(f"Checking cache: {path}")
+    if os.path.exists(path):
+        print(f"Found {path} in cache folder.")
+        return os.path.join(path)
     
+    return MissingImage
