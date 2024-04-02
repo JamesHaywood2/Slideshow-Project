@@ -16,10 +16,21 @@ import pygame
 from pygame import mixer
 from enum import Enum
 
-MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
-ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
-ball = r"../Slideshow-Project/assets/ball.jpg"
-ball2 = r"../Slideshow-Project/assets/ball2.png"
+def resource_path(relative_path):
+    """Get the absolute path to the resource, works for PyInstaller."""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+# ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
+refreshIcon = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+# ball = resource_path(r"../Slideshow-Project/assets/ball.jpg")
+# ball2 = resource_path(r"../Slideshow-Project/assets/ball2.png"
 
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
@@ -763,16 +774,6 @@ class AudioPlayer:
             self.progress = 0
         return self.progress
             
-
-def resource_path(relative_path):
-    """Get the absolute path to the resource, works for PyInstaller."""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
         
         
 def file_check(file_path:str, project_path:str=None):

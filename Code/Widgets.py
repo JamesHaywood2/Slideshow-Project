@@ -1239,7 +1239,12 @@ class InfoFrame(tb.Frame):
         icon: SlideIcon = self.__icon
         self.notebook.tab(0, text="Slide Info")
 
-        self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Replace", command=self.replaceImage, takefocus=0, style="info.TButton")
+        #open photo image
+        buttonImage = Image.open(FP.resource_path(FP.refreshIcon))
+        buttonImage.thumbnail((10, 10))
+        self.buttonImage = ImageTk.PhotoImage(buttonImage)
+        # self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Replace", command=self.replaceImage, takefocus=0, style="info.TButton")
+        self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, command=self.replaceImage, takefocus=0, style="info.TButton", image=self.buttonImage)
         self.replaceImageButton.grid(row=pathlabelrow, column=0, columnspan=3, sticky="e")
 
         #Slide ID
