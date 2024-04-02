@@ -450,29 +450,6 @@ class Slideshow:
         #Print __dict__ for debugging
         return str(self.__dict__)
     
-    def check_file_exists(self, filepath:str):
-        """Check if a file exists either at the filepath, project folder, or cache folder."""
-        #Check if the file exists at the filepath
-        if os.path.exists(filepath):
-            return filepath #File exists at the filepath so return it.
-        #Check if the file exists in the project folder
-
-        #Get the base file name
-        baseName = os.path.basename(filepath)
-        #Get the project folder
-        projectFolder = os.path.dirname(self.__filePath)
-        #Check if the file exists in the project folder
-        if os.path.exists(os.path.join(projectFolder, baseName)):
-            return os.path.join(projectFolder, baseName)
-        
-        #Check if the file exists in the cache folder
-        cacheFolder = os.path.join(getUserCacheDir(), "cache")
-        if os.path.exists(os.path.join(cacheFolder, baseName)):
-            return os.path.join(cacheFolder, baseName)
-        
-        #If the file doesn't exist in any of the locations, return None
-        return None
-    
     def exportToCache(self):
         """Export all project files to the cache folder."""
         self.save()
@@ -521,7 +498,6 @@ class Slideshow:
         self.setSaveLocation(newSaveLoc)
         self.save()
         self.setSaveLocation(saveLoc)
-
 
 
 class Song:
@@ -800,7 +776,9 @@ def resource_path(relative_path):
         
         
 def file_check(file_path:str, project_path:str=None):
-    """Check if a file exists in the project folder, cache folder, or the file path."""
+    """Check if a file exists in the project folder, cache folder, or the file path.\n
+    Player and Creator should set FP.relative_project_path when they load a project file so use that.\n
+    """
     #Check if the file exists at the file path
     # print(f"Checking full path: {file_path}")
     if os.path.exists(file_path):
@@ -811,7 +789,7 @@ def file_check(file_path:str, project_path:str=None):
     if project_path != None:
         project_folder = os.path.dirname(project_path)
         path = os.path.join(project_folder, os.path.basename(file_path))
-        # print(f"Checking project folder: {path}")
+        print(f"Checking project folder: {path}")
         if os.path.exists(path):
             print(f"Found {path} in project folder.")
             return os.path.join(path)
@@ -824,4 +802,39 @@ def file_check(file_path:str, project_path:str=None):
         print(f"Found {path} in cache folder.")
         return os.path.join(path)
     
+    print(f"file_check: File {file_path} not found.")
     return MissingImage
+
+def file_loc(file_path:str, project_path:str=None):
+    """Check if a file exists in the project folder, cache folder, or the file path.\n
+    Return where the file is located.\n
+    0 = Full path\n
+    1 = Project folder\n
+    2 = Cache folder\n
+    3 = Missing\n
+    """
+    #Check if the file exists at the file path
+    # print(f"Checking full path: {file_path}")
+    if os.path.exists(file_path):
+        print(f"Found {file_path} at full path.")
+        return 0
+    
+    #Check if the file exists in the project folder
+    if project_path != None:
+        project_folder = os.path.dirname(project_path)
+        path = os.path.join(project_folder, os.path.basename(file_path))
+        print(f"Checking project folder: {path}")
+        if os.path.exists(path):
+            print(f"Found {path} in project folder.")
+            return 1
+        
+    #Check if the file exists in the cache folder
+    cache_folder = os.path.join(getUserCacheDir(), "cache")
+    path = os.path.join(cache_folder, os.path.basename(file_path))
+    # print(f"Checking cache: {path}")
+    if os.path.exists(path):
+        print(f"Found {path} in cache folder.")
+        return 2
+    
+    print(f"file_loc: File {file_path} not found.")
+    return 3

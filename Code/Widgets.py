@@ -596,13 +596,13 @@ class FileIcon(tk.Frame):
         self.missing: bool = False
         
         #If we are dealing with SliceIcons, check and see if the file is in the folder.
+        pth = imagepath
         if isinstance(self, SlideIcon):
-            print(f"Relative path: {FP.relative_project_path}")
-            imagepath = FP.file_check(imagepath, FP.relative_project_path)
+            pth = FP.file_check(imagepath, FP.relative_project_path)
             
         #Test if the file is a valid image file
         try:
-            img = Image.open(imagepath)
+            img = Image.open(pth)
         except:
             # print(f"{imagepath} is not a valid image file.")
             self.missing = True
@@ -648,8 +648,8 @@ class FileIcon(tk.Frame):
 
     def clickIcon(self, event):
         #If the name of the icon is "File Not Found" then return early.
-        if self.missing == True:
-            return
+        # if self.missing == True:
+        #     return
 
         if self.linkedViewer != None:
             #Load image into the viewer
@@ -660,6 +660,10 @@ class FileIcon(tk.Frame):
             self.linkedInfo.loadIcon(self)
         else:
             print(f"No InfoFrame linked to {self.name}")
+
+        # self.slideInfoFrame.scrollable_frame
+        # if self.missing == True:
+        #     tb.Label(self.linkedInfo.slideInfoFrame.scrollable_frame, text="Hello", font=("Arial", 12)).grid(row=4, column=0,columnspan=10)
         return
      
     def pickup(self, event):
@@ -1189,14 +1193,36 @@ class InfoFrame(tb.Frame):
 
         #imagePath
         rowNumber += 1
+        pathlabelrow = rowNumber
         self.imagePathLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Image Path: ", font=("Arial", 12))
         self.imagePathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.imagePath = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.imagepath, font=("Arial", 12))
         self.imagePath.grid(row=rowNumber, column=3, columnspan=10, sticky="ew",)
 
         pth = icon.imagepath
-        if not os.path.exists(pth):
+        pth_location = FP.file_loc(pth, FP.relative_project_path)
+        # if not os.path.exists(pth):
+        #     self.imagePath.config(style="danger.TLabel")
+        #     rowNumber += 1
+        #     tb.Label(self.slideInfoFrame.scrollable_frame, text="This path is not valid. Image may be stored in project folder or cache. Consider replacing.", font=("Arial", 12), style="danger.TLabel").grid(row=rowNumber, column=0, columnspan=7)
+
+        if pth_location == 0: #Full path
+            print("Full path")
+            pass
+        elif pth_location == 1: #Project folder
+            print("Project folder")
+            pass
+        elif pth_location == 2: #Cache
+            print("Cache")
+            self.imagePath.config(style="warning.TLabel")
+            rowNumber += 1
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="This image is stored in the cache. Consider moving it to the project folder.", font=("Arial", 12), style="warning.TLabel").grid(row=rowNumber, column=0, columnspan=7)
+        elif pth_location == 3: #Not found
+            print("Not found")
             self.imagePath.config(style="danger.TLabel")
+            rowNumber += 1
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="This image is missing. It may exist elsewhere. Consider replacing.", font=("Arial", 12), style="danger.TLabel").grid(row=rowNumber, column=0, columnspan=7)
+
 
         if self.image:
             rowNumber += 1
@@ -1212,6 +1238,9 @@ class InfoFrame(tb.Frame):
             
         icon: SlideIcon = self.__icon
         self.notebook.tab(0, text="Slide Info")
+
+        self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Replace", command=self.replaceImage, takefocus=0, style="info.TButton")
+        self.replaceImageButton.grid(row=pathlabelrow, column=0, columnspan=3, sticky="e")
 
         #Slide ID
         rowNumber += 1
@@ -1272,6 +1301,37 @@ class InfoFrame(tb.Frame):
         #Remove slide button
         self.removeSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Slide", command=self.removeSlide, takefocus=0, style="danger.TButton")
         self.removeSlideButton.grid(row=rowNumber, column=3, columnspan=2, pady=15)
+        return
+    
+    def replaceImage(self):
+        #Open a file dialog to select a new image
+        filetypes = [("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif *.tiff")]
+        file = filedialog.askopenfile(filetypes=filetypes, title="Select a new image")
+        if file == None:
+            return
+        #Replace the image in the icon
+        self.__icon.slide['imagePath'] = file.name
+        self.__icon.imagepath = file.name
+        #Update the image path label
+        self.imagePath.config(text=file.name)
+
+        #Redraw the image in the viewer
+        if self.__icon.linkedViewer:
+            self.__icon.linkedViewer.loadImage(file.name)
+            self.__icon.linkedViewer.redrawImage()
+
+        self.update_idletasks()
+
+        #Update the icon in the slide reel
+        self.__icon.linkedReel.fillReel()
+
+        #Refresh the slide info
+        self.fillSlideInfo()
+
+        #Update the name label
+        self.name.config(text=FP.getBaseName([file.name])[0])
+
+
         return
     
     def setSlideDuration(self, event):
