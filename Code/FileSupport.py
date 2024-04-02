@@ -5,7 +5,7 @@ import random
 from PIL import Image, ImageOps
 import json
 
-# import mutagen
+import mutagen
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.aiff import AIFF
@@ -26,9 +26,10 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 # ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
-refreshIcon = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 # ball = resource_path(r"../Slideshow-Project/assets/ball.jpg")
 # ball2 = resource_path(r"../Slideshow-Project/assets/ball2.png"
 
@@ -404,6 +405,9 @@ class Slideshow:
         return self.__count
     
     def getPlaylist(self):
+        """Returns the playlist object. If a song is missing it will remove it from the playlist."""
+        print("\nGetting playlist...")
+        print(self.playlist)
         #If the playlist is a disctionary, convert it to a Playlist object.
         if isinstance(self.playlist, dict):
             playlist = Playlist()
@@ -413,9 +417,13 @@ class Slideshow:
         #Convert the songs to Song objects
         for i, song in enumerate(self.playlist.songs):
             if isinstance(song, dict):
-                s = Song(song['filePath'])
-                s.__dict__.update(song)
-                self.playlist.songs[i] = s
+                try:
+                    s = Song(file_check(song['filePath'], relative_project_path))
+                    s.__dict__.update(song)
+                    self.playlist.songs[i] = s
+                except:
+                    print(f"Error loading song {song['filePath']}")
+                    self.playlist.songs.pop(i)
 
         return self.playlist
     
@@ -548,16 +556,24 @@ class Song:
         
         #Get the duration of the song
         fileType = os.path.splitext(self.filePath)[1]
-        if fileType == ".mp3":
-            audio = MP3(self.filePath)
-        elif fileType == ".wav":
-            audio = WAVE(self.filePath)
-        elif fileType == ".mp4":
-            audio = MP4(self.filePath)
-        elif fileType == ".aiff":
-            audio = AIFF(self.filePath)
-        self.fileType = fileType
+        print(f"filepath: {self.filePath}, fileType: {fileType}")
+        try:
+            if fileType == ".mp3":
+                audio = MP3(self.filePath)
+            elif fileType == ".wav":
+                audio = WAVE(self.filePath)
+            elif fileType == ".mp4":
+                audio = MP4(self.filePath)
+            elif fileType == ".aiff":
+                audio = AIFF(self.filePath)
+        except:
+            print(f"Error loading {self.filePath}.")
+            try:
+                audio = mutagen.File(self.filePath)
+            except:
+                print(f"Error loading generic audio file {self.filePath}.")
 
+        self.fileType = fileType
         self.duration = audio.info.length
 
     def __str__(self) -> str:
@@ -703,18 +719,18 @@ class AudioPlayer:
         #If mp4, convert to .wav, save to cache, and load the .wav file.
         if self.current_song.fileType == ".mp4":
             #Convert the mp4 to wav
-            audio = pydub.AudioSegment.from_file(self.current_song.filePath, format="mp4")
+            audio = pydub.AudioSegment.from_file(file_check(self.current_song.filePath, relative_project_path), format="mp4")
             audio.export(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"), format="wav")
             #Load the wav file
             self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
 
+
         #Set end of song event to change state to unload the song.
         mixer.music.set_endevent(self.SONG_END)
-        mixer.music.load(self.current_song.filePath)
+        mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
         self.state = AudioPlayer.State.STOPPED
         self.progress = 0
         self.duration = self.current_song.duration
-
         return 0
 
     def unloadSong(self):
@@ -793,7 +809,7 @@ def file_check(file_path:str, project_path:str=None):
     #Check if the file exists at the file path
     # print(f"Checking full path: {file_path}")
     if os.path.exists(file_path):
-        print(f"Found {file_path} at full path.")
+        # print(f"Found {file_path} at full path.")
         return file_path
     
     #Check if the file exists in the project folder
@@ -802,7 +818,7 @@ def file_check(file_path:str, project_path:str=None):
         path = os.path.join(project_folder, os.path.basename(file_path))
         # print(f"Checking project folder: {path}")
         if os.path.exists(path):
-            print(f"Found {path} in project folder.")
+            # print(f"Found {path} in project folder.")
             return os.path.join(path)
         
     #Check if the file exists in the cache folder
@@ -810,7 +826,7 @@ def file_check(file_path:str, project_path:str=None):
     path = os.path.join(cache_folder, os.path.basename(file_path))
     # print(f"Checking cache: {path}")
     if os.path.exists(path):
-        print(f"Found {path} in cache folder.")
+        # print(f"Found {path} in cache folder.")
         return os.path.join(path)
     
     print(f"file_check: File {file_path} not found.")

@@ -2,6 +2,7 @@ import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.tableview import Tableview
+from ttkbootstrap.tooltip import ToolTip
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
@@ -958,22 +959,24 @@ class InfoFrame(tb.Frame):
         self.loopSettingsCombo = tb.Combobox(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
         self.loopSettingsCombo.config(width=7)
         self.loopSettingsCombo['values'] = (FP.loopSetting.INDEFINITE, FP.loopSetting.UNTIL_PLAYLIST_ENDS, FP.loopSetting.UNTIL_SLIDES_END)
-        # self.loopSettingsCombo['values'] = ("Indefinite", "Until Playlist Ends", "Until Slides End", "Sync with Playlist")
         self.loopSettingsCombo.current(0)
         self.loopSettingsCombo.grid(row=rowNumber, column=3, columnspan=1, sticky="ew")
-        print("Failed to create loopSettingsCombo")
 
         self.loopSettingsCombo.bind("<<ComboboxSelected>>", self.setLoopSettings)
 
         #Set the transition type to the slide's transition type
         self.loopSettingsCombo.set(self.slideshow.loopSettings)
-        #Loop will be replaced with an option selector
-        #Option 1: They both loop indefinitely until told to stop (program closed). Default.
-        #Option 2: Slideshow loops itself until the playlist finishes playing.
-        #          Once the playlist reaches the end it either just pauses the slideshow or closes the viewer.
-        #Option 3: Slideshow ends once it has displayed all the slides. It pauses the music once that is the case.
-        #          Could also make it loop N times??
-        #Option 4: The slideshow timings are changed to sync with the playlists duration.
+
+        #Tooltip for the loop settings combobox
+        loopToolTipText = """This is the loop setting for the slideshow. The options are as follows:
+        \n- Indefinite: The slideshow will loop indefinitely until manually stopped.
+        \n- Until Playlist Ends: The slideshow will loop until the playlist ends.
+        \n- Until Slides End: The slideshow will loop until the slides end.
+        \nWhen Manual controls are selected, only Indefinite is available."""
+        loopToolTip = ToolTipIcon(self.projectInfoFrame.scrollable_frame, loopToolTipText)
+        loopToolTip.grid(row=rowNumber, column=4, sticky="w", padx=2)
+
+
         
         #If manual slide control is enabled, then only option 1 should be available.
 
@@ -1015,8 +1018,6 @@ class InfoFrame(tb.Frame):
         rowNumber += 1
         self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
         self.PlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.PlaylistName = tb.Label(self.projectInfoFrame.scrollable_frame, text="None", font=("Arial", 12))
-        self.PlaylistName.grid(row=rowNumber, column=3, columnspan=1,sticky="w")
 
         #Playlist Duration
         rowNumber += 1
@@ -1050,20 +1051,33 @@ class InfoFrame(tb.Frame):
 
         rowNumber += 1
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
-        self.tree_frame.grid(row=rowNumber, column=1, columnspan=9, rowspan=7, sticky="w")
+        self.tree_frame.grid(row=rowNumber, column=1, columnspan=14, rowspan=7, sticky="w", pady=5)
 
         #Scrollbar for the treeview
         tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
         tree_scrollbar.pack(side="right", fill="y")
 
-        self.playlistTree = tb.Treeview(self.tree_frame, columns=("Name", "Order"), show="headings", selectmode="browse")
-        self.playlistTree.heading("Name", text="Name")
-        self.playlistTree.heading("Order", text="Order")
+        self.playlistTree = tb.Treeview(self.tree_frame, columns=("Name", "Order", "Status"), show="headings", selectmode="browse")
+        self.playlistTree.heading("Name", text="Name", anchor="w")
+        self.playlistTree.heading("Order", text="Order", anchor="w")
+        self.playlistTree.heading("Status", text="Status", anchor="w")
         self.playlistTree.column("Name", anchor="w", minwidth=100, width=150)
-        self.playlistTree.column("Order", anchor="w", minwidth=50, width=100)
+        self.playlistTree.column("Order", anchor="w", minwidth=50, width=30)
+        self.playlistTree.column("Status", anchor="w", minwidth=75, width=150)
+        
         self.playlistTree.pack(expand=True, fill="both")
 
         tree_scrollbar.config(command=self.playlistTree.yview)
+
+        #Tooltip for the playlist tree
+        treeToolTipText = """This is the playlist for the slideshow. You can add, remove, and reorder songs in the playlist.
+        \nName is the name of the song. Order is the order in which the song will play. Status is where the file is located.
+        \nGood status: File is at the same file location as when you added it.
+        \nIn Project Folder: File is in the same location as the project file.
+        \nWarning: Only in Cache: File is only in the cache folder. Recommend moving or replacing the file.
+        \nError: Missing: File is missing. Recommend replacing the file."""
+        self.playlistTreeTooltip = ToolTipIcon(self.projectInfoFrame.scrollable_frame, text=treeToolTipText)
+        self.playlistTreeTooltip.grid(row=rowNumber+2, column=0, sticky="e", padx=5, pady=2)
 
         #Buttons to move a song up, down, or remove it from the playlist
         self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
@@ -1075,7 +1089,6 @@ class InfoFrame(tb.Frame):
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
         self.moveDownButton.grid(row=rowNumber+6, column=0, sticky="e", padx=5)
 
-
         #Fill the treeview with the playlist
         for i in range(len(self.playlist.songs)):
             song = self.playlist.songs[i]
@@ -1083,7 +1096,19 @@ class InfoFrame(tb.Frame):
             if isinstance(song, dict):
                 song = FP.Song(song['filePath'])
             song_name = FP.getBaseName([song.filePath])[0]
-            self.playlistTree.insert("", "end", values=(song_name, i+1))
+            
+            song_location = FP.file_loc(song.filePath)
+            status = "Good"
+            if song_location == 1:
+                status = "In Project Folder"
+            elif song_location == 2:
+                status = "Warning: Only in Cache"
+            elif song_location == 3:
+                status = "Error: Missing"
+
+            self.playlistTree.insert("", "end", values=(song_name, i+1, status))
+
+
 
 
         #Empty space to pad the bottom of grid
@@ -2033,4 +2058,53 @@ class RecentSlideshowList(tk.Frame):
         
         #Bind the double click event to open the slideshow
         # self.tableView.view.bind("<Double-1>", self.openSlideshow)
+        return
+    
+class ToolTipIcon(tk.Canvas):
+    def __init__(self, master, text:str=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self.text = text
+        if self.text == None:
+            self.text = "Hello World."
+
+        #Set canvas background
+        # self.config(bg="red")
+
+        #Set canvas size to 20x20
+        self.config(width=25, height=25)
+
+        #Get size of the canvas
+        self.width = self.winfo_width()
+        self.height = self.winfo_height()
+
+        #Open the image
+        self.image = Image.open(FP.resource_path(FP.toolTipIcon))
+        self.image.thumbnail((self.width, self.height))
+        self.tkimage = ImageTk.PhotoImage(self.image)
+        self.create_image(self.width//2, self.height//2, image=self.tkimage)
+
+        #bind the configure event
+        self.bind("<Configure>", self.resize)
+        
+        ToolTip(self, text=self.text)
+        return
+    
+    def resize(self, event):
+        #If the size has changed
+        if self.width != self.winfo_width() or self.height != self.winfo_height():
+            self.width = self.winfo_width()
+            self.height = self.winfo_height()
+            self.image = Image.open(FP.resource_path(FP.toolTipIcon))
+            self.image.thumbnail((self.width, self.height))
+            self.tkimage = ImageTk.PhotoImage(self.image)
+            self.create_image(self.width//2, self.height//2, image=self.tkimage)
+        return
+    
+    def setSize(self, width:int, height:int):
+        self.width = width
+        self.height = height
+        self.image = Image.open(FP.resource_path(FP.toolTipIcon))
+        self.image.thumbnail((self.width, self.height))
+        self.tkimage = ImageTk.PhotoImage(self.image)
+        self.create_image(self.width//2, self.height//2, image=self.tkimage)
         return

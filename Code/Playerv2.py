@@ -145,17 +145,18 @@ class SlideshowPlayer(tb.Frame):
         self.currentSong:int = 0
         self.shufflePlaylist:bool = False
         self.playlistExists:bool = False
+
         if len(self.playlist.songs) > 0:
-            # print("Playlist exists")
+            print("\Playlist found...\n")
+            print(f"Playlist: \n{self.playlist.songs}")
             self.playlistExists = True
             try:
                 self.shufflePlaylist = self.playlist.shuffle
                 # print(f"Shuffle Playlist: {self.shufflePlaylist}")
             except:
                 print("Error loading shuffle setting")
-
-        # print(f"Playlist: \n{self.playlist.songs}")
-        
+        else:
+            print("\nNo Playlist was loaded...\n")
 
         ##### Shuffle stuff #####
         if self.shuffleSlideshow:
