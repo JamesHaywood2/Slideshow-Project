@@ -202,15 +202,25 @@ class SlideshowPlayer(tb.Frame):
         ########################
         ######  MENU BAR #######
         ########################
-        self.menuBar = tb.Menu(self)
-        self.master.config(menu=self.menuBar)
-        #Only two menus: Open and exit
-        self.fileMenu = tb.Menu(self.menuBar, tearoff=0)
+        #MenuFrame
+        self.menuVisible: bool = False
+        self.menuFrame = tb.Frame(self.master, style="dark.TFrame")
+        self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
+        self.menuFrame.place_forget()
+
+        #MenuButtons
+        style = tb.Style()
+        style.configure('Outline.TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, bordercolor='red', font=("Arial", 10))
+        self.fileMB = tb.Menubutton(self.menuFrame, text="Project", style="Outline.TMenubutton")
+        self.fileMB.pack(side="left")
+        self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
+        self.fileMenu.config(bg=style.colors.dark)
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)
-        self.menuBar.add_cascade(label="File", menu=self.fileMenu)
+        self.fileMB.config(menu=self.fileMenu)
 
+        
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
         self.transition_checker = None
@@ -269,8 +279,6 @@ class SlideshowPlayer(tb.Frame):
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
                 self.ImageMap[i] = bg
-
-                
             
             self.update_idletasks()
 
@@ -337,6 +345,18 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<e>", lambda e: self.pause(True))
 
     def motionEvent(self):
+        #Get the mouse position
+        x, y = self.winfo_pointerxy()
+        # print(f"Mouse at: {x}, {y}")
+        #If the mouse is at the top of the screen, show the menu
+        if self.menuVisible == False and y < 10:
+            self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
+            self.menuVisible = True
+        elif self.menuVisible == True and y > 30:
+            self.menuFrame.place_forget()
+            self.menuVisible = False
+            
+            
         self.showOverlay()
         if self.mouse_after_id:
             self.after_cancel(self.mouse_after_id)
@@ -624,7 +644,11 @@ class SlideshowPlayer(tb.Frame):
             song = self.playlist.songs[self.currentSong]
             #unload the current song
             self.audioPlayer.unloadSong()
-            self.audioPlayer.loadSong(song)
+            if self.audioPlayer.loadSong(song) == -1:
+                #If the song failed to load, move to the next song and remove the current song from the playlist
+                self.nextSong()
+                self.playlist.songs.pop(self.currentSong)
+                self.currentSong -= 1
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()

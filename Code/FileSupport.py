@@ -572,6 +572,7 @@ class Song:
                 audio = mutagen.File(self.filePath)
             except:
                 print(f"Error loading generic audio file {self.filePath}.")
+                return -1
 
         self.fileType = fileType
         self.duration = audio.info.length
@@ -726,8 +727,13 @@ class AudioPlayer:
 
 
         #Set end of song event to change state to unload the song.
-        mixer.music.set_endevent(self.SONG_END)
-        mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
+        try:
+            mixer.music.set_endevent(self.SONG_END)
+            mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
+        except:
+            print("Failed to load song.")
+            self.state = AudioPlayer.State.FAILED_TO_LOAD
+            return -1
         self.state = AudioPlayer.State.STOPPED
         self.progress = 0
         self.duration = self.current_song.duration
