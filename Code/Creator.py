@@ -3,8 +3,12 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from Widgets import *
 from tkinter import filedialog
-import Playerv2 as Player
+import Player as Player
+import FileSupport as FP
 
+
+
+# FP.file_check(path, RELATIVE_PROJECT_PATH)
 
 class SlideshowCreatorStart(tb.Frame):
     """Start window for the Slideshow Creator. This window will have two buttons: New Project and Open Project."""
@@ -113,6 +117,7 @@ class SlideshowCreator(tb.Frame):
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
         self.slideshow.load()
+        FP.relative_project_path = self.slideshow.getSaveLocation()
         
         self.update_idletasks()
         try:
@@ -225,33 +230,56 @@ class SlideshowCreator(tb.Frame):
 
         self.debugWindow: tk.Toplevel = None
 
-        #Menubar
-        self.menubar = tb.Menu(self.master)
-        self.master.config(menu=self.menubar)
-        self.projectMenu = tb.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="Project", menu=self.projectMenu)
+        #MenuFrame
+        self.menuFrame = tb.Frame(self.master, style="dark.TFrame")
+        self.menuFrame.pack(side="top", fill="x")
+
+        #MenuButtons
+        style = tb.Style()
+        style.configure('Outline.TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, bordercolor='red', font=("Arial", 10))
+        self.projectMB = tb.Menubutton(self.menuFrame, text="Project", style="Outline.TMenubutton")
+        self.projectMB.pack(side="left")
+        self.fileMB = tb.Menubutton(self.menuFrame, text="File", style="Outline.TMenubutton")
+        self.fileMB.pack(side="left")
+        self.themeMB = tb.Menubutton(self.menuFrame, text="Theme", style="Outline.TMenubutton")
+        self.themeMB.pack(side="left")
+
+        #Project Menu
+        self.projectMenu = tb.Menu(self.projectMB, tearoff=0)
+        self.projectMenu.config(bg=style.colors.dark)
         self.projectMenu.add_command(label="New Project", command=self.newProject)
         self.projectMenu.add_command(label="Open Project", command=self.openProject)
         self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Save", command=self.save)
         self.projectMenu.add_command(label="Save As", command=self.saveAs)
         self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export Project", command=self.slideshow.exportToFolder)
+        self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
         self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Exit", command=self.quit)
+        self.projectMB.config(menu=self.projectMenu)
 
-        self.fileMenu = tb.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="File", menu=self.fileMenu)
+        #File Menu
+        self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
+        self.fileMenu.config(bg=style.colors.dark)
         self.fileMenu.add_command(label="Add file", command=self.addFile)
         self.fileMenu.add_command(label="Add folder", command=self.addFolder)
         self.fileMenu.add_separator()
         if self.mediaBucket:
             self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
         self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Open Cache", command=FP.openCacheFolder)
+        self.fileMenu.add_command(label="Clear Cache", command=FP.clearCache)
+        self.fileMenu.add_separator()
+        self.fileMB.config(menu=self.fileMenu)
 
-        self.themeMenu = tb.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="Theme", menu=self.themeMenu)
+        #Theme Menu
+        self.themeMenu = tb.Menu(self.themeMB, tearoff=0)
+        self.projectMenu.config(bg=style.colors.dark)
         self.themeMenu.add_command(label="Theme Selector", command=self.ThemeSelector)
+        self.themeMB.config(menu=self.themeMenu)
 
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
@@ -261,6 +289,8 @@ class SlideshowCreator(tb.Frame):
 
         #Bind ctrl+s to save
         self.bind_all("<Control-s>", lambda event: self.save())
+
+        self.bind_all("<Button-1>", lambda event: event.widget.focus_set())
 
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
@@ -398,6 +428,12 @@ class SlideshowCreator(tb.Frame):
                 FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
             except:
                 print("Failed to update the slideshow cache list")
+
+            try:
+                #Export the project to the cache
+                self.slideshow.exportToCache()
+            except:
+                print("Failed to export the project to the cache")
         
     def saveAs(self):
         print("Save As")

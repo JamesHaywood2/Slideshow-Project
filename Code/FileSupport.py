@@ -1,16 +1,40 @@
 import os
+import sys
 import time
 import random
 from PIL import Image, ImageOps
 import json
+
+import mutagen
+from mutagen.mp3 import MP3
+from mutagen.mp4 import MP4
+from mutagen.aiff import AIFF
+from mutagen.wave import WAVE
 import pydub
-from pydub import AudioSegment
 
-MissingImage = r"../Slideshow-Project/assets/MissingImage.png"
-ProgramIcon = r"../Slideshow-Project/assets/icon.ico"
-ball = r"../Slideshow-Project/assets/ball.jpg"
-ball2 = r"../Slideshow-Project/assets/ball2.png"
+import pygame
+from pygame import mixer
+from enum import Enum
 
+def resource_path(relative_path):
+    """Get the absolute path to the resource, works for PyInstaller."""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
+MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
+# ball = resource_path(r"../Slideshow-Project/assets/ball.jpg")
+# ball2 = resource_path(r"../Slideshow-Project/assets/ball2.png"
+
+relative_project_path = ""
+# FP.file_check(path, FP.reltaive_project_path)
 
 def getJPEG(folderPath:str, recursive:bool=False):
     """
@@ -46,11 +70,16 @@ def removeExtension(files):
         return os.path.splitext(files)[0]
 
 def getBaseName(files):
-    """Returns the base name of a list of file paths."""
+    """Returns the base name of a list of file paths.\n
+    ex: C:/Users/James/Documents/Project1.txt -> Project1.txt
+    """
+    # print(files)
     return [os.path.basename(f) for f in files]
 
 def getParentDir(files):
-    """Returns the parent directory of a list of file paths."""
+    """Returns the parent directory of a list of file paths.\n
+    ex: C:/Users/James/Documents/Project1.txt -> C:/Users/James/Documents
+    """
     return [os.path.dirname(f) for f in files]
 
 def getUserHome():
@@ -102,6 +131,9 @@ def getPreferences():
         
 def getLastModified(fileName:str):
     """Get the last modified time of a file."""
+    #Check if the file exists
+    if not os.path.exists(fileName):
+        return time.ctime(0)
     mod_time = os.path.getmtime(fileName)
     return time.ctime(mod_time)
 
@@ -113,24 +145,37 @@ def updateSlideshowCacheList(slideshowPath:str):
     #Check if the RecentSlideshows file exists
     if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            lastModified = getLastModified(slideshowPath)
-            f.write(f"{slideshowPath}${lastModified}\n")
+            #If the path is just "New Project" don't add it to the list.
+            if slideshowPath != "New Project":
+                lastModified = getLastModified(slideshowPath)
+                f.write(f"{slideshowPath}${lastModified}\n")
+        #Close
+        f.close()
     else:
         #If the file exists, check if the slideshow is already in the list. If it is, remove it.
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
             slideshows = f.readlines()
             slideshows = [s.strip() for s in slideshows]
             for i, s in enumerate(slideshows):
-                if s.split("$")[0] == slideshowPath:
+                path = s.split("$")[0]
+                print(f"Checking {path} against {slideshowPath}")
+                if path == slideshowPath:
                     slideshows.pop(i)
+                    print(f"Removing {path} from RecentSlideshows.txt")
                     break
+        #Close
+        f.close()
         #Add the slideshow to the top of the list
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            lastModified = getLastModified(slideshowPath)
-            f.write(f"{slideshowPath}${lastModified}\n")
-            #Add the rest of the slideshows to the list
-            for s in slideshows:
-                f.write(s + "\n")
+            #If the path is just "New Project" don't add it to the list.
+            if slideshowPath != "New Project":
+                lastModified = getLastModified(slideshowPath)
+                f.write(f"{slideshowPath}${lastModified}\n")
+                #Add the rest of the slideshows to the list
+                for s in slideshows:
+                    f.write(s + "\n")
+        #Close
+        f.close()
 
 def getRecentSlideshows() -> list[str]:
     cacheDir = getUserCacheDir()
@@ -159,7 +204,9 @@ def validateRecentSlideshows():
             slideshows = f.readlines()
             slideshows = [s.strip() for s in slideshows]
             for i, s in enumerate(slideshows):
-                if not os.path.exists(s.split("$")[0]):
+                path = s.split("$")[0]
+                if not os.path.exists(path):
+                    print(f"Removing {path} from RecentSlideshows.txt")
                     slideshows.pop(i)
             with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
                 for s in slideshows:
@@ -171,6 +218,10 @@ def clearCache():
     for f in os.listdir(cacheDir):
         os.remove(os.path.join(cacheDir, f))
     print("Cache cleared.")
+
+def openCacheFolder():
+    """Open the cache folder in explorer."""
+    os.startfile(os.path.join(getUserCacheDir(), "cache"))
 
 def resetPreferences():
     """Reset the preferences file to the default theme."""
@@ -188,6 +239,17 @@ def loadImageFromCache(name:str):
     #Load the image from the cache folder
     return ImageOps.exif_transpose(Image.open(os.path.join(cacheDir, name)))
 
+def checkCache(filepath:str):
+    """Check if the file exists in the cache folder."""
+    #Get the base file name
+    baseName = os.path.basename(filepath)
+    #Get the cache folder
+    cacheFolder = os.path.join(getUserCacheDir(), "cache")
+    #Check if the file exists in the cache folder
+    if os.path.exists(os.path.join(cacheFolder, baseName)):
+        return os.path.join(cacheFolder, baseName)
+    else:
+        return None
 
 class Slide:
     """
@@ -206,7 +268,7 @@ class Slide:
         self.imagePath: str = None
         self.imageName: str = None
         self.transition: transitionType = transitionType.DEFAULT
-        self.transitionSpeed: int = 2
+        self.transitionSpeed: int = 1
         self.duration: int = 5
 
         #Check if the imagePath is a valid picture
@@ -232,6 +294,15 @@ class transitionType:
     WIPELEFT = "Wipe_Left"
     WIPERIGHT = "Wipe_Right"
 
+class loopSetting:
+    """Loop settings enumeration for the slideshow\n 
+    "Indefinietly", "Until Playlist Ends", "Until Slides End", "Sync with Playlist"""
+    INDEFINITE = "Indefinite"
+    UNTIL_PLAYLIST_ENDS = "Until Playlist Ends"
+    UNTIL_SLIDES_END = "Until Slides End"
+    SYNC_WITH_PLAYLIST = "Sync with Playlist"
+    
+
 class Slideshow:
     """
     Slideshow class. Contains the file path, project name, list of slides, song playlist, etc. \n
@@ -249,10 +320,9 @@ class Slideshow:
         self.__slides: list[Slide] = []
         self.__count: int = 0
         self.playlist: Playlist = Playlist()
+        self.loopSettings: str = loopSetting.INDEFINITE
         self.manual: bool = False
-        self.defaultSlideDuration: int = 5
         self.shuffle: bool = False
-        self.loop: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
 
     #Add a slide at an index
@@ -335,11 +405,26 @@ class Slideshow:
         return self.__count
     
     def getPlaylist(self):
+        """Returns the playlist object. If a song is missing it will remove it from the playlist."""
+        print("\nGetting playlist...")
+        print(self.playlist)
         #If the playlist is a disctionary, convert it to a Playlist object.
         if isinstance(self.playlist, dict):
             playlist = Playlist()
             playlist.__dict__.update(self.playlist)
             self.playlist = playlist
+        
+        #Convert the songs to Song objects
+        for i, song in enumerate(self.playlist.songs):
+            if isinstance(song, dict):
+                try:
+                    s = Song(file_check(song['filePath'], relative_project_path))
+                    s.__dict__.update(song)
+                    self.playlist.songs[i] = s
+                except:
+                    print(f"Error loading song {song['filePath']}")
+                    self.playlist.songs.pop(i)
+
         return self.playlist
     
     def getSaveLocation(self):
@@ -389,11 +474,60 @@ class Slideshow:
         self.__filePath = tempPath
         self.name = tempName
 
-    
     def __str__(self) -> str:
         """Print definition for debugging."""
         #Print __dict__ for debugging
         return str(self.__dict__)
+    
+    def exportToCache(self):
+        """Export all project files to the cache folder."""
+        self.save()
+        #Project files include self.filesInProject and the songs in the playlist.
+        #Go through all filesInProject and export them to the cache folder.
+        for file in self.filesInProject:
+            #Check if the file exists in the cache folder
+            if checkCache(file) == None:
+                #If it doesn't exist, save it to the cache folder
+                img = Image.open(file)
+                saveImageToCache(img, os.path.basename(file))
+
+        #Go through all the songs in the playlist and export them to the cache folder.
+        for song in self.playlist.songs:
+            #Check if the song exists in the cache folder
+            if checkCache(song.filePath) == None:
+                #If it's not yet in the cache, save a copy of the audio file to the cache folder
+                audio = pydub.AudioSegment.from_file(song.filePath)
+                audio.export(os.path.join(getUserCacheDir(), "cache", os.path.basename(song.filePath)))
+
+
+    def exportToFolder(self):
+        """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
+        self.save()
+        #Create a folder in the project folder called exported_assets_{projectName}
+        projectFolder = os.path.dirname(self.__filePath)
+        exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+        if not os.path.exists(exportFolder):
+            os.makedirs(exportFolder)
+        
+        #Export all the files in the project folder to the export folder
+        for file in self.filesInProject:
+            #Copy the file to the export folder
+            img = Image.open(file)
+            img.save(os.path.join(exportFolder, os.path.basename(file)))
+
+        #Export all the songs in the playlist to the export folder
+        for song in self.playlist.songs:
+            #Copy the song to the export folder
+            audio = pydub.AudioSegment.from_file(song.filePath)
+            audio.export(os.path.join(exportFolder, os.path.basename(song.filePath)))
+
+        #Finally, copy the slideshow file to the export folder
+        saveLoc = self.getSaveLocation()
+        newSaveLoc = os.path.join(exportFolder, os.path.basename(saveLoc))
+        self.setSaveLocation(newSaveLoc)
+        self.save()
+        self.setSaveLocation(saveLoc)
+
 
 class Song:
     #SEE SLIDE CLASS FOR REFERENCE.
@@ -402,8 +536,6 @@ class Song:
         self.filePath: str = None
         self.name: str = None
         self.duration: int = 0
-        # self.artist: str = None
-        # self.album: str = None
         self.fileType: str = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
@@ -424,20 +556,33 @@ class Song:
         
         #Get the duration of the song
         fileType = os.path.splitext(self.filePath)[1]
-        if fileType == ".mp3":
-            audio = AudioSegment.from_mp3(self.filePath)
-        elif fileType == ".wav":
-            audio = AudioSegment.from_wav(self.filePath)
-        elif fileType == ".mp4":
-            audio = AudioSegment.from_file(self.filePath, "mp4")
-        elif fileType == ".aiff":
-            audio = AudioSegment.from_file(self.filePath, "aiff")
+        print(f"filepath: {self.filePath}, fileType: {fileType}")
+        try:
+            if fileType == ".mp3":
+                audio = MP3(self.filePath)
+            elif fileType == ".wav":
+                audio = WAVE(self.filePath)
+            elif fileType == ".mp4":
+                audio = MP4(self.filePath)
+            elif fileType == ".aiff":
+                audio = AIFF(self.filePath)
+        except:
+            print(f"Error loading {self.filePath}.")
+            try:
+                audio = mutagen.File(self.filePath)
+            except:
+                print(f"Error loading generic audio file {self.filePath}.")
+                return -1
+
         self.fileType = fileType
-
-        self.duration = audio.duration_seconds
-
+        self.duration = audio.info.length
 
     def __str__(self) -> str:
+        """Print definition for debugging."""
+        #Print the object as a readable string
+        return str(self.__dict__)
+    
+    def __repr__(self) -> str:
         """Print definition for debugging."""
         #Print the object as a readable string
         return str(self.__dict__)
@@ -455,7 +600,6 @@ class Playlist:
         self.__count: int = 0
         self.__duration: int = 0
         self.shuffle: bool = False
-        self.loop: bool = False
 
     def addSong(self, song:str, index:int=-1):
         """Will insert a song at the index, then push the rest of the songs down one index.
@@ -492,9 +636,14 @@ class Playlist:
         self.__count = len(self.songs)
         self.__duration = 0
         for song in self.songs:
+            #If song is a dictionary, convert it to a Song object.
+            if isinstance(song, dict):
+                s = Song(song['filePath'])
+                s.__dict__.update(song)
+                song = s
             self.__duration += song.duration
-            print(f"{song.name} - {formatTime(song.duration)}")
-        print(f"Playlist duration: {formatTime(self.__duration)}")
+            # print(f"{song.name} - {formatTime(song.duration)}")
+        # print(f"Playlist duration: {formatTime(self.__duration)}")
             
     def getDuration(self):
         return self.__duration
@@ -514,5 +663,211 @@ class Playlist:
         #Print __dict__ for debugging
         return str(self.__dict__)
 
+class AudioPlayer:
+    """
+    First create an AudioPlayer object. Then load a song into the player with load_song().\n
+    You can then play the song with play(), pause it with pause(), resume it with resume(), or stop it with stop().\n
+    """
+    class State(Enum):
+        """
+        UNLOADED: No song is loaded into the player.\n
+        FAILED_TO_LOAD: The song failed to load.\n
+        STOPPED: The song is stopped and at the very beginning.\n
+        PLAYING: The song is currently playing.\n
+        PAUSED: The song is paused.\n
+        """
+        UNLOADED = 0
+        FAILED_TO_LOAD = 1
+        STOPPED = 2
+        PLAYING = 3
+        PAUSED = 4
+
+    def __init__(self) -> None:
+        #Initialize pygame mixer
+        pygame.init()
+        self.mixer = mixer.init()
+
+        self.current_song: Song = None
+        self.duration = 0
+        self.progress = 0
+        self.state = AudioPlayer.State.UNLOADED
+        
+        self.SONG_END = pygame.USEREVENT + 1
+
+    def isFinished(self):
+        # print(f"Song progress: {formatTime(self.progress)} / {formatTime(self.duration)} and state: {self.state}")
+        for event in pygame.event.get():
+            if event.type == self.SONG_END:
+                self.unloadSong()
+                return True
+        return False
+
+    def loadSong(self, song):
+        #song must either be a path to a file or a Song object
+        if isinstance(song, Song):
+            self.current_song = song
+        elif isinstance(song, str):
+            self.current_song = Song(song)
+            if self.current_song == -1:
+                self.state = AudioPlayer.State.FAILED_TO_LOAD
+                print("Failed to create song object.")
+                return -1
+        else:
+            print("Invalid song type. Must be a path to a file or a Song object.")
+            self.state = AudioPlayer.State.FAILED_TO_LOAD
+            return -1
+        
+        #If mp4, convert to .wav, save to cache, and load the .wav file.
+        if self.current_song.fileType == ".mp4":
+            #Convert the mp4 to wav
+            audio = pydub.AudioSegment.from_file(file_check(self.current_song.filePath, relative_project_path), format="mp4")
+            audio.export(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"), format="wav")
+            #Load the wav file
+            self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
+
+
+        #Set end of song event to change state to unload the song.
+        try:
+            mixer.music.set_endevent(self.SONG_END)
+            mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
+        except:
+            print("Failed to load song.")
+            self.state = AudioPlayer.State.FAILED_TO_LOAD
+            return -1
+        self.state = AudioPlayer.State.STOPPED
+        self.progress = 0
+        self.duration = self.current_song.duration
+        return 0
+
+    def unloadSong(self):
+        #If the song is unloaded or failed to load, don't do anything.
+        if self.state == AudioPlayer.State.UNLOADED or self.state == AudioPlayer.State.FAILED_TO_LOAD:
+            return -1
+        mixer.music.unload()
+        self.state = AudioPlayer.State.UNLOADED
+        self.progress = 0
+        self.duration = 0
+
+    def play(self):
+        #Song must be stopped for play to do anything.
+        if self.state != AudioPlayer.State.STOPPED:
+            if self.state == AudioPlayer.State.FAILED_TO_LOAD:
+                print("Failed to load song.")
+                return -1
+            elif self.state == AudioPlayer.State.PLAYING:
+                print("Song is already playing.")
+                return -1
+            elif self.state == AudioPlayer.State.PAUSED:
+                print("Song is currently paused. Use resume() to continue playing.")
+                return -1
+            elif self.state == AudioPlayer.State.UNLOADED:
+                print("No song loaded. Use load_song() to load a song.")
+                return -1
+            
+        mixer.music.play()
+        self.state = AudioPlayer.State.PLAYING
+
+    def pause(self):
+        if self.state == AudioPlayer.State.PLAYING:
+            mixer.music.pause()
+            self.state = AudioPlayer.State.PAUSED
+        else:
+            print("Song is not playing.")
+
+    def resume(self):
+        if self.state == AudioPlayer.State.PAUSED:
+            mixer.music.unpause()
+            self.state = AudioPlayer.State.PLAYING
+        else:
+            print("Song is not paused.")
+
+    def stop(self):
+        if self.state == AudioPlayer.State.PLAYING or self.state == AudioPlayer.State.PAUSED:
+            mixer.music.stop()
+            self.state = AudioPlayer.State.STOPPED
+            self.progress = 0
+        else:
+            print("Song is not playing or paused.")
+
+    def togglePause(self):
+        if self.state == AudioPlayer.State.PLAYING:
+            self.pause()
+            print("Song paused.")
+        elif self.state == AudioPlayer.State.PAUSED:
+            self.resume()
+            print("Song resumed.")
+        else:
+            print("Song is not playing or paused.")
+
+    def getProgress(self):
+        if self.state != AudioPlayer.State.UNLOADED and self.state != AudioPlayer.State.FAILED_TO_LOAD:
+            self.progress = mixer.music.get_pos() / 1000
+        else:
+            self.progress = 0
+        return self.progress
+            
+        
+        
+def file_check(file_path:str, project_path:str=None):
+    """Check if a file exists in the project folder, cache folder, or the file path.\n
+    Player and Creator should set FP.relative_project_path when they load a project file so use that.\n
+    """
+    #Check if the file exists at the file path
+    # print(f"Checking full path: {file_path}")
+    if os.path.exists(file_path):
+        # print(f"Found {file_path} at full path.")
+        return file_path
     
+    #Check if the file exists in the project folder
+    if project_path != None:
+        project_folder = os.path.dirname(project_path)
+        path = os.path.join(project_folder, os.path.basename(file_path))
+        # print(f"Checking project folder: {path}")
+        if os.path.exists(path):
+            # print(f"Found {path} in project folder.")
+            return os.path.join(path)
+        
+    #Check if the file exists in the cache folder
+    cache_folder = os.path.join(getUserCacheDir(), "cache")
+    path = os.path.join(cache_folder, os.path.basename(file_path))
+    # print(f"Checking cache: {path}")
+    if os.path.exists(path):
+        # print(f"Found {path} in cache folder.")
+        return os.path.join(path)
     
+    print(f"file_check: File {file_path} not found.")
+    return MissingImage
+
+def file_loc(file_path:str, project_path:str=None):
+    """Check if a file exists in the project folder, cache folder, or the file path.\n
+    Return where the file is located.\n
+    0 = Full path\n
+    1 = Project folder\n
+    2 = Cache folder\n
+    3 = Missing\n
+    """
+    #Check if the file exists at the file path
+    # print(f"Checking full path: {file_path}")
+    if os.path.exists(file_path):
+        print(f"Found {file_path} at full path.")
+        return 0
+    
+    #Check if the file exists in the project folder
+    if project_path != None:
+        project_folder = os.path.dirname(project_path)
+        path = os.path.join(project_folder, os.path.basename(file_path))
+        print(f"Checking project folder: {path}")
+        if os.path.exists(path):
+            print(f"Found {path} in project folder.")
+            return 1
+        
+    #Check if the file exists in the cache folder
+    cache_folder = os.path.join(getUserCacheDir(), "cache")
+    path = os.path.join(cache_folder, os.path.basename(file_path))
+    # print(f"Checking cache: {path}")
+    if os.path.exists(path):
+        print(f"Found {path} in cache folder.")
+        return 2
+    
+    print(f"file_loc: File {file_path} not found.")
+    return 3
