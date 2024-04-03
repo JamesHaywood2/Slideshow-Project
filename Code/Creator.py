@@ -3,7 +3,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from Widgets import *
 from tkinter import filedialog
-import Code.Player as Player
+import Player as Player
 import FileSupport as FP
 
 
