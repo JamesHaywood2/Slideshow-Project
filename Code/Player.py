@@ -204,17 +204,18 @@ class SlideshowPlayer(tb.Frame):
         ########################
         #MenuFrame
         self.menuVisible: bool = False
-        self.menuFrame = tb.Frame(self.master, style="dark.TFrame")
+        style = tb.Style()
+        style.configure("custom.TFrame", background=style.colors.primary)
+        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
         self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
         self.menuFrame.place_forget()
 
         #MenuButtons
-        style = tb.Style()
-        style.configure('Outline.TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, bordercolor='red', font=("Arial", 10))
-        self.fileMB = tb.Menubutton(self.menuFrame, text="Project", style="Outline.TMenubutton")
+        style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
+        self.fileMB = tb.Menubutton(self.menuFrame, text="Project", style="TMenubutton")
         self.fileMB.pack(side="left")
         self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
-        self.fileMenu.config(bg=style.colors.dark)
+        self.fileMenu.config(background=style.colors.primary, foreground=style.colors.get("selectfg"))
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)

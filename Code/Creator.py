@@ -231,22 +231,22 @@ class SlideshowCreator(tb.Frame):
         self.debugWindow: tk.Toplevel = None
 
         #MenuFrame
-        self.menuFrame = tb.Frame(self.master, style="dark.TFrame")
+        self.style = tb.Style()
+        self.style.configure("custom.TFrame", background=self.style.colors.primary)
+        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
         self.menuFrame.pack(side="top", fill="x")
 
         #MenuButtons
-        style = tb.Style()
-        style.configure('Outline.TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, bordercolor='red', font=("Arial", 10))
-        self.projectMB = tb.Menubutton(self.menuFrame, text="Project", style="Outline.TMenubutton")
+        self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
+        self.projectMB = tb.Menubutton(self.menuFrame, text="Project", style="TMenubutton")
         self.projectMB.pack(side="left")
-        self.fileMB = tb.Menubutton(self.menuFrame, text="File", style="Outline.TMenubutton")
+        self.fileMB = tb.Menubutton(self.menuFrame, text="File", style="TMenubutton")
         self.fileMB.pack(side="left")
-        self.themeMB = tb.Menubutton(self.menuFrame, text="Theme", style="Outline.TMenubutton")
+        self.themeMB = tb.Menubutton(self.menuFrame, text="Theme", style="TMenubutton")
         self.themeMB.pack(side="left")
 
         #Project Menu
         self.projectMenu = tb.Menu(self.projectMB, tearoff=0)
-        self.projectMenu.config(bg=style.colors.dark)
         self.projectMenu.add_command(label="New Project", command=self.newProject)
         self.projectMenu.add_command(label="Open Project", command=self.openProject)
         self.projectMenu.add_separator()
@@ -262,7 +262,6 @@ class SlideshowCreator(tb.Frame):
 
         #File Menu
         self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
-        self.fileMenu.config(bg=style.colors.dark)
         self.fileMenu.add_command(label="Add file", command=self.addFile)
         self.fileMenu.add_command(label="Add folder", command=self.addFolder)
         self.fileMenu.add_separator()
@@ -277,9 +276,12 @@ class SlideshowCreator(tb.Frame):
 
         #Theme Menu
         self.themeMenu = tb.Menu(self.themeMB, tearoff=0)
-        self.projectMenu.config(bg=style.colors.dark)
         self.themeMenu.add_command(label="Theme Selector", command=self.ThemeSelector)
         self.themeMB.config(menu=self.themeMenu)
+
+        self.projectMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
 
         self.winWidth = self.master.winfo_width()
         self.winHeight = self.master.winfo_height()
@@ -536,12 +538,18 @@ class SlideshowCreator(tb.Frame):
 
     def changeTheme(self, theme: str):
         print(f"Changing theme to {theme}")
-        tb.Style().theme_use(theme)
+        self.style.theme_use(theme)
 
-        self.panedWindowColor = tb.Style().colors.primary
+        self.panedWindowColor = self.style.colors.primary
         self.PanedWindow_Base.config(bg=self.panedWindowColor)
         self.PanedWindow_Top.config(bg=self.panedWindowColor)
         self.PanedWindow_Bottom.config(bg=self.panedWindowColor)
+        self.style.configure("custom.TFrame", background=self.style.colors.primary)
+        self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
+        self.projectMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        
 
         self.master.update_idletasks()
         self.master.update()

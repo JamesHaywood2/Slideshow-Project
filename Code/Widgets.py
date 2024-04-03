@@ -1207,6 +1207,12 @@ class InfoFrame(tb.Frame):
             self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
         duration = self.playlist.getDuration()
         self.playlistDuration.config(text=FP.formatTime(duration))
+
+        try:
+            FP.openFiles[songToRemove.filePath].close()
+            del FP.openFiles[songToRemove.filePath]
+        except:
+            print(f"Could not close {songToRemove.filePath} with close() in InfoFrame.playListRemove()")
         return
 
     def playListAdd(self):
@@ -1230,6 +1236,12 @@ class InfoFrame(tb.Frame):
         self.playlist.addSong(file.name)
         duration = self.playlist.getDuration()
         self.playlistDuration.config(text=FP.formatTime(duration))
+
+        try:
+            f = open(file.name, "rb")
+            FP.openFiles[file.name] = f
+        except:
+            print(f"Could not open {file.name} with open() in InfoFrame.playListAdd()")
         return
     
     
@@ -1314,7 +1326,6 @@ class InfoFrame(tb.Frame):
         buttonImage = Image.open(FP.resource_path(FP.refreshIcon))
         buttonImage.thumbnail((10, 10))
         self.buttonImage = ImageTk.PhotoImage(buttonImage)
-        # self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Replace", command=self.replaceImage, takefocus=0, style="info.TButton")
         self.replaceImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, command=self.replaceImage, takefocus=0, style="info.TButton", image=self.buttonImage)
         self.replaceImageButton.grid(row=pathlabelrow, column=0, columnspan=3, sticky="e")
 
@@ -1395,11 +1406,24 @@ class InfoFrame(tb.Frame):
         file = filedialog.askopenfile(filetypes=filetypes, title="Select a new image")
         if file == None:
             return
+        #Close the previous imagePath in FP.openFiles
+        try:
+            FP.openFiles[self.__icon.imagepath].close()
+            del FP.openFiles[self.__icon.imagepath]
+        except:
+            pass
+
         #Replace the image in the icon
         self.__icon.slide['imagePath'] = file.name
         self.__icon.imagepath = file.name
         #Update the image path label
         self.imagePath.config(text=file.name)
+
+        try:
+            f = open(file.name, "rb")
+            FP.openFiles[file.name] = f
+        except:
+            print(f"Could not open {file.name} with open() in replaceImage.")
 
         #Redraw the image in the viewer
         if self.__icon.linkedViewer:
@@ -1728,6 +1752,13 @@ class SlideReel(tk.Frame):
             except:
                 imgPath = slide.imagePath
 
+            try:
+                f = open(imgPath, "rb")
+                FP.openFiles[imgPath] = f
+            except:
+                print(f"Could not open {imgPath} with open() in fillReel.")
+
+
             divider = IconDivider(self.scrollFrame.scrollable_frame, i)
             divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
             self.dividers.append(divider)
@@ -1939,6 +1970,12 @@ class MediaBucket(tb.Frame):
         self.files = project.filesInProject
         self.projectLabel.config(text=project.name)
         self.fillBucket()
+        for file in self.files:
+            try:
+                f = open(file, "rb")
+                FP.openFiles[file] = f
+            except:
+                print(f"Error opening file: {file}")
         return
 
     def addFile(self, file):
@@ -1964,9 +2001,16 @@ class MediaBucket(tb.Frame):
         else:
             print(f"Invalid file type: {type(file)}")
             return
-        #Remove last entry in tempstack
         self.addStack.append(files)
         self.fillBucket()
+        for file in files:
+            try:
+                f = open(file, "rb")
+                FP.openFiles[file] = f
+                #Add the file to the cache
+                FP.copyFileToCache(file)
+            except:
+                print(f"Error opening file: {file}")
         return
     
     def addFolder(self, folder):
@@ -1990,6 +2034,14 @@ class MediaBucket(tb.Frame):
         self.addStack.append(files)
         self.files.extend(files)
         self.fillBucket()
+        for file in files:
+            try:
+                f = open(file, "rb")
+                FP.openFiles[file] = f
+                #Add the file to the cache
+                FP.copyFileToCache(file)
+            except:
+                print(f"Error opening file: {file}")
         return
     
     def undoAdd(self):
@@ -2011,6 +2063,11 @@ class MediaBucket(tb.Frame):
         #Removing a file from the bucket should also probably give a warning or something if the file is used in a slideshow.
         self.files.remove(file)
         self.fillBucket()
+        try:
+            FP.openFiles[file].close()
+            del FP.openFiles[file]
+        except:
+            print(f"Error closing file: {file}")
         return
     
     def verifyFile(self, file):

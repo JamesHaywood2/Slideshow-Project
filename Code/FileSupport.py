@@ -36,6 +36,12 @@ toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
 
+openFiles = {}
+
+def printOpenFiles():
+    for f in openFiles:
+        print(f)
+
 def getJPEG(folderPath:str, recursive:bool=False):
     """
     Get all the JPEG files in the folder and its subfolders
@@ -233,6 +239,14 @@ def saveImageToCache(image:Image, name:str):
     #Save the image to the cache folder
     image.save(os.path.join(cacheDir, name))
 
+def copyFileToCache(file:str):
+    """Copy a file to the cache folder."""
+    cacheDir = os.path.join(getUserCacheDir(), "cache")
+    #Copy the file to the cache folder
+    with open(file, 'rb') as f:
+        with open(os.path.join(cacheDir, os.path.basename(file)), 'wb') as c:
+            c.write(f.read())
+
 def loadImageFromCache(name:str):
     """Load the image from the cache folder."""
     cacheDir = os.path.join(getUserCacheDir(), "cache")
@@ -276,6 +290,11 @@ class Slide:
             img = Image.open(imagePath)
             self.imagePath = imagePath
             self.imageName = removePath([self.imagePath])[0]
+            try:
+                f = open(imagePath, 'rb')
+                openFiles[imagePath] = f
+            except:
+                print(f"Error opening {imagePath} for locking.")
         except:
             # print(f"{imagePath} is not a valid image file.")
             self.imagePath = MissingImage
@@ -325,6 +344,15 @@ class Slideshow:
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
 
+        #if the file path exists, open it.
+        if os.path.exists(filePath):
+            try:
+                f = open(filePath, 'r')
+                openFiles[filePath] = f
+            except:
+                print(f"Error opening {filePath}")
+            self.load()
+
     #Add a slide at an index
     def addSlide(self, slide:Slide, index:int=-1):
         """
@@ -360,10 +388,19 @@ class Slideshow:
             print(slide)
         print("\n")
     
-    #Haven't tested.
+
     def removeSlide(self, slide:Slide):
         print(slide)
         print(f"Removing slide {slide['slideID']}")
+        try:
+            imgPth = slide['imagePath']
+        except:
+            imgPth = slide.imagePath
+        try:
+            openFiles[imgPth].close()
+            del openFiles[imgPth]
+        except:
+            print(f"Error closing {imgPth}")
         self.__slides.remove(slide)
         self.__count -= 1
 
@@ -424,6 +461,13 @@ class Slideshow:
                 except:
                     print(f"Error loading song {song['filePath']}")
                     self.playlist.songs.pop(i)
+                
+                #Open the file and lock it
+                try:
+                    f = open(song['filePath'], 'rb')
+                    openFiles[song['filePath']] = f
+                except:
+                    print(f"Error opening {song['filePath']} for locking in Slideshow.getPlaylist()")
 
         return self.playlist
     
@@ -445,6 +489,7 @@ class Slideshow:
         with open(self.__filePath, 'w') as f:
             #Basically it's going to dump the __dict__ to a JSON file. If it encounters another object it's going to dump that object's __dict__ to the JSON file as well.
             json.dump(self.__dict__, f, default=lambda o: o.__dict__, indent=4)
+            openFiles[self.__filePath] = f
 
     def load(self):
         """
@@ -498,6 +543,14 @@ class Slideshow:
                 #If it's not yet in the cache, save a copy of the audio file to the cache folder
                 audio = pydub.AudioSegment.from_file(song.filePath)
                 audio.export(os.path.join(getUserCacheDir(), "cache", os.path.basename(song.filePath)))
+
+        #Go through all the slides in the slideshow and export them to the cache folder.
+        for slide in self.__slides:
+            #Check if the slide exists in the cache folder
+            if checkCache(slide['imagePath']) == None:
+                #If it's not yet in the cache, save a copy of the image to the cache folder
+                img = Image.open(slide['imagePath'])
+                saveImageToCache(img, os.path.basename(slide['imagePath']))
 
 
     def exportToFolder(self):
