@@ -10,8 +10,7 @@ import random
 import time
 import copy
 
-TEMP_GEOMETRY = None
-
+temp_geometry = None
 
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
@@ -23,18 +22,15 @@ class SlideshowPlayerStart(tb.Frame):
         tb.Style().theme_use(FP.getPreferences())
         self.master = master
         self.pack(expand=True, fill="both")
-        self.label = tb.Label(self, text="Slideshow Player", font=("Arial", 24))
-        self.openProjectButton = tb.Button(self, text="Open Project", command=self.openProject)
+        self.label = tb.Label(self, text="Slideshow Player", font=("Arial", 24)).place(relx=0.5, rely=0.15, anchor="center")
+        self.openProjectButton = tb.Button(self, text="Open Project", command=self.openProject).place(anchor="center", relx=0.5, rely=0.25)
         self.recentSlideshowList = RecentSlideshowList(self)
-
-        self.label.place(relx=0.5, rely=0.15, anchor="center")
-        self.openProjectButton.place(anchor="center", relx=0.5, rely=0.25)
         self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
 
         #Set window size
         self.master.geometry("800x600")
-        global TEMP_GEOMETRY 
-        TEMP_GEOMETRY  = self.master.geometry()
+        global temp_geometry 
+        temp_geometry  = self.master.geometry()
         #Resizable window false
         self.master.resizable(False, False)
 
@@ -54,31 +50,39 @@ class SlideshowPlayerStart(tb.Frame):
         self.openProjectPath(projectPath)
 
     def openProject(self):
-        file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
-        #If not file was selected, return. Effectively cancels.
-        if not file:
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
+        #Create a SlideshowCreator object, destroy the current window, and pack the new window
+        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")], multiple=False)
+        if projectPath == "":
             return
         self.destroy()
-        self = SlideshowPlayer(self.master, projectPath=file[0])
+        self.update_idletasks()
+        self = SlideshowPlayer(self.master, projectPath=projectPath)
         self.pack(expand=True, fill="both")
 
+
     def openProjectPath(self, projectPath: str):
-        #Make sure the projectPath is valid
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
+        #Create a SlideshowCreator object, destroy the current window, and pack the new window
+        #check if the projectPath even exists
         try:
             with open(projectPath, "r"):
                 pass
         except:
             projectPath = "New Project"
-        #Make sure it's a .pyslide file
+        #Check if it's a .pyslide file
         if not projectPath.endswith(".pyslide"):
             projectPath = "New Project"
         self.destroy()
+        self.update_idletasks()
         self = SlideshowPlayer(self.master, projectPath=projectPath)
         self.pack(expand=True, fill="both")
+
 
 class SlideshowPlayer(tb.Frame):
     def __init__(self, master: tk.Tk, debug:bool= False, projectPath: str="New Project", geometry: str=None):
         self.quiting: bool = False
+        self.closing: bool = False
         if geometry is not None:
             try:
                 master.geometry(geometry)
@@ -90,8 +94,8 @@ class SlideshowPlayer(tb.Frame):
             master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
         master.resizable(True, True) #Resizable window
 
-        global TEMP_GEOMETRY 
-        TEMP_GEOMETRY  = "800x600"
+        global temp_geometry 
+        temp_geometry  = "800x600"
 
         # master.attributes("-fullscreen", True) #Fullscreen
 
@@ -251,6 +255,7 @@ class SlideshowPlayer(tb.Frame):
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)
+        self.fileMenu.add_command(label="Open Filles", command=self.printOpenFiles)
         self.fileMB.config(menu=self.fileMenu)
 
 
@@ -260,8 +265,16 @@ class SlideshowPlayer(tb.Frame):
 
         #Bind a configure event to the window so we can create the components after the window is resized.
         self.bind("<Configure>", lambda e: self.createComponents())
+
         return
     
+    def printOpenFiles(self):
+        print("\nOpen Files:\n")
+        for f in FP.openFiles.keys():
+            print(f)
+        print(f"\nTotal: {len(FP.openFiles)}\n")
+        return
+
     def renderImages(self):
         ###### PRE-RENDER THE IMAGES ######
         if len(self.slideList) > 0:
@@ -310,6 +323,10 @@ class SlideshowPlayer(tb.Frame):
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
                 self.ImageMap[i] = bg
+            
+            #clear the ImageList
+            self.ImageList = {}
+            del self.ImageList
     
     def createComponents(self):
         #Unbind the configure event so it doesn't keep creating components. This method gets called once.
@@ -457,9 +474,6 @@ class SlideshowPlayer(tb.Frame):
     
     def showProgressBar(self):
         if self.fullscreen:
-            # self.progressBar.place(relwidth=0.8, relheight=0.02, anchor="sw", relx=0.15, rely=1)
-            # self.progressBar_maxLabel.place(relx=0.95, rely=1, anchor="sw", relwidth=0.05)
-            # self.progressBar_progressLabel.place(relx=0.1, rely=1, anchor="se", relwidth=0.05)
             self.progressBar_maxLabel.place(anchor="sw", relx=0.97, rely=1, relheight=0.02)
             self.progressBar.place(anchor="se", relx=0.97, rely=1, relwidth=0.83, relheight=0.02)
             self.progressBar_progressLabel.place(anchor="se", relx=0.14, rely=1, relheight=0.02)
@@ -510,17 +524,49 @@ class SlideshowPlayer(tb.Frame):
         if not file:
             return
         
+        #Clear FP.openFiles
+        for f in FP.openFiles.keys():
+            FP.openFiles[f].close()
+        
         #Destroy every child widget
         for widget in self.master.winfo_children():
             widget.destroy()
 
-        self.dummy.destroy()
+        if self.dummy:
+            self.dummy.destroy()
+
+        #Clear the ImageMap
+        self.ImageMap = {}
+        self.ImageList = {}
+        self.slideList = []
+        FP.openFiles = {}
+        self.playlist = FP.Playlist()
+        del self.slideshow
+        del self.slideList
+        del self.ImageMap
+        del self.ImageList
+        del self.playlist
+        del self.dummy
+        
+        #Stop any loops
+        if self.slideChangeAfter:
+            self.after_cancel(self.slideChangeAfter)
+        if self.progressBarUpdater:
+            self.after_cancel(self.progressBarUpdater)
+        if self.transition_checker:
+            self.after_cancel(self.transition_checker)
+        if self.mouse_after_id:
+            self.after_cancel(self.mouse_after_id)
+            
+
 
         self.pack_forget()
-        self.update()
-        
+        self.destroy()
+        self.update_idletasks()
+ 
         self = SlideshowPlayer(self.master, projectPath=file[0])
         self.pack(expand=True, fill="both")
+
 
     def checkTransition(self, imagePath: str):
         if self.imageViewer.transitioning:
@@ -795,9 +841,18 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def close(self, event=None):
+        if self.closing:
+            return
         print("\nClosing...\n")
+        self.closing = True
         self.audioPlayer.stop()
         self.audioPlayer.unloadSong()
+        #Close all open files
+        for f in FP.openFiles.values():
+            f.close()
+
+        self.dummy.close(False)
+        self.update()
         self.destroy()
         return
 
@@ -814,8 +869,8 @@ class SlideshowPlayer(tb.Frame):
         print("Activating fullscreen")
         self.master.update()
         self.fullscreen = True
-        global TEMP_GEOMETRY 
-        TEMP_GEOMETRY = self.master.geometry()
+        global temp_geometry 
+        temp_geometry = self.master.geometry()
         self.master.overrideredirect(True)
         self.master.state('zoomed')
         self.master.update()
@@ -848,8 +903,8 @@ class SlideshowPlayer(tb.Frame):
         self.update()
         self.dummy.withdraw()
         self.master.update_idletasks()
-        global TEMP_GEOMETRY 
-        self.master.geometry(TEMP_GEOMETRY )
+        global temp_geometry 
+        self.master.geometry(temp_geometry )
         self.master.update()
         #Just load the image
         self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
@@ -859,7 +914,7 @@ class SlideshowPlayer(tb.Frame):
         self.master.update_idletasks()
         self.after(50, self.__set_fullscreen_toggle_ready)
 
-class DummyWindow(tb.Window):
+class DummyWindow(tb.Toplevel):
     def __init__(self, master: tk.Tk):
         super().__init__(master)
         self.master = master
@@ -877,19 +932,23 @@ class DummyWindow(tb.Window):
         #Bind focus in event for the dummy window to focus the master window
         self.bind("<FocusIn>", self.focusIn)
 
-        #bind closing the dummy window to close the master window
-        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.protocol("WM_DELETE_WINDOW", lambda: self.close(True))
 
-    def close(self):
+    def close(self, quit: bool):
+        print("\nClosing dummy window...\n")
         self.update()
-        self.master.quit()
-        self.quit()
+        self.destroy()
+        if quit:
+            self.master.quit()
+        return
+
 
     def focusIn(self, event):
         #Bring the master window to the front
         self.master.lift()
         #Focus the master window
         self.master.focus_set()
+
 
 
 if __name__ == "__main__":
