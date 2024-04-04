@@ -62,11 +62,6 @@ def removePath(files):
     """Removes the path from a list of filepaths and returns the base file names."""
     return [os.path.basename(f) for f in files]
     
-#Return a random image from a list of files
-def randomImage(files):
-    """Returns a random image from a list of file paths."""
-    return random.choice(files)
-
 #Take a str or list of str file paths and return their names without the file extension
 def removeExtension(files):
     """Removes the file extension from a list of file paths."""
@@ -144,46 +139,53 @@ def getLastModified(fileName:str):
     return time.ctime(mod_time)
 
 def updateSlideshowCacheList(slideshowPath:str):
+    print(f"Updating RecentSlideshows.txt with {slideshowPath}")
     #Get the cache directory
     cacheDir = getUserCacheDir()
-    #Convert the slideshowPath "\" to "/" for the cache file
-    slideshowPath = slideshowPath.replace("\\", "/")
-    #Check if the RecentSlideshows file exists
-    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
-        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            #If the path is just "New Project" don't add it to the list.
-            if slideshowPath != "New Project":
-                lastModified = getLastModified(slideshowPath)
-                f.write(f"{slideshowPath}${lastModified}\n")
-        #Close
-        f.close()
-    else:
-        #If the file exists, check if the slideshow is already in the list. If it is, remove it.
-        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
-            slideshows = f.readlines()
-            slideshows = [s.strip() for s in slideshows]
-            for i, s in enumerate(slideshows):
-                path = s.split("$")[0]
-                print(f"Checking {path} against {slideshowPath}")
-                if path == slideshowPath:
-                    slideshows.pop(i)
-                    print(f"Removing {path} from RecentSlideshows.txt")
-                    break
-        #Close
-        f.close()
-        #Add the slideshow to the top of the list
-        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            #If the path is just "New Project" don't add it to the list.
-            if slideshowPath != "New Project":
-                lastModified = getLastModified(slideshowPath)
-                f.write(f"{slideshowPath}${lastModified}\n")
-                #Add the rest of the slideshows to the list
-                for s in slideshows:
-                    f.write(s + "\n")
-        #Close
-        f.close()
+    # #Convert the slideshowPath "\" to "/" for the cache file
+    # slideshowPath = slideshowPath.replace("\\", "/")
+    #Check if the RecentSlideshows.txt file exists
+    cache_list_exists = False
+    try: 
+        cache_list_exists = os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt"))
+    except:
+        print("Error checking if RecentSlideshows.txt exists.")
+    #If the file doesn't exist, initialize it
+    if not cache_list_exists:
+        initializeCache()
+    
+    file_exists = False
+    try:
+        file_exists = os.path.exists(slideshowPath)
+    except:
+        print("Error checking if slideshowPath exists.")
+        
+    if not file_exists:
+        print(f"{slideshowPath} does not exist.")
+        return
+    
+    #Get the last modified time of the slideshow
+    mod_time = getLastModified(slideshowPath)
+    entry = f"{slideshowPath}${mod_time}"
+    #Insert entry into the RecentSlideshows.txt file at the top
+    with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+        slideshows = f.readlines()
+        slideshows = [s.strip() for s in slideshows]
+        if entry in slideshows:
+            slideshows.remove(entry)
+        slideshows.insert(0, entry)
+
+    with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
+        for s in slideshows:
+            f.write(s + "\n")
+
+    #Validate the recent slideshows list
+    validateRecentSlideshows()
+
+
 
 def getRecentSlideshows() -> list[str]:
+    """Get the list of recent slideshows from the cache folder."""
     cacheDir = getUserCacheDir()
     #Check if the RecentSlideshows file exists
     if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
@@ -201,22 +203,47 @@ def validateRecentSlideshows():
     """Validate the recent slideshows list. Remove any invalid file paths from the list."""
     cacheDir = getUserCacheDir()
     #Check if the RecentSlideshows file exists
-    if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+    cache_list_exists = False
+    try: 
+        cache_list_exists = os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt"))
+    except:
+        print("Error checking if RecentSlideshows.txt exists.")
+    #If the file doesn't exist, initialize it
+    if not cache_list_exists:
+        initializeCache()
+        #Since it didn't exist, there's nothing to validate.
+        return
+
+    #Get the list of recent slideshows
+    entries = {}
+    with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+        slideshows = f.readlines()
+        slideshows = [s.strip() for s in slideshows]
+        #Iterate through the list
+        for s in slideshows:
+            split = s.split("$")
+            path = split[0]
+            mod_time = split[1]
+            #Check if already in the dictionary
+            if path in entries:
+                #If it is, check if the mod_time is newer
+                if mod_time > entries[path]:
+                    #If it is, update the mod_time
+                    entries[path] = mod_time
+            else:
+                #If it's not in the dictionary, add it
+                entries[path] = mod_time
+        
+        #Check if the file paths are valid
+        for path in list(entries):
+            if not os.path.exists(path):
+                #If the file path is invalid, remove it from the list
+                entries.pop(path)
+        
+        #Write the valid file paths back to the file
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-            pass
-    else:
-        #If the file exists, return the list of recent slideshows
-        with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
-            slideshows = f.readlines()
-            slideshows = [s.strip() for s in slideshows]
-            for i, s in enumerate(slideshows):
-                path = s.split("$")[0]
-                if not os.path.exists(path):
-                    print(f"Removing {path} from RecentSlideshows.txt")
-                    slideshows.pop(i)
-            with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
-                for s in slideshows:
-                    f.write(s + "\n")
+            for path in list(entries):
+                f.write(f"{path}${entries[path]}\n")
 
 def clearCache():
     """Clear the cache folder."""
@@ -331,9 +358,6 @@ class Slideshow:
     Just be aware of this when you are working with it. As of 2/14/2024 it should be a dictionary MOST of the time.\n
     """
     def __init__(self, filePath:str="New Project"):
-        #Check if file exists
-        if not os.path.exists(filePath):
-            self.name = "Missing Path"
         self.__filePath: str = filePath #The file path of the slideshow file
         self.name = getBaseName([self.__filePath])[0]
         self.__slides: list[Slide] = []
@@ -352,6 +376,8 @@ class Slideshow:
             except:
                 print(f"Error opening {filePath}")
             self.load()
+        else:
+            print("New project created.")
 
     #Add a slide at an index
     def addSlide(self, slide:Slide, index:int=-1):
@@ -388,7 +414,6 @@ class Slideshow:
             print(slide)
         print("\n")
     
-
     def removeSlide(self, slide:Slide):
         print(slide)
         print(f"Removing slide {slide['slideID']}")
@@ -490,6 +515,7 @@ class Slideshow:
             #Basically it's going to dump the __dict__ to a JSON file. If it encounters another object it's going to dump that object's __dict__ to the JSON file as well.
             json.dump(self.__dict__, f, default=lambda o: o.__dict__, indent=4)
             openFiles[self.__filePath] = f
+        updateSlideshowCacheList(self.__filePath)
 
     def load(self):
         """
@@ -498,7 +524,6 @@ class Slideshow:
         #This could probably just be in the __init__ method. I don't know why I made it seperate, but I don't want to change it and see if it breaks anything. - James
         #If the slideshow is new just skip checking and seeing if you can load it.
         if self.name == "New Project":
-            self.__init__()
             return
         
         #Save the filepath and name to a temp variable

@@ -777,71 +777,68 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def swapMonitor(self):
-        print("Swapping monitors")
+        pass
+        # print("Swapping monitors")
 
-        #Top level window
-        win = tb.Toplevel(self.master)
-        win.title("Monitor Swapper")
-        win.geometry("300x300")
-        win.resizable(False, False)
-        win.transient(self.master)
+        # #Top level window
+        # win = tb.Toplevel(self.master)
+        # win.title("Monitor Swapper")
+        # win.geometry("300x300")
+        # win.resizable(False, False)
+        # win.transient(self.master)
         
+        # #Label
+        # label = tb.Label(win, text="Monitor Swapper", font=("Arial", 24))
+        # label.pack()
 
-        #Label
-        label = tb.Label(win, text="Monitor Swapper", font=("Arial", 24))
-        label.pack()
+        # #Tutorial text
+        # tutorialText = tb.Label(win, text="Instructions:\n1.Drag this window to the desired monitor.\n2.Click the \"SWAP\" button", font=("Arial", 12), wraplength=280)
+        # tutorialText.pack()
 
-        #Tutorial text
-        tutorialText = tb.Label(win, text="Instructions:\n1.Drag this window to the desired monitor.\n2.Click the \"SWAP\" button", font=("Arial", 12), wraplength=280)
-        tutorialText.pack()
+        # def swap():
+        #     #Make window's alpha 0
+        #     # win.attributes("-alpha", 0)
 
-        def swap():
-            #Make window's alpha 0
-            # win.attributes("-alpha", 0)
+        #     geo1 = win.geometry()
+        #     #Topmost
+        #     win.overrideredirect(True)
+        #     #Zoom the window
+        #     win.state("zoomed")
+        #     print(f"Swapping to {win.geometry()}")
+        #     geo2 = win.geometry()
+        #     win.destroy()
 
-            geo1 = win.geometry()
-            #Topmost
-            win.overrideredirect(True)
-            #Zoom the window
-            win.state("zoomed")
-            print(f"Swapping to {win.geometry()}")
-            geo2 = win.geometry()
-            win.destroy()
+        #     self.master.update_idletasks()
+        #     self.master.overrideredirect(True)
+        #     self.master.attributes("-fullscreen", False)
 
-            self.master.update_idletasks()
-            self.master.overrideredirect(True)
-            self.master.attributes("-fullscreen", False)
+        #     self.master.state("normal")
+        #     self.master.geometry(geo1)
 
-            #Move the main window to the new monitor
-            self.master.state("normal")
-            self.master.geometry(geo1)
+        #     self.master.update_idletasks()
+        #     self.master.state("zoomed")
+        #     #Close the audio player
+        #     self.audioPlayer.stop()
+        #     self.audioPlayer.unloadSong()
+        #     #Delete it
+        #     del self.audioPlayer
 
-            self.master.update_idletasks()
-            self.master.state("zoomed")
-            # self.master.overrideredirect(False)
-            #Close the audio player
-            self.audioPlayer.stop()
-            self.audioPlayer.unloadSong()
-            #Delete it
-            del self.audioPlayer
+        #     #Go through every file in FP.openFiles and close them
+        #     FP.openFiles.clear()
+        #     self.master.update()
+        #     self.master.update_idletasks()
+        #     #Re-init the app
+        #     mst = self.master
+        #     projectPth = self.slideshow.getSaveLocation()
 
-            #Go through every file in FP.openFiles and close them
-            FP.openFiles.clear()
-            self.master.update()
-            self.master.update_idletasks()
-            #Re-init the app
-            mst = self.master
-            projectPth = self.slideshow.getSaveLocation()
-
-            self.pack_forget()
-            app = SlideshowPlayer(mst, projectPath=projectPth, geometry=geo2)
-            app.pack(expand=True, fill="both")
-            self.destroy()
+        #     self.pack_forget()
+        #     app = SlideshowPlayer(mst, projectPath=projectPth, geometry=geo2)
+        #     app.pack(expand=True, fill="both")
+        #     self.destroy()
             
-
-        #Swap button
-        swapButton = tb.Button(win, text="SWAP", command=swap)
-        swapButton.pack()
+        # #Swap button
+        # swapButton = tb.Button(win, text="SWAP", command=swap)
+        # swapButton.pack()
 
     def toggleFullScreen(self, event=None):
         if self.fullScreenToggleReady:
@@ -901,8 +898,6 @@ class SlideshowPlayer(tb.Frame):
         self.master.update_idletasks()
         self.after(50, self.__set_fullscreen_toggle_ready)
 
-
-    
 class DummyWindow(tb.Window):
     def __init__(self, master: tk.Tk):
         super().__init__(master)
