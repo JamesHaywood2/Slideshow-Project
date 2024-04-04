@@ -256,7 +256,7 @@ class SlideshowCreator(tb.Frame):
         self.projectMenu.add_command(label="Save", command=self.save)
         self.projectMenu.add_command(label="Save As", command=self.saveAs)
         self.projectMenu.add_separator()
-        self.projectMenu.add_command(label="Export Project", command=self.slideshow.exportToFolder)
+        self.projectMenu.add_command(label="Export Project", command=lambda: self.slideshow.exportToFolder(filedialog.askdirectory()))
         self.projectMenu.add_separator()
         self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
         self.projectMenu.add_separator()
@@ -270,11 +270,9 @@ class SlideshowCreator(tb.Frame):
         self.fileMenu.add_separator()
         if self.mediaBucket:
             self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
-        self.fileMenu.add_command(label="Debug", command=self.DebugWindow)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Open Cache", command=FP.openCacheFolder)
         self.fileMenu.add_command(label="Clear Cache", command=FP.clearCache)
-        self.fileMenu.add_separator()
         self.fileMB.config(menu=self.fileMenu)
 
         #Theme Menu
@@ -356,59 +354,6 @@ class SlideshowCreator(tb.Frame):
         self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
         self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))   
         return
-
-    def DebugWindow(self):
-        self.debugWindow = tk.Toplevel()
-        self.debugWindow.transient(self.master)
-        self.debugWindow.title("Debug Window")
-        self.debugWindow.geometry("400x800")
-
-        #Print size buttons
-        self.winSizeButton = tb.Button(self.debugWindow, text="Print Window Size", command=lambda: print(f"Window size: {self.master.winfo_width()}x{self.master.winfo_height()}"))
-        self.winSizeButton.pack()
-        self.topPaneSizeButton = tb.Button(self.debugWindow, text="Print Top Pane Size", command=lambda: print(f"Top Pane size: {self.PanedWindow_Top.winfo_width()}x{self.PanedWindow_Top.winfo_height()}"))
-        self.topPaneSizeButton.pack()
-        self.bottomPaneSizeButton = tb.Button(self.debugWindow, text="Print Bottom Pane Size", command=lambda: print(f"Bottom Pane size: {self.PanedWindow_Bottom.winfo_width()}x{self.PanedWindow_Bottom.winfo_height()}"))
-        self.bottomPaneSizeButton.pack()
-
-        self.mediaFrameSizeButton = tb.Button(self.debugWindow, text="Print Media Frame Size", command=lambda: print(f"Media Frame size: {self.mediaFrame.winfo_width()}x{self.mediaFrame.winfo_height()}"))
-        self.mediaFrameSizeButton.pack()
-        if self.mediaBucket:
-            self.mediaBucketSizeButton = tb.Button(self.debugWindow, text="Print Media Bucket Size", command=lambda: print(f"Media Bucket size: {self.mediaBucket.winfo_width()}x{self.mediaBucket.winfo_height()}"))
-            self.mediaBucketSizeButton.pack()
-            self.mediaBucketFillButton = tb.Button(self.debugWindow, text="Fill Media Bucket", command=self.mediaBucket.fillBucket)
-            self.mediaBucketFillButton.pack()
-            self.mediaBucketContentButton = tb.Button(self.debugWindow, text="Print Media Bucket Content", command=lambda: print(self.mediaBucket.files))
-            self.mediaBucketContentButton.pack()
-
-
-        self.imageFrameSizeButton = tb.Button(self.debugWindow, text="Print Image Frame Size", command=lambda: print(f"Image Frame size: {self.imageFrame.winfo_width()}x{self.imageFrame.winfo_height()}"))
-        self.imageFrameSizeButton.pack()
-
-        self.slideInfoFrameSizeButton = tb.Button(self.debugWindow, text="Print Slide Info Frame Size", command=lambda: print(f"Slide Info Frame size: {self.slideInfoFrame.winfo_width()}x{self.slideInfoFrame.winfo_height()}"))
-        self.slideInfoFrameSizeButton.pack()
-
-        self.reelFrameSizeButton = tb.Button(self.debugWindow, text="Print Reel Frame Size", command=lambda: print(f"Reel Frame size: {self.reelFrame.winfo_width()}x{self.reelFrame.winfo_height()}"))
-        self.reelFrameSizeButton.pack()
-        if self.slideReel:
-            self.reelSizeButton = tb.Button(self.debugWindow, text="Print Reel Size", command=lambda: print(f"Reel size: {self.slideReel.winfo_width()}x{self.slideReel.winfo_height()}"))
-            self.reelSizeButton.pack()
-            self.reelFillButton = tb.Button(self.debugWindow, text="Fill Reel", command=self.slideReel.fillReel)
-            self.reelFillButton.pack()
-            self.reelCountButton = tb.Button(self.debugWindow, text="Print Reel Count", command=lambda: print(f"Reel count: {len(self.slideReel.slides)}"))
-            self.slideListButton = tb.Button(self.debugWindow, text="Print Slide List", command=lambda: print(self.slideshow.printSlides()))
-            self.slideListButton.pack()
-            #resize the reel
-            def resizeReel():
-                self.slideReel.scrollFrame.resizeCanvas(None)
-            self.reelResizeButton = tb.Button(self.debugWindow, text="Resize Reel", command=resizeReel)
-            self.reelResizeButton.pack()
-
-        self.imageViewerSizeButton = tb.Button(self.debugWindow, text="Print ImageViewer Size", command=lambda: print(f"ImageViewer size: {self.imageViewer.winfo_width()}x{self.imageViewer.winfo_height()}"))
-        self.imageViewerSizeButton.pack()
-
-        self.slideshowsButton = tb.Button(self.debugWindow, text="Print Slideshows", command=lambda: print(self.slideshow))
-        self.slideshowsButton.pack()
 
     def newProject(self):
         #Basically destroy the current SlideshowCreator object and create a new one

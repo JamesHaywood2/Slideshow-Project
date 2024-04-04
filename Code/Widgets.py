@@ -199,6 +199,9 @@ class ImageViewer(tb.Canvas):
 
     loadImage(imagePath:str) - Loads an image into the ImageViewer
     redrawImage() - Redraws the image on the canvas. Called when canvas is resized.
+    autoResizeToggle(state: bool=True) - Toggles the auto resizing of the image when the canvas is resized.
+    loadImagePIL(imagePIL:Image) - Loads an image from a PIL Image object.
+    executeTransition(transitionType: str, transitionTime, endImg: Image, startImg: Image=None) - Executes a transition to the endImg. If startImg is None, it will use a blank black image as the start image.
     """
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
@@ -902,8 +905,11 @@ class SlideIcon(FileIcon):
                         return
         return
 
-
 class InfoFrame(tb.Frame):
+    """
+    InfoFrame is a frame that displays information about the current slide or image. It has two tabs: Slide Info and Project Info.\n
+    Slide Info displays information about the current slide. Project Info displays information about the current project.\n
+    """
     def __init__(self, master, slideshow: FP.Slideshow = None, **kwargs):
         super().__init__(master, **kwargs)
         self.slideshow: FP.Slideshow = slideshow
@@ -943,27 +949,23 @@ class InfoFrame(tb.Frame):
         
         #Grid layout for the project info
         rowNumber = 0
-        self.nameLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.name, font=("Arial", 12))
         self.name.grid(row=rowNumber, column=3, columnspan=10, sticky="w")
 
         rowNumber += 1
-        self.countLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Count: ", font=("Arial", 12))
-        self.countLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Count: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.count = tb.Label(self.projectInfoFrame.scrollable_frame, text=str(len(self.slideshow.getSlides())), font=("Arial", 12))
         self.count.grid(row=rowNumber, column=3, columnspan=10, sticky="w")
 
         rowNumber += 1
-        self.pathLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Path: ", font=("Arial", 12))
-        self.pathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Path: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.path = tb.Label(self.projectInfoFrame.scrollable_frame, text=self.slideshow.getSaveLocation(), font=("Arial", 12))
         self.path.grid(row=rowNumber, column=3, sticky="w", columnspan=4)
 
         #Manual or automatic slide control
         rowNumber += 1
-        self.manualSlideControlLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Manual Slide Control: ", font=("Arial", 12))
-        self.manualSlideControlLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Manual Slide Control: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.manualSlideControl = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.manualSlideControl.grid(row=rowNumber, column=3, sticky="w")
 
@@ -972,8 +974,7 @@ class InfoFrame(tb.Frame):
 
         #Slide shuffle toggle button
         rowNumber += 1
-        self.slideShuffleLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12))
-        self.slideShuffleLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Slide Shuffle: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideShuffle = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.slideShuffle.grid(row=rowNumber, column=3, sticky="w")
 
@@ -993,8 +994,7 @@ class InfoFrame(tb.Frame):
 
         rowNumber += 1
         #Loop Settings combobox
-        self.loopLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Settings: ", font=("Arial", 12))
-        self.loopLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Loop Settings: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.loopSettingsCombo = tb.Combobox(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
         self.loopSettingsCombo.config(width=7)
         self.loopSettingsCombo['values'] = (FP.loopSetting.INDEFINITE, FP.loopSetting.UNTIL_PLAYLIST_ENDS, FP.loopSetting.UNTIL_SLIDES_END)
@@ -1015,9 +1015,6 @@ class InfoFrame(tb.Frame):
         loopToolTip = ToolTipIcon(self.projectInfoFrame.scrollable_frame, loopToolTipText)
         loopToolTip.grid(row=rowNumber, column=4, sticky="w", padx=2)
 
-
-        
-        #If manual slide control is enabled, then only option 1 should be available.
 
         #Set self.slideshow.manualSlideControl as the control variable
         self.manualSlideControl.var = tk.BooleanVar()
@@ -1045,8 +1042,7 @@ class InfoFrame(tb.Frame):
 
         #Separator
         rowNumber += 1
-        self.separator = tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal")
-        self.separator.grid(row=rowNumber, column=0, columnspan=10, sticky="ew", pady=10)
+        tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal").grid(row=rowNumber, column=0, columnspan=10, sticky="ew", pady=10)
 
         #Read the playlist from the slideshow
         self.playlist: FP.Playlist = self.slideshow.getPlaylist()
@@ -1055,13 +1051,12 @@ class InfoFrame(tb.Frame):
 
         #Playlist Label
         rowNumber += 1
-        self.PlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12))
-        self.PlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Playlist: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+
 
         #Playlist Duration
         rowNumber += 1
-        self.playlistDurationLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
-        self.playlistDurationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.playlistDuration = tb.Label(self.projectInfoFrame.scrollable_frame, text="0:00", font=("Arial", 12))
         self.playlistDuration.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
         #Fill the playlist duration
@@ -1070,8 +1065,7 @@ class InfoFrame(tb.Frame):
 
         #ShufflePlaylist toggle button
         rowNumber += 1
-        self.shufflePlaylistLabel = tb.Label(self.projectInfoFrame.scrollable_frame, text="Shuffle Playlist: ", font=("Arial", 12))
-        self.shufflePlaylistLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Shuffle Playlist: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.shufflePlaylist = tb.Checkbutton(self.projectInfoFrame.scrollable_frame, style="Roundtoggle.Toolbutton")
         self.shufflePlaylist.grid(row=rowNumber, column=3, columnspan=1, sticky="w")
         
@@ -1152,8 +1146,7 @@ class InfoFrame(tb.Frame):
 
         #Empty space to pad the bottom of grid
         rowNumber += 7
-        self.emptySpace = tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12))
-        self.emptySpace.grid(row=rowNumber, column=0, columnspan=10, sticky="w")
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
         return
 
     def playListMoveUp(self):
@@ -1299,8 +1292,7 @@ class InfoFrame(tb.Frame):
             icon: FileIcon = self.__icon
         elif self.__icon == None:
             print("FillSlideInfo: No icon selected.")
-            label = tb.Label(self.slideInfoFrame.scrollable_frame, text="Select an image or slide to view info.", font=("Arial", 12))
-            label.grid(row=0, column=0, columnspan=2, sticky="w")
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="Select an image or slide to view info.", font=("Arial", 12)).grid(row=0, column=0, columnspan=2, sticky="w")
             return
         else:
             print(f"FillSlideInfo: Invalid icon type. {type(self.__icon)}")
@@ -1308,26 +1300,20 @@ class InfoFrame(tb.Frame):
 
         #Grid layout for the slide info
         rowNumber = 0
-        self.nameLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12))
-        self.nameLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Name: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.name = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.name, font=("Arial", 12))
         self.name.grid(row=rowNumber, column=3, columnspan=10, sticky="ew")
 
         #imagePath
         rowNumber += 1
         pathlabelrow = rowNumber
-        self.imagePathLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Image Path: ", font=("Arial", 12))
-        self.imagePathLabel.grid(row=rowNumber, column=0, columnspan=3,sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Image Path: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3,sticky="w")
         self.imagePath = tb.Label(self.slideInfoFrame.scrollable_frame, text=icon.imagepath, font=("Arial", 12))
         self.imagePath.grid(row=rowNumber, column=3, columnspan=10, sticky="ew",)
 
         pth = icon.imagepath
         pth_location = FP.file_loc(pth, FP.relative_project_path)
-        # if not os.path.exists(pth):
-        #     self.imagePath.config(style="danger.TLabel")
-        #     rowNumber += 1
-        #     tb.Label(self.slideInfoFrame.scrollable_frame, text="This path is not valid. Image may be stored in project folder or cache. Consider replacing.", font=("Arial", 12), style="danger.TLabel").grid(row=rowNumber, column=0, columnspan=7)
-
+  
         if pth_location == 0: #Full path
             print("Full path")
             pass
@@ -1370,8 +1356,7 @@ class InfoFrame(tb.Frame):
 
         #Slide ID
         rowNumber += 1
-        self.slideIDLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: \t\t", font=("Arial", 12))
-        self.slideIDLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: \t\t", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(icon.slide['slideID']), font=("Arial", 12))
         self.slideID.grid(row=rowNumber, column=3, sticky="w")
 
@@ -1380,8 +1365,7 @@ class InfoFrame(tb.Frame):
 
         #Duration - Entry
         rowNumber += 1
-        self.durationLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12))
-        self.durationLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.slideDuration.config(width=7)
         self.slideDuration.insert(0, float(icon.slide['duration']))
@@ -1398,8 +1382,7 @@ class InfoFrame(tb.Frame):
 
         #Transition Speed - Entry
         rowNumber += 1
-        self.transitionSpeedLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12))
-        self.transitionSpeedLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.transitionSpeed.config(width=7)
         self.transitionSpeed.insert(0, float(icon.slide['transitionSpeed']))
@@ -1416,8 +1399,7 @@ class InfoFrame(tb.Frame):
 
         #Transition Type - Dropdown
         rowNumber+= 1
-        self.transitionTypeLabel = tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Type: ", font=("Arial", 12))
-        self.transitionTypeLabel.grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+        tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Type: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionType = tb.Combobox(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state="readonly", takefocus=0)
         self.transitionType.config(width=7)
         self.transitionType['values'] = ("Default", "Fade", "Wipe_Up", "Wipe_Down", "Wipe_Left", "Wipe_Right")
@@ -1890,7 +1872,6 @@ class SlideReel(tk.Frame):
         self.fillReel()
         return
     
-
 class MediaBucket(tb.Frame):
     """
     Media bucket is a frame that contains the media bucket widget. It basically consists of a scrollable frame from tkBootstrap that contains file icons.\n
@@ -2149,6 +2130,9 @@ class MediaBucket(tb.Frame):
             return False
     
 class RecentSlideshowList(tk.Frame):
+    """
+    RecentSlideshowList is a widget that contains a tableview from ttkbootstrap. It displays the recent slideshows that have been opened.\n
+    """
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         FP.validateRecentSlideshows()
@@ -2169,6 +2153,7 @@ class RecentSlideshowList(tk.Frame):
             #Split using '$' as a delimiter
             s = s.split("$")
             name = FP.getBaseName([s[0]])[0]
+            name = name[:name.rfind(".")]
             # print(name)
             row_data.append((name, s[1], s[0]))
         self.tableView = Tableview(master=self.labelFrame, 
@@ -2184,6 +2169,9 @@ class RecentSlideshowList(tk.Frame):
         return
     
 class ToolTipIcon(tk.Canvas):
+    """
+    ToolTipIcon is a canvas that contains an image that when you hover over it displays a tooltip.\n
+    """
     def __init__(self, master, text:str=None, **kwargs):
         super().__init__(master, **kwargs)
         self.text = text
