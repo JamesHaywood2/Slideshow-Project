@@ -71,7 +71,7 @@ class SlideshowCreatorStart(tb.Frame):
         """Loads the slideshow creator window with a project file. This will open an existing project."""
         #Create a SlideshowCreator object, destroy the current window, and pack the new window
         projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")], multiple=False)
-        if not projectPath:
+        if projectPath == "":
             return
         self.destroy()
         self = SlideshowCreator(self.master, projectPath=projectPath)
@@ -111,8 +111,7 @@ class SlideshowCreator(tb.Frame):
         self.debug = debug
         #Check if the projectPath even exists
         try:
-            with open(projectPath, "r"):
-                pass
+            open(projectPath, "r")
         except:
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
@@ -131,7 +130,6 @@ class SlideshowCreator(tb.Frame):
             print("Failed to update the slideshow cache list")
 
         tb.Style().theme_use(FP.getPreferences())
-        # self.changeTheme(FP.getPreferences())
 
         ######################
         #LAYOUT SETUP
@@ -304,7 +302,7 @@ class SlideshowCreator(tb.Frame):
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
         self.update_idletasks()
-        self.update()
+        # self.update()
         self.after(66, self.redraw)
 
     def afterEvent(self, event):
@@ -567,7 +565,7 @@ class SlideshowCreator(tb.Frame):
         
 
         self.master.update_idletasks()
-        self.master.update()
+        # self.master.update()
         self.redraw()
 
     def quit(self):

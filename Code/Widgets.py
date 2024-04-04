@@ -2151,11 +2151,8 @@ class MediaBucket(tb.Frame):
 class RecentSlideshowList(tk.Frame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        FP.validateRecentSlideshows()
         slideshows = FP.getRecentSlideshows()
-        # for s in slideshows:
-        #     print(s)
-
-
         #Create a label frame
         self.labelFrame = tb.LabelFrame(self, text="Recent Slideshows", bootstyle="primary")
         self.labelFrame.pack(expand=True, fill="both", padx=10, pady=10)
