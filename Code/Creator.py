@@ -424,7 +424,14 @@ class SlideshowCreator(tb.Frame):
             return
         if self.debugWindow:
             self.debugWindow.destroy()
-        self.destroy()
+
+        #Destroy EVERYTHING child of the master window
+        for widget in self.master.winfo_children():
+            widget.destroy()
+        
+        self.pack_forget()
+        self.update()
+
         self = SlideshowCreator(self.master, projectPath=path)
         self.pack(expand=True, fill="both")
         self.update_idletasks()

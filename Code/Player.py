@@ -78,6 +78,7 @@ class SlideshowPlayerStart(tb.Frame):
 
 class SlideshowPlayer(tb.Frame):
     def __init__(self, master: tk.Tk, debug:bool= False, projectPath: str="New Project", geometry: str=None):
+        self.quiting: bool = False
         if geometry is not None:
             try:
                 master.geometry(geometry)
@@ -101,8 +102,6 @@ class SlideshowPlayer(tb.Frame):
         master.update_idletasks()
         self.fullscreen:bool = True
         self.fullScreenToggleReady: bool = True
-
-
 
         #Bind escape to exit fullscreen
         master.bind("<Escape>", self.deactivateFullScreen)
@@ -395,7 +394,8 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<r>", lambda e: self.previousSong())
         self.master.bind("<e>", lambda e: self.pause(True))
 
-        self.master.bind("<Destroy>", self.quit)
+        self.master.bind("<Destroy>", self.close)
+        self.master.protocol("WM_DELETE_WINDOW", self.quit)
 
     def motionEvent(self, event):
         #Get the mouse position
@@ -511,7 +511,16 @@ class SlideshowPlayer(tb.Frame):
         #If not file was selected, return. Effectively cancels.
         if not file:
             return
-        self.destroy()
+        
+        #Destroy every child widget
+        for widget in self.master.winfo_children():
+            widget.destroy()
+
+        self.dummy.destroy()
+
+        self.pack_forget()
+        self.update()
+        
         self = SlideshowPlayer(self.master, projectPath=file[0])
         self.pack(expand=True, fill="both")
 
@@ -769,11 +778,23 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def quit(self, event=None):
+        if self.quiting:
+            return
+        print("\nQuitting...\n")
+        self.quiting = True
         self.audioPlayer.stop()
         self.audioPlayer.unloadSong()
-        
+
         self.dummy.quit()
-        self.master.quit()
+        self.quit()
+        self.update()
+        return
+    
+    def close(self, event=None):
+        print("\nClosing...\n")
+        self.audioPlayer.stop()
+        self.audioPlayer.unloadSong()
+        self.destroy()
         return
     
     def swapMonitor(self):
@@ -917,7 +938,12 @@ class DummyWindow(tb.Window):
         self.bind("<FocusIn>", self.focusIn)
 
         #bind closing the dummy window to close the master window
-        self.bind("<Destroy>", lambda e: self.master.quit())
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+    def close(self):
+        self.update()
+        self.master.quit()
+        self.quit()
 
     def focusIn(self, event):
         #Bring the master window to the front
