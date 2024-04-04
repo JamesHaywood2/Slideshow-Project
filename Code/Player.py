@@ -11,7 +11,7 @@ import time
 import copy
 
 TEMP_GEOMETRY = None
-FULLSCREEN_GEOMETRY = None
+
 
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
@@ -94,14 +94,15 @@ class SlideshowPlayer(tb.Frame):
 
         # master.attributes("-fullscreen", True) #Fullscreen
 
+        self.dummy = DummyWindow(master)
+
         master.overrideredirect(True)
         master.state("zoomed")
         master.update_idletasks()
-        self.fullscreen = True
+        self.fullscreen:bool = True
+        self.fullScreenToggleReady: bool = True
 
-        # self.geometry = geometry
-        global FULLSCREEN_GEOMETRY
-        FULLSCREEN_GEOMETRY = master.geometry()
+
 
         #Bind escape to exit fullscreen
         master.bind("<Escape>", self.deactivateFullScreen)
@@ -207,6 +208,7 @@ class SlideshowPlayer(tb.Frame):
         if self.playlistExists:
             song = self.playlist.songs[self.currentSong]
             self.audioPlayer.loadSong(song)
+            self.progressBarUpdater = None
 
         ########################
         ######   Layout  #######
@@ -255,8 +257,6 @@ class SlideshowPlayer(tb.Frame):
         self.fileMB.config(menu=self.fileMenu)
 
 
-
-        
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
         self.transition_checker = None
@@ -267,6 +267,8 @@ class SlideshowPlayer(tb.Frame):
     
     def renderImages(self):
         ###### PRE-RENDER THE IMAGES ######
+        if len(self.slideList) > 0:
+            print("\nRendering images...\n")
             canvas_width = self.imageViewer.canvasWidth
             canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
@@ -275,7 +277,6 @@ class SlideshowPlayer(tb.Frame):
             max_width = -1
             max_height = -1
             for slide in self.slideList:
-                print(f"Slide ID 1: {slide['slideID']}")
                 #Open the image and convert it etc etc and resize it to the max canvas size.
                 pth = FP.file_check(slide['imagePath'], FP.relative_project_path)
                 try:
@@ -308,7 +309,6 @@ class SlideshowPlayer(tb.Frame):
             #This is done so all images are the exact same size and transitions are consistent in positioning and stuff.
             for slide in self.slideList:
                 i = slide['slideID']
-                print(f"ImageMap key: {i}")
                 bg = Image.new("RGBA", (max_width, max_height), (255, 255, 255, 0))
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
@@ -380,9 +380,7 @@ class SlideshowPlayer(tb.Frame):
                 self.update_ProgressBar()
 
             
-        # self.hideOverlay()
-        # self.master.bind("<Enter>", lambda e: self.showOverlay())
-        # self.master.bind("<Leave>", lambda e: self.hideOverlay())
+
         self.master.bind("<Right>", lambda e: self.nextSlide())
         self.master.bind("<Left>", lambda e: self.prevSlide())
         self.master.bind("<space>", lambda e: self.pause())
@@ -396,6 +394,8 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<y>", lambda e: self.nextSong())
         self.master.bind("<r>", lambda e: self.previousSong())
         self.master.bind("<e>", lambda e: self.pause(True))
+
+        self.master.bind("<Destroy>", self.quit)
 
     def motionEvent(self, event):
         #Get the mouse position
@@ -726,7 +726,7 @@ class SlideshowPlayer(tb.Frame):
             if self.audioPlayer.isFinished():
                 self.nextSong()
 
-            self.after(100, self.update_ProgressBar)
+            self.progressBarUpdater = self.after(100, self.update_ProgressBar)
         return
     
     def nextSong(self):
@@ -771,7 +771,9 @@ class SlideshowPlayer(tb.Frame):
     def quit(self, event=None):
         self.audioPlayer.stop()
         self.audioPlayer.unloadSong()
-        self.master.destroy()
+        
+        self.dummy.quit()
+        self.master.quit()
         return
     
     def swapMonitor(self):
@@ -842,35 +844,40 @@ class SlideshowPlayer(tb.Frame):
         swapButton.pack()
 
     def toggleFullScreen(self, event=None):
-        if self.fullscreen:
-            self.deactivateFullScreen()
-        else:
-            self.activateFullScreen()
+        if self.fullScreenToggleReady:
+            self.fullScreenToggleReady = False
+            if self.fullscreen:
+                self.deactivateFullScreen()
+            else:
+                self.activateFullScreen()
+        return
 
     def activateFullScreen(self, event=None):
         print("Activating fullscreen")
-        self.unbind("<Configure>")
         self.master.update()
         self.fullscreen = True
-        self.geometry = self.master.geometry()
+        global TEMP_GEOMETRY 
+        TEMP_GEOMETRY = self.master.geometry()
         self.master.overrideredirect(True)
         self.master.state('zoomed')
         self.master.update()
-        newGeometry = self.master.geometry()
-        global FULLSCREEN_GEOMETRY
-        #If the new fullscreen geometry is BIGGER than the old geometry, then we need to re-render the images.
-        if newGeometry > FULLSCREEN_GEOMETRY:
-            print("New geometry is bigger. Re-rendering images")
-            self.renderImages()
-
-        FULLSCREEN_GEOMETRY = newGeometry
+        self.dummy.deiconify()
+        self.master.update_idletasks()
+        #Update the canvas size
+        self.imageViewer.canvasWidth = self.master.winfo_width()
+        self.imageViewer.canvasHeight = self.master.winfo_height()
+        self.imageViewer.update_idletasks()
+        self.renderImages()
         self.master.update()
         self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
         self.master.update()
         self.hideOverlay()
         self.showOverlay()
-        self.master.update()
-        
+        self.master.update_idletasks()
+        self.after(50, self.__set_fullscreen_toggle_ready)
+
+    def __set_fullscreen_toggle_ready(self):
+        self.fullScreenToggleReady = True
 
     def deactivateFullScreen(self, event=None):
         print("Deactivating fullscreen")
@@ -881,24 +888,48 @@ class SlideshowPlayer(tb.Frame):
         self.master.overrideredirect(False)
         self.master.state('normal')
         self.update()
+        self.dummy.withdraw()
+        self.master.update_idletasks()
         global TEMP_GEOMETRY 
         self.master.geometry(TEMP_GEOMETRY )
         self.master.update()
         #Just load the image
         self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
         self.master.update()
-        #Bind resize event
-        self.bind("<Configure>", self.configure_event)
         self.hideOverlay()
         self.showOverlay()
-        self.master.update()
+        self.master.update_idletasks()
+        self.after(50, self.__set_fullscreen_toggle_ready)
 
-    def configure_event(self, event):
-        #Set the geometry to the new geometry
-        global TEMP_GEOMETRY 
-        TEMP_GEOMETRY  = self.master.geometry()
-        return
+
+    
+class DummyWindow(tb.Window):
+    def __init__(self, master: tk.Tk):
+        super().__init__(master)
+        self.master = master
         
+        self.title("PySlide Viewer")
+        #Alpha to 0
+        self.attributes("-alpha", 0)
+        self.geometry("700x700")
+        
+
+        self.master = master
+
+        #The idea here is that when you do overrideredirect(True) and state("zoomed") on the master window, the dummy window will be "visible" so it's still on the taskbar.
+
+        #Bind focus in event for the dummy window to focus the master window
+        self.bind("<FocusIn>", self.focusIn)
+
+        #bind closing the dummy window to close the master window
+        self.bind("<Destroy>", lambda e: self.master.quit())
+
+    def focusIn(self, event):
+        #Bring the master window to the front
+        self.master.lift()
+        #Focus the master window
+        self.master.focus_set()
+
 
 if __name__ == "__main__":
     root = tb.Window()
