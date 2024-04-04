@@ -30,8 +30,6 @@ def resource_path(relative_path):
 MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
 toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
-# ball = resource_path(r"../Slideshow-Project/assets/ball.jpg")
-# ball2 = resource_path(r"../Slideshow-Project/assets/ball2.png"
 
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
@@ -55,7 +53,6 @@ def getJPEG(folderPath:str, recursive:bool=False):
 
     #replace the forward slashes with backslashes
     return [f.replace("\\", "/") for f in files]
-
 
 #Get the base file name from a list of file paths
 def removePath(files):
