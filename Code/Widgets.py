@@ -31,9 +31,12 @@ class ScrollableFrame(tk.Frame):
     def __init__(self, container, orient: str="both", autohide:bool = True, *args, **kwargs):
         #Scrollable Frame is a frame that houses a canvas and two scrollbars.
         super().__init__(container, *args, **kwargs)
-        self.canvas = tk.Canvas(self, highlightthickness=0, bg="white")
+        self.canvas = tk.Canvas(self, highlightthickness=0)
         self.orient = orient
         self.autohide = autohide
+
+        #Set the background to red
+        # self.canvas.configure(bg="red")
 
         #It's going to check which scrollbar it needs to display.
         horiz = False
@@ -63,6 +66,9 @@ class ScrollableFrame(tk.Frame):
         if horiz:
             self.scrollbar_h = tb.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
         self.scrollable_frame = tk.Frame(self.canvas)
+
+        #set background to blue
+        # self.scrollable_frame.configure(bg="blue")
 
         #Whenever something is added to the scrollable frame (or removed), it changes sizes. Sroll region must be updated.
         self.scrollable_frame.bind(
@@ -575,13 +581,21 @@ class FileIcon(tk.Frame):
     """
     def __init__(self, master, imagepath: str=None, **kwargs):
         super().__init__(master, **kwargs)
-        self.width = 100
-        self.height = 140
+
+        if isinstance(self, SlideIcon):
+            self.width        = 100
+            self.height       = 140
+            self.canvasWidth  = 100
+            self.canvasHeight = 100
+        else:
+            self.width        = 100
+            self.height       = 140
+            self.canvasWidth  = 100
+            self.canvasHeight = 100
+
         self.configure(width=self.width, height=self.height)
         self.pack_propagate(False)
 
-        self.canvasWidth = 100
-        self.canvasHeight = 100
         self.canvas = tk.Canvas(self, width=self.canvasWidth, height=self.canvasHeight)
         self.canvas.pack(expand=True, fill="both")
 
@@ -633,10 +647,22 @@ class FileIcon(tk.Frame):
         self.__startY: int = 0
         self.popup: tk.Toplevel = None
 
+    @staticmethod
+    def calcSizeCorrectHeight(height: int, growthIncrement: int=30, minSize: int=140):
+        growthIncrement = growthIncrement
+        if height < minSize:
+            return minSize
+        
+        return int((height - minSize)/growthIncrement) * growthIncrement + minSize
+
+
+
+
     def refreshImage(self):
         pth = self.imagepath
         if isinstance(self, SlideIcon):
             pth = FP.file_check(self.imagepath, FP.relative_project_path)
+
 
         #Test if the file is a valid image file
         try:
@@ -1638,8 +1664,8 @@ class InfoFrame(tb.Frame):
 
     def loadIcon(self, icon):
         #If the new icon and old icon are the same, return early
-        if icon == self.__icon:
-            return
+        # if icon == self.__icon:
+        #     return
 
         if type(icon) == SlideIcon:
             self.image = False
@@ -1679,6 +1705,9 @@ class SlideReel(tk.Frame):
 
         self.prevSlideList: list[FP.Slide] = deepcopy(self.slides)
 
+        self.width = self.winfo_width()
+        self.height = self.winfo_height()
+
         #bind a configure event to the canvas
         self.autoResize: bool = False
         self.after_id = None
@@ -1714,14 +1743,23 @@ class SlideReel(tk.Frame):
     
     def refreshReel(self):
         #If the slides have not changed at all, just redraw them, which is faster as it doesn't require creating new SlideIcons.
-        #Recenter the scrollable frame
-        # self.scrollFrame.recenterCanvasWindow()
         print("Refreshing the reel")
+        self.newWidth = self.winfo_width()
+        self.newHeight = self.winfo_height()
+        print(f"Old Width: {self.width}, New Width: {self.newWidth}")
+        print(f"Old Height: {self.height}, New Height: {self.newHeight}")
 
         #If they have changed redraw the entire widget.
         if self.slides == self.prevSlideList and len(self.slides) > 0 and len(self.scrollFrame.scrollable_frame.winfo_children()) > 0:
             print(f"No change in slides. {len(self.slides)} == {len(self.prevSlideList)}")
-            self.redrawReel()
+
+            #If the width or height increase or decrease by like 10% then refill the reel.
+            if self.newWidth > self.width + self.width*0.1 or self.newWidth < self.width - self.width*0.1 or self.newHeight > self.height + self.height*0.1 or self.newHeight < self.height - self.height*0.1:
+                self.width = self.newWidth
+                self.height = self.newHeight
+                self.fillReel()
+            else:
+                self.redrawReel
             return
         else:
             self.prevSlideList = deepcopy(self.slides)
@@ -1743,6 +1781,8 @@ class SlideReel(tk.Frame):
 
         self.dividers = []
 
+        divW = 0
+        divH = 0
         i = 0
         #Every slide in the slideReel is made into a slideIcon.
         for slide in self.slides:
@@ -1773,8 +1813,31 @@ class SlideReel(tk.Frame):
             slideIcon.slide = slide
             slideIcon.grid(row=0, column=i, padx=0, pady=10, sticky="w")
             i += 1
+            
+            ####Experimental code for dynamically resizing the icons based on the size of the Reel.
+            # #Get the size of the linked reel
+            # h = slideIcon.linkedReel.winfo_height()
+            # h -= 20 #Subtract the height of the label
+            
+            # divH = SlideIcon.calcSizeCorrectHeight(h, growthIncrement=30, minSize=150)
+            # divW = divH * (20/150)
+            # divider.configure(width=divW, height=divH)
+
+            # h = slideIcon.calcSizeCorrectHeight(h)
+            # w = h * (100/140)  #Aspect ratio of the icon
+            # slideIcon.width = w
+            # slideIcon.height = h
+            # slideIcon.canvasWidth = w + 20
+            # slideIcon.canvasHeight = w + 20
+
+            # slideIcon.configure(width=slideIcon.width, height=slideIcon.height)
+            # slideIcon.canvas.configure(width=slideIcon.canvasWidth, height=slideIcon.canvasHeight)
+            # slideIcon.refreshImage()
+
+        
 
         divider = IconDivider(self.scrollFrame.scrollable_frame, i)
+        divider.configure(width=divW, height=divH)
         divider.grid(row=0, column=i, padx=0, pady=10, sticky="w")
         self.dividers.append(divider)
         self.infoFrame.count.config(text=str(len(self.slides)))

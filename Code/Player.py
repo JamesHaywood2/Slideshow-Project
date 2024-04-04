@@ -161,8 +161,12 @@ class SlideshowPlayer(tb.Frame):
         ##### Shuffle stuff #####
         if self.shuffleSlideshow:
             #Randomize the order of the slides
+            for slide in self.slideList:
+                print(f"Slide: {slide['slideID']}")
+            print("Shuffling slideshow")
             random.shuffle(self.slideList)
-            # print("Shuffling slideshow")
+            for slide in self.slideList:
+                print(f"Slide: {slide['slideID']}")
         if self.shufflePlaylist:
             random.shuffle(self.playlist.songs)
             # print("Shuffling playlist")
@@ -247,10 +251,11 @@ class SlideshowPlayer(tb.Frame):
             canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
             self.ImageMap = {} #Key: Slide number, name of the image file in the cache
-            self.ImageList = [] #List of all the images
+            self.ImageList = {}
             max_width = -1
             max_height = -1
             for slide in self.slideList:
+                print(f"Slide ID 1: {slide['slideID']}")
                 #Open the image and convert it etc etc and resize it to the max canvas size.
                 pth = FP.file_check(slide['imagePath'], FP.relative_project_path)
                 try:
@@ -259,10 +264,17 @@ class SlideshowPlayer(tb.Frame):
                     print(f"Error loading image: {pth}")
                     slideImage = Image.open(FP.MissingImage)
 
+                #Open the files
+                try:
+                    f = open(pth, "rb")
+                    FP.openFiles[pth] = f
+                except:
+                    print(f"Error opening file: {pth}")
+
                 slideImage = ImageOps.exif_transpose(slideImage).convert("RGBA")
                 slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
                 #Add the image to the list
-                self.ImageList.append(slideImage)
+                self.ImageList[slide['slideID']] = slideImage
 
                 #check if the image is the largest so far
                 if slideImage.width > max_width:
@@ -274,8 +286,9 @@ class SlideshowPlayer(tb.Frame):
 
             #Create a background image at the size of the max image sizes and then paste the images in the center.
             #This is done so all images are the exact same size and transitions are consistent in positioning and stuff.
-            for i in range(len(self.ImageList)):
-                # print(f"ImageMap key: {i}")
+            for slide in self.slideList:
+                i = slide['slideID']
+                print(f"ImageMap key: {i}")
                 bg = Image.new("RGBA", (max_width, max_height), (255, 255, 255, 0))
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
@@ -433,19 +446,16 @@ class SlideshowPlayer(tb.Frame):
         if self.imageViewer.transitioning:
             self.imageViewer.cancelTransition()
             return
+        
+        #Next slide is the slide we are going to. previous slide is the slide we are transitioning from (currently on)
+        previousSlide = self.slideList[self.currentSlide]
+        if self.currentSlide == len(self.slideList)-1 and self.loopSetting == FP.loopSetting.UNTIL_SLIDES_END:
+            self.pause(True)
+            return
+        self.currentSlide = (self.currentSlide + 1) % len(self.slideList)
+        nextSlide = self.slideList[self.currentSlide]
 
-        #If the current slide is the last slide, go back to the first slide.
-        self.currentSlide += 1
-        if self.currentSlide > len(self.slideList)-1:
-            if self.loopSetting == FP.loopSetting.UNTIL_SLIDES_END:
-                self.pause(True)
-                return
-            self.currentSlide = 0
-            nextSlide = self.slideList[0]
-            previousSlide = self.slideList[-1]
-        else:
-            nextSlide = self.slideList[self.currentSlide]
-            previousSlide = self.slideList[self.currentSlide-1]
+
 
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
@@ -453,12 +463,9 @@ class SlideshowPlayer(tb.Frame):
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
         # transitionSpeed = 10000
 
-
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
-        #Load from cache
-        # previousImage = FP.loadImageFromCache(self.ImageMap[previous_ID])
-        # nextImage = FP.loadImageFromCache(self.ImageMap[next_ID])
+
         #Load from memory using deepcopy
         previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
         nextImage: Image = copy.deepcopy(self.ImageMap[next_ID])
@@ -468,6 +475,7 @@ class SlideshowPlayer(tb.Frame):
         self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.imageViewer.after(10, self.checkTransition, nextSlide['imagePath'])
+        print(f"Loaded {nextSlide['imagePath']} into viewer")
 
         #Update the slide counter
         if not self.slideMeterBroken:
@@ -512,34 +520,25 @@ class SlideshowPlayer(tb.Frame):
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             return
         
-        self.currentSlide -= 1
-        if self.currentSlide < 0:
-            nextSlide = self.slideList[-1]
-            previousSlide = self.slideList[0]
-            self.currentSlide = len(self.slideList)-1
-        else:
-            nextSlide = self.slideList[self.currentSlide]
-            previousSlide = self.slideList[self.currentSlide+1]
-
-        def reverseTransition(transition:str):
-            if transition == FP.transitionType.FADE:
-                return FP.transitionType.FADE
-            elif transition == FP.transitionType.WIPELEFT:
-                return FP.transitionType.WIPERIGHT
-            elif transition == FP.transitionType.WIPERIGHT:
-                return FP.transitionType.WIPELEFT
-            elif transition == FP.transitionType.WIPEDOWN:
-                return FP.transitionType.WIPEUP
-            elif transition == FP.transitionType.WIPEUP:
-                return FP.transitionType.WIPEDOWN
-            else:
-                return FP.transitionType.DEFAULT
+        #Next slide is the slide we are going to. previous slide is the slide we are transitioning from (currently on)
+        previousSlide = self.slideList[self.currentSlide]
+        self.currentSlide = (self.currentSlide - 1) % len(self.slideList)
+        nextSlide = self.slideList[self.currentSlide]
+        
+        reverseTransitionDict = {
+            FP.transitionType.FADE: FP.transitionType.FADE,
+            FP.transitionType.WIPELEFT: FP.transitionType.WIPERIGHT,
+            FP.transitionType.WIPERIGHT: FP.transitionType.WIPELEFT,
+            FP.transitionType.WIPEDOWN: FP.transitionType.WIPEUP,
+            FP.transitionType.WIPEUP: FP.transitionType.WIPEDOWN,
+            FP.transitionType.DEFAULT: FP.transitionType.DEFAULT
+        }
+            
 
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
-        transition = reverseTransition(previousSlide['transition'])
+        transition = reverseTransitionDict[previousSlide['transition']]
         transitionSpeed = nextSlide['transitionSpeed'] * 1000
-        # transitionSpeed = 2000
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
@@ -685,8 +684,8 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    # app = SlideshowPlayer(root)
-    app = SlideshowPlayerStart(root)
+    app = SlideshowPlayer(root, projectPath=r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+    # app = SlideshowPlayerStart(root)
     app.pack(expand=True, fill="both")
 
     app.mainloop()
