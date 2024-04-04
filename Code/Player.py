@@ -250,8 +250,6 @@ class SlideshowPlayer(tb.Frame):
         self.fileMenu.config(background=style.colors.primary, foreground=style.colors.get("selectfg"))
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
-        self.fileMenu.add_command(label="Swap Monitor", command=self.swapMonitor)
-        self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)
         self.fileMB.config(menu=self.fileMenu)
 
@@ -771,7 +769,13 @@ class SlideshowPlayer(tb.Frame):
             song = self.playlist.songs[self.currentSong]
             #unload the current song
             self.audioPlayer.unloadSong()
-            self.audioPlayer.loadSong(song)
+            if self.audioPlayer.loadSong(song) == -1:
+                #If the song failed to load, move to the next song and remove the current song from the playlist
+                self.nextSong()
+                self.playlist.songs.pop(self.currentSong)
+                self.currentSong -= 1
+            else:
+                self.songLabel.config(text=song.name)
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()
@@ -796,70 +800,6 @@ class SlideshowPlayer(tb.Frame):
         self.audioPlayer.unloadSong()
         self.destroy()
         return
-    
-    def swapMonitor(self):
-        pass
-        # print("Swapping monitors")
-
-        # #Top level window
-        # win = tb.Toplevel(self.master)
-        # win.title("Monitor Swapper")
-        # win.geometry("300x300")
-        # win.resizable(False, False)
-        # win.transient(self.master)
-        
-        # #Label
-        # label = tb.Label(win, text="Monitor Swapper", font=("Arial", 24))
-        # label.pack()
-
-        # #Tutorial text
-        # tutorialText = tb.Label(win, text="Instructions:\n1.Drag this window to the desired monitor.\n2.Click the \"SWAP\" button", font=("Arial", 12), wraplength=280)
-        # tutorialText.pack()
-
-        # def swap():
-        #     #Make window's alpha 0
-        #     # win.attributes("-alpha", 0)
-
-        #     geo1 = win.geometry()
-        #     #Topmost
-        #     win.overrideredirect(True)
-        #     #Zoom the window
-        #     win.state("zoomed")
-        #     print(f"Swapping to {win.geometry()}")
-        #     geo2 = win.geometry()
-        #     win.destroy()
-
-        #     self.master.update_idletasks()
-        #     self.master.overrideredirect(True)
-        #     self.master.attributes("-fullscreen", False)
-
-        #     self.master.state("normal")
-        #     self.master.geometry(geo1)
-
-        #     self.master.update_idletasks()
-        #     self.master.state("zoomed")
-        #     #Close the audio player
-        #     self.audioPlayer.stop()
-        #     self.audioPlayer.unloadSong()
-        #     #Delete it
-        #     del self.audioPlayer
-
-        #     #Go through every file in FP.openFiles and close them
-        #     FP.openFiles.clear()
-        #     self.master.update()
-        #     self.master.update_idletasks()
-        #     #Re-init the app
-        #     mst = self.master
-        #     projectPth = self.slideshow.getSaveLocation()
-
-        #     self.pack_forget()
-        #     app = SlideshowPlayer(mst, projectPath=projectPth, geometry=geo2)
-        #     app.pack(expand=True, fill="both")
-        #     self.destroy()
-            
-        # #Swap button
-        # swapButton = tb.Button(win, text="SWAP", command=swap)
-        # swapButton.pack()
 
     def toggleFullScreen(self, event=None):
         if self.fullScreenToggleReady:
@@ -960,8 +900,8 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    app = SlideshowPlayer(root, projectPath=r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-    # app = SlideshowPlayerStart(root)
+    # app = SlideshowPlayer(root, projectPath=r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+    app = SlideshowPlayerStart(root)
     app.pack(expand=True, fill="both")
 
     app.mainloop()

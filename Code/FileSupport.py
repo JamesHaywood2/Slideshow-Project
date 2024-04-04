@@ -584,12 +584,20 @@ class Slideshow:
                     print(f"Error copying {slide['imagePath']} to cache folder.")
 
 
-    def exportToFolder(self):
+    def exportToFolder(self, folderPath:str):
         """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
         self.save()
-        #Create a folder in the project folder called exported_assets_{projectName}
-        projectFolder = os.path.dirname(self.__filePath)
-        exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+        if not os.path.exists(folderPath):
+            #Create a folder in the project folder called exported_assets_{projectName}
+            projectFolder = os.path.dirname(self.__filePath)
+            exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+        else:
+            exportFolder = os.path.join(folderPath, f"exported_assets_{removeExtension(self.name)}")
+
+        #Get the current time
+        currentTime = time.strftime("_%Y-%m-%d_%H-%M-%S")
+        exportFolder += currentTime
+            
         if not os.path.exists(exportFolder):
             os.makedirs(exportFolder)
         
