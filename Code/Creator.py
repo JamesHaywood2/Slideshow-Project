@@ -231,6 +231,10 @@ class SlideshowCreator(tb.Frame):
 
         self.debugWindow: tk.Toplevel = None
 
+        ########################
+        ######  MENU BAR #######
+        ########################
+
         #MenuFrame
         self.style = tb.Style()
         self.style.configure("custom.TFrame", background=self.style.colors.primary)

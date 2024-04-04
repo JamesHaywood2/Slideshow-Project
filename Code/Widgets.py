@@ -205,7 +205,6 @@ class ImageViewer(tb.Canvas):
         self.canvasWidth = self.winfo_width()
         self.canvasHeight = self.winfo_height()
 
-        self.imagePath = None
         #Initially there is no image.
         self.imagePath = None
         self.imagePIL = None
@@ -232,6 +231,8 @@ class ImageViewer(tb.Canvas):
             self.autoResize = True
             self.after_id = None
             self.bind("<Configure>", self.afterEvent)
+            #Generate a <Configure> event to resize the image
+            self.event_generate("<Configure>")
             return
         else:
             print("ImageViewer: Auto resizing disabled")
@@ -287,8 +288,12 @@ class ImageViewer(tb.Canvas):
         self.cancelTransition()
         #Clear the canvas
         self.delete("all")
-        self.imagePath = None
+        # self.imagePath = None #This can apparently break stuff I guess. If something breaks relating to imagePIL it may be because I commented this out. It's like 2am /shrug - James
         self.imagePIL = imagePIL
+        #If the image is too big, resize it
+        if self.imagePIL.width > self.canvasWidth or self.imagePIL.height > self.canvasHeight:
+            self.imagePIL.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+
         #Resize the image while using the aspect ratio
         self.image = ImageTk.PhotoImage(self.imagePIL)
         self.canvasImage = self.create_image(self.canvasWidth//2, self.canvasHeight//2, image=self.image)
@@ -341,6 +346,14 @@ class ImageViewer(tb.Canvas):
         if startImg.width != endImg.width or startImg.height != endImg.height:
             print("Resizing start image to match end image")
             startImg = startImg.resize((endImg.width, endImg.height), resample=Image.NEAREST)
+
+        #Check if both images are the correct size for the canvas. If not, resize them.
+        if startImg.width != self.canvasWidth or startImg.height != self.canvasHeight:
+            print("Resizing start image to match canvas")
+            startImg.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
+        if endImg.width != self.canvasWidth or endImg.height != self.canvasHeight:
+            print("Resizing end image to match canvas")
+            endImg.thumbnail((self.canvasWidth, self.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
 
         #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
         booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
@@ -1905,16 +1918,27 @@ class MediaBucket(tb.Frame):
         self.project: FP.Slideshow = slideshow
         # self.files = self.project.filesInProject
 
+        #Header frame
+        self.headerFrame = tk.Frame(self)
+        self.headerFrame.pack(expand=False, fill=tk.X, side="top", anchor="n")
+
         #Label for the project
-        self.projectLabel = tb.Label(self, text=self.project.name, font=("Arial", 16), bootstyle="inverse-info")
-        self.projectLabel.pack(fill="x", anchor="nw")
+        self.projectLabel = tb.Label(self.headerFrame, text=self.project.name, font=("Arial", 16), bootstyle="inverse-info", padding=5)
+        self.projectLabel.pack(side="left", fill="x", expand=True)
+
+        #Add file buttons
+
+        addFileButton = tb.Button(self.headerFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])), style="success.TButton")
+        addFolderButton = tb.Button(self.headerFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()), style="success.TButton")
+        addFileButton.pack(side="right", fill=tk.Y, expand=False)
+        addFolderButton.pack(side="right", fill=tk.Y, expand=False)
+
 
         #Frame for the icons
         self.iconFrame: ScrolledFrame = ScrolledFrame(self, autohide=True)
-        self.iconFrame.pack(expand=True, fill="both")
+        self.iconFrame.pack(expand=True, fill="both", side="top", anchor="n")
 
-
-        #FileIcons are 100x130
+        #FileIcons are 100x140
         self.columnCount: int = 0
 
         self.loadProject(slideshow) 
@@ -2007,24 +2031,6 @@ class MediaBucket(tb.Frame):
                 j = 0
                 i += 1
         
-        addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
-        addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
-        addFileButton.grid(row=i, column=j, padx=3, pady=3)
-        j += 1
-        if j == columnCount:
-            j = 0
-            i += 1
-        addFolderButton.grid(row=i, column=j, padx=3, pady=3)
-
-        # # print(f"Files in bucket: {len(self.files)}")
-        # if len(self.files) == 0:
-        #     print("No files in the bucket")
-        #     #Create buttons to add files
-        #     addFileButton = tb.Button(self.iconFrame, text="Add File", command=lambda: self.addFile(filedialog.askopenfilenames(multiple=True, filetypes=[("Image Files", "*.jpg *.jpeg *.png")])))
-        #     addFileButton.pack()
-        #     addFolderButton = tb.Button(self.iconFrame, text="Add Folder", command=lambda: self.addFolder(filedialog.askdirectory()))
-        #     addFolderButton.pack()
-        #     return
         
         return
           

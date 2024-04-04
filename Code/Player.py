@@ -10,6 +10,9 @@ import random
 import time
 import copy
 
+TEMP_GEOMETRY = None
+FULLSCREEN_GEOMETRY = None
+
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -30,6 +33,8 @@ class SlideshowPlayerStart(tb.Frame):
 
         #Set window size
         self.master.geometry("800x600")
+        global TEMP_GEOMETRY 
+        TEMP_GEOMETRY  = self.master.geometry()
         #Resizable window false
         self.master.resizable(False, False)
 
@@ -72,14 +77,36 @@ class SlideshowPlayerStart(tb.Frame):
         self.pack(expand=True, fill="both")
 
 class SlideshowPlayer(tb.Frame):
-    def __init__(self, master, debug:bool= False, projectPath: str="New Project"):
-        screen_width = master.winfo_screenwidth()
-        screen_height = master.winfo_screenheight()
-        master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+    def __init__(self, master: tk.Tk, debug:bool= False, projectPath: str="New Project", geometry: str=None):
+        if geometry is not None:
+            try:
+                master.geometry(geometry)
+            except:
+                print("Invalid geometry")
+        else:
+            screen_width = master.winfo_screenwidth()
+            screen_height = master.winfo_screenheight()
+            master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
         master.resizable(True, True) #Resizable window
-        master.attributes("-fullscreen", True) #Fullscreen
+
+        global TEMP_GEOMETRY 
+        TEMP_GEOMETRY  = "800x600"
+
+        # master.attributes("-fullscreen", True) #Fullscreen
+
+        master.overrideredirect(True)
+        master.state("zoomed")
+        master.update_idletasks()
+        self.fullscreen = True
+
+        # self.geometry = geometry
+        global FULLSCREEN_GEOMETRY
+        FULLSCREEN_GEOMETRY = master.geometry()
+
         #Bind escape to exit fullscreen
-        master.bind("<Escape>", lambda e: self.quit())
+        master.bind("<Escape>", self.deactivateFullScreen)
+        master.bind("<F11>", self.toggleFullScreen)
+        master.bind("<Control-q>", self.quit)
 
         self.START = time.time()
         self.END = time.time()
@@ -222,8 +249,12 @@ class SlideshowPlayer(tb.Frame):
         self.fileMenu.config(background=style.colors.primary, foreground=style.colors.get("selectfg"))
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Swap Monitor", command=self.swapMonitor)
+        self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)
         self.fileMB.config(menu=self.fileMenu)
+
+
 
         
         #After variable to keep track of slide changes.
@@ -234,19 +265,8 @@ class SlideshowPlayer(tb.Frame):
         self.bind("<Configure>", lambda e: self.createComponents())
         return
     
-    def createComponents(self):
-        #Unbind the configure event so it doesn't keep creating components. This method gets called once.
-        self.unbind("<Configure>")
-        self.update_idletasks()
-        #Only construct the layout if the project is not empty of slides.
-        if len(self.slideList) > 0:
-            
-            #Add first slide to the ImageViewer
-            pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
-            print(f"First slide: {pth}")
-            self.imageViewer.loadImage(pth)
-
-            ###### PRE-RENDER THE IMAGES ######
+    def renderImages(self):
+        ###### PRE-RENDER THE IMAGES ######
             canvas_width = self.imageViewer.canvasWidth
             canvas_height = self.imageViewer.canvasHeight
             #We want to get every slide image in the slideshow and prepare them for display.
@@ -293,18 +313,31 @@ class SlideshowPlayer(tb.Frame):
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
                 self.ImageMap[i] = bg
+    
+    def createComponents(self):
+        #Unbind the configure event so it doesn't keep creating components. This method gets called once.
+        self.unbind("<Configure>")
+        self.update_idletasks()
+        #Only construct the layout if the project is not empty of slides.
+        if len(self.slideList) > 0:
+            
+            #Add first slide to the ImageViewer
+            pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
+            print(f"First slide: {pth}")
+            self.imageViewer.loadImage(pth)
+
+            #Render the images
+            self.renderImages()
             
             self.update_idletasks()
 
             #Add next and previous buttons using place.
             self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
             self.prevButton = tb.Button(self, text="Previous", command=self.prevSlide)
-
-            #Pause button
             self.pauseButton = tb.Button(self, text="Play", command=self.pause)
-            self.nextButton.place(relx=0.8, rely=0.93, anchor="center")
-            self.prevButton.place(relx=0.2, rely=0.93, anchor="center")
-            self.pauseButton.place(relx=0.5, rely=0.93, anchor="center")
+
+            
+            self.showButtons()
 
             #Add a slide counter in the top right corner
             self.slideMeterBroken: bool = False
@@ -320,24 +353,30 @@ class SlideshowPlayer(tb.Frame):
                                          amounttotal=len(self.slideList),
                                          amountused=self.currentSlide+1,
                                          stripethickness=0,)
-                self.slideCounter.place(relx=1, rely=0, anchor="ne")
+                # self.slideCounter.place(relx=1, rely=0, anchor="ne")
             except:
                 self.slideMeterBroken = True
                 self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
-                self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+                # self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
                 #Throw an error message: f"Error: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label."
                 print(f"\nError: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label.\n")
+            
+            self.showSlideCounter()
 
 
             if self.playlistExists:
                 #Add a tb.Progressbar to the bottom of the screen
                 self.progressBar = tb.Progressbar(self, orient="horizontal", mode="determinate")
-                self.progressBar.place(relx=0.5, rely=0.95, anchor="center", relwidth=0.8, relheight=0.015)
                 self.progressBar["value"] = 0
-                self.progressBar_maxLabel = tb.Label(self, text="0:00")
-                self.progressBar_maxLabel.place(relx=0.9, rely=0.95, anchor="center")
-                self.progressBar_progressLabel = tb.Label(self, text="0:00")
-                self.progressBar_progressLabel.place(relx=0.1, rely=0.95, anchor="center")
+                self.progressBar_maxLabel = tb.Label(self, text="0:00", font=("Arial", 12))
+                self.progressBar_progressLabel = tb.Label(self, text="0:00", font=("Arial", 12))
+                self.songLabel = tb.Label(self, text=self.playlist.songs[self.currentSong].name, font=("Arial", 12))
+
+                #Next song buttons should use Left and Right arrow characters
+                self.nextSongButton = tb.Button(self, text="⮞", command=self.nextSong)
+                self.previousSongButton = tb.Button(self, text="⮜", command=self.previousSong)
+
+                self.showProgressBar()
                 self.update_ProgressBar()
 
             
@@ -349,7 +388,7 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<space>", lambda e: self.pause())
         self.master.bind("<h>", lambda e: self.hideOverlay())
         self.mouse_after_id = None
-        self.master.bind("<Motion>", lambda e: self.motionEvent())
+        self.master.bind("<Motion>", self.motionEvent)
 
         #bind t to toggle pause the music, y to next song, u to previous song
         #Remove later just for testing right now
@@ -358,9 +397,10 @@ class SlideshowPlayer(tb.Frame):
         self.master.bind("<r>", lambda e: self.previousSong())
         self.master.bind("<e>", lambda e: self.pause(True))
 
-    def motionEvent(self):
+    def motionEvent(self, event):
         #Get the mouse position
-        x, y = self.winfo_pointerxy()
+        x = event.x
+        y = event.y
         # print(f"Mouse at: {x}, {y}")
         #If the mouse is at the top of the screen, show the menu
         if self.menuVisible == False and y < 10:
@@ -376,18 +416,30 @@ class SlideshowPlayer(tb.Frame):
             self.after_cancel(self.mouse_after_id)
         self.mouse_after_id = self.after(2500, self.hideOverlay)
         return
+    
+    
 
-    def hideOverlay(self):
-        #Hide slide buttons
+    def hideButtons(self):
         self.nextButton.place_forget()
         self.prevButton.place_forget()
         self.pauseButton.place_forget()
+    
+    def hideProgressBar(self):
+        self.progressBar.place_forget()
+        self.progressBar_maxLabel.place_forget()
+        self.progressBar_progressLabel.place_forget()
+        self.songLabel.place_forget()
+        self.nextSongButton.place_forget()
+        self.previousSongButton.place_forget()
+
+
+    def hideOverlay(self):
+        #Hide slide buttons
+        self.hideButtons()
         self.slideCounter.place_forget()
 
         if self.playlistExists:
-            self.progressBar.place_forget()
-            self.progressBar_maxLabel.place_forget()
-            self.progressBar_progressLabel.place_forget()
+            self.hideProgressBar()
         
         self.master.bind("<h>", lambda e: self.showOverlay())
         self.config(cursor="none")
@@ -395,22 +447,64 @@ class SlideshowPlayer(tb.Frame):
 
     def showOverlay(self):
         #Show slide buttons
-        self.nextButton.place(relx=0.8, rely=0.93, anchor="center")
-        self.prevButton.place(relx=0.2, rely=0.93, anchor="center")
-        self.pauseButton.place(relx=0.5, rely=0.93, anchor="center")
-        if not self.slideMeterBroken:
-            self.slideCounter.place(relx=1, rely=0, anchor="ne")
-        else:
-            self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+        self.showButtons()
+        self.showSlideCounter()
 
         if self.playlistExists:
-            self.progressBar.place(relx=0.5, rely=0.95, anchor="center", relwidth=0.8, relheight=0.015)
-            self.progressBar_maxLabel.place(relx=0.9, rely=0.95, anchor="center")
-            self.progressBar_progressLabel.place(relx=0.1, rely=0.95, anchor="center")
+            self.showProgressBar()
 
         self.master.bind("<h>", lambda e: self.hideOverlay())
         self.config(cursor="")
         return
+    
+    def showProgressBar(self):
+        if self.fullscreen:
+            # self.progressBar.place(relwidth=0.8, relheight=0.02, anchor="sw", relx=0.15, rely=1)
+            # self.progressBar_maxLabel.place(relx=0.95, rely=1, anchor="sw", relwidth=0.05)
+            # self.progressBar_progressLabel.place(relx=0.1, rely=1, anchor="se", relwidth=0.05)
+            self.progressBar_maxLabel.place(anchor="sw", relx=0.97, rely=1, relheight=0.02)
+            self.progressBar.place(anchor="se", relx=0.97, rely=1, relwidth=0.83, relheight=0.02)
+            self.progressBar_progressLabel.place(anchor="se", relx=0.14, rely=1, relheight=0.02)
+
+            self.songLabel.place(anchor="s", relx=0.05, rely=0.98)
+
+            #Bottom left corner
+            self.previousSongButton.place(anchor="sw", relx=0.01, rely=1, relwidth=0.05)
+            self.nextSongButton.place(anchor="sw", relx=0.06, rely=1, relwidth=0.05)
+        else:
+            self.progressBar.place(relwidth=0.9, relheight=0.02, anchor="sw", relx=0.1, rely=1)
+            self.progressBar_maxLabel.place(relx=1, rely=0.98, anchor="se")
+            self.progressBar_progressLabel.place(relx=0.1, rely=0.98, anchor="sw")
+
+            #Bottom left corner
+            self.previousSongButton.place(anchor="se", relx=0.05, rely=1, relwidth=0.05)
+            self.nextSongButton.place(anchor="se", relx=0.1, rely=1, relwidth=0.05)
+
+            #height of previousSongButton
+            y=float(self.progressBar.winfo_height()/self.master.winfo_height())
+            x=float(self.progressBar_maxLabel.winfo_width()/self.master.winfo_width())
+            self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
+
+
+    def showButtons(self):
+        if self.fullscreen:
+            #Center of screen
+            self.pauseButton.place(anchor="s", relx=0.5, rely=0.980, relwidth=0.12)
+            self.nextButton.place(anchor="s", relx=0.6, rely=0.980, relwidth=0.12)
+            self.prevButton.place(anchor="s", relx=0.4, rely=0.980, relwidth=0.12)
+
+        else:
+            #Center of screen
+            self.pauseButton.place(anchor="s", relx=0.5, rely=0.98, relwidth=0.12)
+            self.nextButton.place(anchor="s", relx=0.6, rely=0.98, relwidth=0.12)
+            self.prevButton.place(anchor="s", relx=0.4, rely=0.98, relwidth=0.12)
+
+    
+    def showSlideCounter(self):
+        if not self.slideMeterBroken:
+            self.slideCounter.place(relx=1, rely=0, anchor="ne")
+        else:
+            self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
 
     def openProject(self):
         file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
@@ -444,7 +538,7 @@ class SlideshowPlayer(tb.Frame):
         # self.event_generate("<Motion>")
         self.START = time.time()
         if self.imageViewer.transitioning:
-            self.imageViewer.cancelTransition()
+            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             return
         
         #Next slide is the slide we are going to. previous slide is the slide we are transitioning from (currently on)
@@ -454,6 +548,9 @@ class SlideshowPlayer(tb.Frame):
             return
         self.currentSlide = (self.currentSlide + 1) % len(self.slideList)
         nextSlide = self.slideList[self.currentSlide]
+
+        #Print the canvas size
+        print(f"Canvas size: {self.imageViewer.canvasWidth}x{self.imageViewer.canvasHeight}")
 
 
 
@@ -476,6 +573,7 @@ class SlideshowPlayer(tb.Frame):
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
         self.imageViewer.after(10, self.checkTransition, nextSlide['imagePath'])
         print(f"Loaded {nextSlide['imagePath']} into viewer")
+
 
         #Update the slide counter
         if not self.slideMeterBroken:
@@ -516,7 +614,6 @@ class SlideshowPlayer(tb.Frame):
         self.START = time.time()
         #If a transition is in progress, cancel it and just load the image before returning.
         if self.imageViewer.transitioning:
-            self.imageViewer.cancelTransition()
             self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
             return
         
@@ -649,6 +746,8 @@ class SlideshowPlayer(tb.Frame):
                 self.nextSong()
                 self.playlist.songs.pop(self.currentSong)
                 self.currentSong -= 1
+            else:
+                self.songLabel.config(text=song.name)
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()
@@ -669,12 +768,137 @@ class SlideshowPlayer(tb.Frame):
                 self.audioPlayer.play()
         return
     
-    def quit(self):
+    def quit(self, event=None):
         self.audioPlayer.stop()
         self.audioPlayer.unloadSong()
         self.master.destroy()
         return
+    
+    def swapMonitor(self):
+        print("Swapping monitors")
 
+        #Top level window
+        win = tb.Toplevel(self.master)
+        win.title("Monitor Swapper")
+        win.geometry("300x300")
+        win.resizable(False, False)
+        win.transient(self.master)
+        
+
+        #Label
+        label = tb.Label(win, text="Monitor Swapper", font=("Arial", 24))
+        label.pack()
+
+        #Tutorial text
+        tutorialText = tb.Label(win, text="Instructions:\n1.Drag this window to the desired monitor.\n2.Click the \"SWAP\" button", font=("Arial", 12), wraplength=280)
+        tutorialText.pack()
+
+        def swap():
+            #Make window's alpha 0
+            # win.attributes("-alpha", 0)
+
+            geo1 = win.geometry()
+            #Topmost
+            win.overrideredirect(True)
+            #Zoom the window
+            win.state("zoomed")
+            print(f"Swapping to {win.geometry()}")
+            geo2 = win.geometry()
+            win.destroy()
+
+            self.master.update_idletasks()
+            self.master.overrideredirect(True)
+            self.master.attributes("-fullscreen", False)
+
+            #Move the main window to the new monitor
+            self.master.state("normal")
+            self.master.geometry(geo1)
+
+            self.master.update_idletasks()
+            self.master.state("zoomed")
+            # self.master.overrideredirect(False)
+            #Close the audio player
+            self.audioPlayer.stop()
+            self.audioPlayer.unloadSong()
+            #Delete it
+            del self.audioPlayer
+
+            #Go through every file in FP.openFiles and close them
+            FP.openFiles.clear()
+            self.master.update()
+            self.master.update_idletasks()
+            #Re-init the app
+            mst = self.master
+            projectPth = self.slideshow.getSaveLocation()
+
+            self.pack_forget()
+            app = SlideshowPlayer(mst, projectPath=projectPth, geometry=geo2)
+            app.pack(expand=True, fill="both")
+            self.destroy()
+            
+
+        #Swap button
+        swapButton = tb.Button(win, text="SWAP", command=swap)
+        swapButton.pack()
+
+    def toggleFullScreen(self, event=None):
+        if self.fullscreen:
+            self.deactivateFullScreen()
+        else:
+            self.activateFullScreen()
+
+    def activateFullScreen(self, event=None):
+        print("Activating fullscreen")
+        self.unbind("<Configure>")
+        self.master.update()
+        self.fullscreen = True
+        self.geometry = self.master.geometry()
+        self.master.overrideredirect(True)
+        self.master.state('zoomed')
+        self.master.update()
+        newGeometry = self.master.geometry()
+        global FULLSCREEN_GEOMETRY
+        #If the new fullscreen geometry is BIGGER than the old geometry, then we need to re-render the images.
+        if newGeometry > FULLSCREEN_GEOMETRY:
+            print("New geometry is bigger. Re-rendering images")
+            self.renderImages()
+
+        FULLSCREEN_GEOMETRY = newGeometry
+        self.master.update()
+        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.master.update()
+        self.hideOverlay()
+        self.showOverlay()
+        self.master.update()
+        
+
+    def deactivateFullScreen(self, event=None):
+        print("Deactivating fullscreen")
+        #Pause the slideshow
+        self.pause(True)
+        self.master.update()
+        self.fullscreen = False
+        self.master.overrideredirect(False)
+        self.master.state('normal')
+        self.update()
+        global TEMP_GEOMETRY 
+        self.master.geometry(TEMP_GEOMETRY )
+        self.master.update()
+        #Just load the image
+        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.master.update()
+        #Bind resize event
+        self.bind("<Configure>", self.configure_event)
+        self.hideOverlay()
+        self.showOverlay()
+        self.master.update()
+
+    def configure_event(self, event):
+        #Set the geometry to the new geometry
+        global TEMP_GEOMETRY 
+        TEMP_GEOMETRY  = self.master.geometry()
+        return
+        
 
 if __name__ == "__main__":
     root = tb.Window()
