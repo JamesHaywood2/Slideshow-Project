@@ -131,6 +131,7 @@ class SlideshowCreator(tb.Frame):
             print("Failed to update the slideshow cache list")
 
         tb.Style().theme_use(FP.getPreferences())
+        # self.changeTheme(FP.getPreferences())
 
         ######################
         #LAYOUT SETUP
@@ -291,13 +292,16 @@ class SlideshowCreator(tb.Frame):
 
         #Bind ctrl+s to save
         self.bind_all("<Control-s>", lambda event: self.save())
-
         self.bind_all("<Button-1>", lambda event: event.widget.focus_set())
+
+        #Bind enter to the window
+        self.bind("<Enter>", self.enterWindow)
 
         self.after_id = None
         #Will call redraw event once super quickly, and then bind it to the resize event
         self.update_idletasks()
-        self.after(33, self.redraw)
+        self.update()
+        self.after(66, self.redraw)
 
     def afterEvent(self, event):
         if self.after_id:
@@ -340,9 +344,16 @@ class SlideshowCreator(tb.Frame):
 
         if self.infoViewer:
             self.infoViewer.fillProjectInfo()
-            self.infoViewer.fillSlideInfo()
+            self.infoViewer.fillSlideInfo()         
         return
 
+    def enterWindow(self, event):
+        self.style.configure("custom.TFrame", background=self.style.colors.primary)
+        self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
+        self.projectMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))   
+        return
 
     def DebugWindow(self):
         self.debugWindow = tk.Toplevel()

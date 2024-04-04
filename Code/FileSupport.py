@@ -533,24 +533,30 @@ class Slideshow:
             #Check if the file exists in the cache folder
             if checkCache(file) == None:
                 #If it doesn't exist, save it to the cache folder
-                img = Image.open(file)
-                saveImageToCache(img, os.path.basename(file))
+                try:
+                    copyFileToCache(file)
+                except:
+                    print(f"Error copying {file} to cache folder.")
 
         #Go through all the songs in the playlist and export them to the cache folder.
         for song in self.playlist.songs:
             #Check if the song exists in the cache folder
             if checkCache(song.filePath) == None:
                 #If it's not yet in the cache, save a copy of the audio file to the cache folder
-                audio = pydub.AudioSegment.from_file(song.filePath)
-                audio.export(os.path.join(getUserCacheDir(), "cache", os.path.basename(song.filePath)))
+                try:
+                    copyFileToCache(song.filePath)
+                except:
+                    print(f"Error copying {song.filePath} to cache folder.")
 
         #Go through all the slides in the slideshow and export them to the cache folder.
         for slide in self.__slides:
             #Check if the slide exists in the cache folder
             if checkCache(slide['imagePath']) == None:
                 #If it's not yet in the cache, save a copy of the image to the cache folder
-                img = Image.open(slide['imagePath'])
-                saveImageToCache(img, os.path.basename(slide['imagePath']))
+                try:
+                    copyFileToCache(slide['imagePath'])
+                except:
+                    print(f"Error copying {slide['imagePath']} to cache folder.")
 
 
     def exportToFolder(self):
@@ -573,6 +579,12 @@ class Slideshow:
             #Copy the song to the export folder
             audio = pydub.AudioSegment.from_file(song.filePath)
             audio.export(os.path.join(exportFolder, os.path.basename(song.filePath)))
+
+        #Export all the slides in the slideshow to the export folder
+        for slide in self.__slides:
+            #Copy the slide to the export folder
+            img = Image.open(slide['imagePath'])
+            img.save(os.path.join(exportFolder, os.path.basename(slide['imagePath'])))
 
         #Finally, copy the slideshow file to the export folder
         saveLoc = self.getSaveLocation()
@@ -675,6 +687,12 @@ class Playlist:
         self.__count += 1
         #Update the duration
         self.validate()
+
+        #Try to save the song to the cache folder
+        try:
+            copyFileToCache(song)
+        except:
+            print(f"Error copying {song} to cache folder.")
 
     def removeSong(self, song:Song):
         print(type(song))
