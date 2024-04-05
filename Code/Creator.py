@@ -7,7 +7,6 @@ import Player as Player
 import FileSupport as FP
 
 
-
 # FP.file_check(path, RELATIVE_PROJECT_PATH)
 
 class SlideshowCreatorStart(tb.Frame):
@@ -154,35 +153,214 @@ class SlideshowCreator(tb.Frame):
         self.PanedWindow_Top.config(sashrelief=tk.FLAT, sashwidth=6, showhandle=False, opaqueresize=False, bd=0)
         self.PanedWindow_Bottom.config(sashrelief=tk.FLAT, sashwidth=6, showhandle=False, opaqueresize=False, bd=0)
 
+        
+        self.changeLayout(0)
 
-        self.mediaFrame = tb.Frame(self.PanedWindow_Top)
-        self.PanedWindow_Top.add(self.mediaFrame)
-        self.mediaBucket: MediaBucket = None
+        self.debugWindow: tk.Toplevel = None
 
-        self.imageFrame = tb.Frame(self.PanedWindow_Top)
-        self.PanedWindow_Top.add(self.imageFrame)
-        self.imageViewer: ImageViewer = None
+        ########################
+        ######  MENU BAR #######
+        ########################
 
-        self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
-        self.PanedWindow_Bottom.add(self.slideInfoFrame)
-        self.infoViewer: InfoFrame = None
+        #MenuFrame
+        self.style = tb.Style()
+        self.style.configure("custom.TFrame", background=self.style.colors.primary)
+        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
+        self.menuFrame.pack(side="top", fill="x")
 
-        self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
-        self.PanedWindow_Bottom.add(self.reelFrame)
-        self.slideReel: SlideReel = None
+        #MenuButtons
+        self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
+        self.projectMB = tb.Menubutton(self.menuFrame, text="Project", style="TMenubutton")
+        self.projectMB.pack(side="left")
+        self.fileMB = tb.Menubutton(self.menuFrame, text="File", style="TMenubutton")
+        self.fileMB.pack(side="left")
+        self.themeMB = tb.Menubutton(self.menuFrame, text="View", style="TMenubutton")
+        self.themeMB.pack(side="left")
 
-        #Sets the initial sizes for the PanedWindows
-        #Maybe this isn't the best method for setting the initial sizes? Idk. If yall have a better method, let me know. - James
-        win_width_start = self.master.winfo_screenwidth()//2
-        win_height_start = self.master.winfo_screenheight()//2
-        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Top, height=win_height_start//10*7, minsize=180)
-        self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=170)
-        self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=130)
-        self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=100)
-        self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=300)
-        self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
+        #Project Menu
+        self.projectMenu = tb.Menu(self.projectMB, tearoff=0)
+        self.projectMenu.add_command(label="New Project", command=self.newProject)
+        self.projectMenu.add_command(label="Open Project", command=self.openProject)
+        self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Save", command=self.save)
+        self.projectMenu.add_command(label="Save As", command=self.saveAs)
+        self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export Project", command=lambda: self.slideshow.exportToFolder(filedialog.askdirectory()))
+        self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
+        self.projectMenu.add_separator()
+        self.projectMenu.add_command(label="Exit", command=self.quit)
+        self.projectMB.config(menu=self.projectMenu)
 
+        #File Menu
+        self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
+        self.fileMenu.add_command(label="Add file", command=self.addFile)
+        self.fileMenu.add_command(label="Add folder", command=self.addFolder)
+        self.fileMenu.add_separator()
+        if self.mediaBucket:
+            self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label="Open Cache", command=FP.openCacheFolder)
+        self.fileMenu.add_command(label="Clear Cache", command=FP.clearCache)
+        self.fileMB.config(menu=self.fileMenu)
+
+        #Theme Menu
+        self.themeMenu = tb.Menu(self.themeMB, tearoff=0)
+        self.themeMenu.add_command(label="Theme Selector", command=self.ThemeSelector)
+        self.themeMenu.add_separator()
+        #Edit the style of the RadioButton so the indicator is different from the background
+        layouts = [1, 2]
+        self.layoutVar = tk.IntVar()
+        self.themeMenu.add_radiobutton(label="Layout 1", command=lambda: self.changeLayout(1), variable=self.layoutVar, value=1, selectcolor=self.style.colors.get("selectfg"))
+        self.themeMenu.add_radiobutton(label="Layout 2", command=lambda: self.changeLayout(2), variable=self.layoutVar, value=2, selectcolor=self.style.colors.get("selectfg"))
+        self.layoutVar.set(1)
+        self.themeMB.config(menu=self.themeMenu)
+
+        self.projectMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+        self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
+
+        self.winWidth = self.master.winfo_width()
+        self.winHeight = self.master.winfo_height()
+
+        #Bind hitting escape to putting focus on the window
+        self.bind_all("<Escape>", lambda event: self.master.focus_set())
+
+        #Bind ctrl+s to save
+        self.bind_all("<Control-s>", lambda event: self.save())
+        self.bind_all("<Button-1>", lambda event: event.widget.focus_set())
+
+        #Bind enter to the window
+        self.bind("<Enter>", self.enterWindow)
+
+        self.after_id = None
+        #Will call redraw event once super quickly, and then bind it to the resize event
         self.update_idletasks()
+        # self.update()
+        self.after(66, self.redraw)
+
+    def afterEvent(self, event):
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        else:
+            #First time the window is resized, turn off the autoResize
+            print("\n", "Window starting to change size. Widget autoResize turned off.")
+            if self.imageViewer:
+                self.imageViewer.autoResizeToggle(False)
+            if self.mediaBucket:
+                self.mediaBucket.autoResizeToggle(False)
+            if self.slideReel:
+                self.slideReel.autoResizeToggle(False)
+        self.after_id = self.after(500, self.redraw)
+        return
+
+    def redraw(self):
+        """
+        Redraws the ImageViewer, MediaBucket, and SlideReel.\n
+        Basically the SlideshowCreator object gets made and creates all the other widgets, but it doesn't actually exist in a window yet.\n
+        This means all the widgets are sized to like 1x1 pixels. These functions will resize them to fit the new window properly.\n
+        Possibly not necesary as the widgets themselves should call their own redraw functions when they are resized. - James
+        """
+        print("\nWindow changed size. Turning on autoResize for widgets.")
+        self.after_id = None
+        self.bind("<Configure>", self.afterEvent)
+
+        if self.imageViewer:
+            self.imageViewer.redrawImage()
+            self.imageViewer.autoResizeToggle(True)
+
+        if self.mediaBucket:
+            self.mediaBucket.fillBucket()
+            self.mediaBucket.autoResizeToggle(True)
+
+        if self.slideReel:
+            self.slideReel.refreshReel()
+            self.slideReel.autoResizeToggle(True)
+
+        if self.infoViewer:
+            self.infoViewer.fillProjectInfo()
+            self.infoViewer.fillSlideInfo()         
+        return
+
+    def changeLayout(self, layout: int):
+        #Layout 1 has media bucket top left, imageViewer top right, infoframe bottom left, and slideReel bottom right
+        #Layout 2 has the MediaBucket on the left, imageViewer in the center, and infoframe on the right and below all of that is the slideReel
+        possible_layouts = [0,1, 2]
+        if layout not in possible_layouts:
+            return
+        
+        #Destroy the autoResize event
+        if layout != 0 and self.after_id:
+            self.after_cancel(self.after_id)
+            self.after_id = None
+            print("AutoResize event turned off.")
+
+        #Destroy the current widgets
+        if layout != 0:
+            self.mediaFrame.destroy()
+            self.imageFrame.destroy()
+            self.slideInfoFrame.destroy()
+            self.reelFrame.destroy()
+
+
+        if layout == 1 or layout == 0:
+            self.mediaFrame = tb.Frame(self.PanedWindow_Top)
+            self.PanedWindow_Top.add(self.mediaFrame)
+            self.mediaBucket: MediaBucket = None
+
+            self.imageFrame = tb.Frame(self.PanedWindow_Top)
+            self.PanedWindow_Top.add(self.imageFrame)
+            self.imageViewer: ImageViewer = None
+
+            self.slideInfoFrame = tb.Frame(self.PanedWindow_Bottom)
+            self.PanedWindow_Bottom.add(self.slideInfoFrame)
+            self.infoViewer: InfoFrame = None
+
+            self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
+            self.PanedWindow_Bottom.add(self.reelFrame)
+            self.slideReel: SlideReel = None
+
+            #Sets the initial sizes for the PanedWindows
+            #Maybe this isn't the best method for setting the initial sizes? Idk. If yall have a better method, let me know. - James
+            win_width_start = self.master.winfo_screenwidth()//2
+            win_height_start = self.master.winfo_screenheight()//2
+            self.PanedWindow_Base.paneconfigure(self.PanedWindow_Top, height=win_height_start//10*7, minsize=180)
+            self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=170)
+            self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=130)
+            self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=100)
+            self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=300)
+            self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
+
+            self.update_idletasks()
+        elif layout == 2:
+            self.mediaFrame = tb.Frame(self.PanedWindow_Top)
+            self.PanedWindow_Top.add(self.mediaFrame, stretch="always")
+            self.mediaBucket: MediaBucket = None
+
+            self.imageFrame = tb.Frame(self.PanedWindow_Top)
+            self.PanedWindow_Top.add(self.imageFrame, stretch="always")
+            self.imageViewer: ImageViewer = None
+
+            self.slideInfoFrame = tb.Frame(self.PanedWindow_Top)
+            self.PanedWindow_Top.add(self.slideInfoFrame, stretch="always")
+            self.infoViewer: InfoFrame = None
+
+            self.reelFrame = tb.Frame(self.PanedWindow_Bottom)
+            self.PanedWindow_Bottom.add(self.reelFrame)
+            self.slideReel: SlideReel = None
+
+            #Sets the initial sizes for the PanedWindows
+            #Maybe this isn't the best method for setting the initial sizes? Idk. If yall have a better method, let me know. - James
+            win_width_start = self.master.winfo_screenwidth()//2
+            win_height_start = self.master.winfo_screenheight()//2
+            self.PanedWindow_Base.paneconfigure(self.PanedWindow_Top, height=win_height_start//10*7, minsize=180)
+            self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=170, minsize=170)
+            self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=110)
+            self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*3, minsize=100)
+            self.PanedWindow_Top.paneconfigure(self.slideInfoFrame, width=win_width_start//10*6, minsize=100)
+            self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
+
+            self.update_idletasks()
 
         #Initialize these widgets. They will probably have to be redrawn later though.
         self.infoViewer = InfoFrame(self.slideInfoFrame, slideshow=self.slideshow)
@@ -227,126 +405,9 @@ class SlideshowCreator(tb.Frame):
 
         self.update_idletasks()
 
-        self.debugWindow: tk.Toplevel = None
-
-        ########################
-        ######  MENU BAR #######
-        ########################
-
-        #MenuFrame
-        self.style = tb.Style()
-        self.style.configure("custom.TFrame", background=self.style.colors.primary)
-        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
-        self.menuFrame.pack(side="top", fill="x")
-
-        #MenuButtons
-        self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
-        self.projectMB = tb.Menubutton(self.menuFrame, text="Project", style="TMenubutton")
-        self.projectMB.pack(side="left")
-        self.fileMB = tb.Menubutton(self.menuFrame, text="File", style="TMenubutton")
-        self.fileMB.pack(side="left")
-        self.themeMB = tb.Menubutton(self.menuFrame, text="Theme", style="TMenubutton")
-        self.themeMB.pack(side="left")
-
-        #Project Menu
-        self.projectMenu = tb.Menu(self.projectMB, tearoff=0)
-        self.projectMenu.add_command(label="New Project", command=self.newProject)
-        self.projectMenu.add_command(label="Open Project", command=self.openProject)
-        self.projectMenu.add_separator()
-        self.projectMenu.add_command(label="Save", command=self.save)
-        self.projectMenu.add_command(label="Save As", command=self.saveAs)
-        self.projectMenu.add_separator()
-        self.projectMenu.add_command(label="Export Project", command=lambda: self.slideshow.exportToFolder(filedialog.askdirectory()))
-        self.projectMenu.add_separator()
-        self.projectMenu.add_command(label="Export to Player", command=self.exportToPlayer)
-        self.projectMenu.add_separator()
-        self.projectMenu.add_command(label="Exit", command=self.quit)
-        self.projectMB.config(menu=self.projectMenu)
-
-        #File Menu
-        self.fileMenu = tb.Menu(self.fileMB, tearoff=0)
-        self.fileMenu.add_command(label="Add file", command=self.addFile)
-        self.fileMenu.add_command(label="Add folder", command=self.addFolder)
-        self.fileMenu.add_separator()
-        if self.mediaBucket:
-            self.fileMenu.add_command(label="Revert addition", command=self.mediaBucket.undoAdd)
-        self.fileMenu.add_separator()
-        self.fileMenu.add_command(label="Open Cache", command=FP.openCacheFolder)
-        self.fileMenu.add_command(label="Clear Cache", command=FP.clearCache)
-        self.fileMB.config(menu=self.fileMenu)
-
-        #Theme Menu
-        self.themeMenu = tb.Menu(self.themeMB, tearoff=0)
-        self.themeMenu.add_command(label="Theme Selector", command=self.ThemeSelector)
-        self.themeMB.config(menu=self.themeMenu)
-
-        self.projectMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
-        self.fileMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
-        self.themeMenu.config(background=self.style.colors.primary, foreground=self.style.colors.get("selectfg"))
-
-        self.winWidth = self.master.winfo_width()
-        self.winHeight = self.master.winfo_height()
-
-        #Bind hitting escape to putting focus on the window
-        self.bind_all("<Escape>", lambda event: self.master.focus_set())
-
-        #Bind ctrl+s to save
-        self.bind_all("<Control-s>", lambda event: self.save())
-        self.bind_all("<Button-1>", lambda event: event.widget.focus_set())
-
-        #Bind enter to the window
-        self.bind("<Enter>", self.enterWindow)
-
-        self.after_id = None
-        #Will call redraw event once super quickly, and then bind it to the resize event
-        self.update_idletasks()
-        # self.update()
-        self.after(66, self.redraw)
-
-    def afterEvent(self, event):
-        if self.after_id:
-            self.after_cancel(self.after_id)
-        else:
-            #First time the window is resized, turn off the autoResize
-            print("\n", "Window starting to change size. Widget autoResize turned off.")
-            if self.imageViewer:
-                self.imageViewer.autoResizeToggle(False)
-            if self.mediaBucket:
-                self.mediaBucket.autoResizeToggle(False)
-            if self.slideReel:
-                self.slideReel.autoResizeToggle(False)
-        self.after_id = self.after(500, self.redraw)
-        return
-
-
-    def redraw(self):
-        """
-        Redraws the ImageViewer, MediaBucket, and SlideReel.\n
-        Basically the SlideshowCreator object gets made and creates all the other widgets, but it doesn't actually exist in a window yet.\n
-        This means all the widgets are sized to like 1x1 pixels. These functions will resize them to fit the new window properly.\n
-        Possibly not necesary as the widgets themselves should call their own redraw functions when they are resized. - James
-        """
-        print("\nWindow changed size. Turning on autoResize for widgets.")
-        self.after_id = None
-        self.bind("<Configure>", self.afterEvent)
-
-        if self.imageViewer:
-            self.imageViewer.redrawImage()
-            self.imageViewer.autoResizeToggle(True)
-
-        if self.mediaBucket:
-            self.mediaBucket.fillBucket()
-            self.mediaBucket.autoResizeToggle(True)
-
-        if self.slideReel:
-            self.slideReel.refreshReel()
-            self.slideReel.autoResizeToggle(True)
-
-        if self.infoViewer:
-            self.infoViewer.fillProjectInfo()
-            self.infoViewer.fillSlideInfo()         
-        return
-
+        if layout != 0:
+            self.after(66, self.redraw)
+        
     def enterWindow(self, event):
         self.style.configure("custom.TFrame", background=self.style.colors.primary)
         self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))

@@ -10,9 +10,9 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.aiff import AIFF
 from mutagen.wave import WAVE
+import threading
 import pydub
 
-import pygame
 from pygame import mixer
 from enum import Enum
 
@@ -27,9 +27,14 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
+
 MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
 toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
+
+# MissingImage = resource_path(r"MissingImage.png")
+# refreshIcon  = resource_path(r"refreshIcon.png")
+# toolTipIcon  = resource_path(r"tooltip.png")
 
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
@@ -662,7 +667,7 @@ class Song:
             elif fileType == ".aiff":
                 audio = AIFF(self.filePath)
         except:
-            print(f"Error loading {self.filePath}.")
+            print(f"Error loading {self.filePath} at Song Object Creation.")
             try:
                 audio = mutagen.File(self.filePath)
             except:
@@ -785,25 +790,26 @@ class AudioPlayer:
 
     def __init__(self) -> None:
         #Initialize pygame mixer
-        pygame.init()
-        self.mixer = mixer.init()
+        mixer.pre_init(44100, 16, 2, 4096) #frequency, size, channels, buffersize
+        # pygame.init()
+        mixer.init()
 
         self.current_song: Song = None
         self.duration = 0
         self.progress = 0
         self.state = AudioPlayer.State.UNLOADED
-        
-        self.SONG_END = pygame.USEREVENT + 1
 
     def isFinished(self):
         # print(f"Song progress: {formatTime(self.progress)} / {formatTime(self.duration)} and state: {self.state}")
-        for event in pygame.event.get():
-            if event.type == self.SONG_END:
-                self.unloadSong()
-                return True
-        return False
+        if self.state == AudioPlayer.State.PAUSED or mixer.music.get_busy() or self.state == AudioPlayer.State.STOPPED:
+            # print("Song is not finished.")
+            return False
+        else:
+            # print("Song is finished.")
+            return True
 
     def loadSong(self, song):
+        print(f"\nAttempting to load song {song}...\n")
         #song must either be a path to a file or a Song object
         if isinstance(song, Song):
             self.current_song = song
@@ -811,7 +817,7 @@ class AudioPlayer:
             self.current_song = Song(song)
             if self.current_song == -1:
                 self.state = AudioPlayer.State.FAILED_TO_LOAD
-                print("Failed to create song object.")
+                print(f"Failed to create song object for {song}.")
                 return -1
         else:
             print("Invalid song type. Must be a path to a file or a Song object.")
@@ -829,10 +835,9 @@ class AudioPlayer:
 
         #Set end of song event to change state to unload the song.
         try:
-            mixer.music.set_endevent(self.SONG_END)
             mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
         except:
-            print("Failed to load song.")
+            print(f"Failed to load song in loadsong() with mixer.music.load(). Song {self.current_song.filePath} failed to load.")
             self.state = AudioPlayer.State.FAILED_TO_LOAD
             return -1
         self.state = AudioPlayer.State.STOPPED
@@ -844,49 +849,75 @@ class AudioPlayer:
         #If the song is unloaded or failed to load, don't do anything.
         if self.state == AudioPlayer.State.UNLOADED or self.state == AudioPlayer.State.FAILED_TO_LOAD:
             return -1
-        mixer.music.unload()
+        try:
+            mixer.music.unload()
+        except:
+            print(f"Failed to unload song {self.current_song.filePath}.")
+            return -1
+        print(f"Unloaded {self.current_song.name}")
         self.state = AudioPlayer.State.UNLOADED
         self.progress = 0
         self.duration = 0
 
     def play(self):
+        print(f"\nAttempting to play song {self.current_song.name}...\n")
         #Song must be stopped for play to do anything.
         if self.state != AudioPlayer.State.STOPPED:
             if self.state == AudioPlayer.State.FAILED_TO_LOAD:
-                print("Failed to load song.")
+                print(f"Song state was failed to load. Cannot play {self.current_song.filePath}.")
                 return -1
             elif self.state == AudioPlayer.State.PLAYING:
-                print("Song is already playing.")
+                print(f"Song is already playing. Cannot play {self.current_song.filePath}.")
                 return -1
             elif self.state == AudioPlayer.State.PAUSED:
-                print("Song is currently paused. Use resume() to continue playing.")
+                print(f"Song is currently paused. Use resume() to continue playing. Cannot play {self.current_song.filePath}.")
                 return -1
             elif self.state == AudioPlayer.State.UNLOADED:
-                print("No song loaded. Use load_song() to load a song.")
+                print(f"No song loaded. Use load_song() to load a song. Cannot play {self.current_song.filePath}.")
                 return -1
             
-        mixer.music.play()
-        self.state = AudioPlayer.State.PLAYING
+        try:
+            mixer.music.play()
+            self.state = AudioPlayer.State.PLAYING
+            print(f"Playing {self.current_song.name}")
+        except:
+            print(f"Failed to play song {self.current_song.filePath}.")
+            self.state = AudioPlayer.State.FAILED_TO_LOAD
+            return -1
 
     def pause(self):
         if self.state == AudioPlayer.State.PLAYING:
-            mixer.music.pause()
-            self.state = AudioPlayer.State.PAUSED
+            try:
+                mixer.music.pause()
+                self.state = AudioPlayer.State.PAUSED
+            except:
+                print(f"Failed to pause song {self.current_song.filePath}.")
+                return -1
         else:
             print("Song is not playing.")
+            return -1
 
     def resume(self):
         if self.state == AudioPlayer.State.PAUSED:
-            mixer.music.unpause()
-            self.state = AudioPlayer.State.PLAYING
+            try:
+                mixer.music.unpause()
+                self.state = AudioPlayer.State.PLAYING
+            except:
+                print(f"Failed to resume song {self.current_song.filePath}.")
+                return -1
         else:
             print("Song is not paused.")
+            return -1
 
     def stop(self):
         if self.state == AudioPlayer.State.PLAYING or self.state == AudioPlayer.State.PAUSED:
-            mixer.music.stop()
-            self.state = AudioPlayer.State.STOPPED
-            self.progress = 0
+            try:
+                mixer.music.stop()
+                self.state = AudioPlayer.State.STOPPED
+                self.progress = 0
+            except:
+                print(f"Failed to stop song {self.current_song.filePath}.")
+                return -1
         else:
             print("Song is not playing or paused.")
 

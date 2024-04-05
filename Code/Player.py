@@ -207,11 +207,29 @@ class SlideshowPlayer(tb.Frame):
         #Create AudioPlayer
         self.audioPlayer = FP.AudioPlayer()
         
+        self.audioPlayerEnabled:bool = False
         #Load first song into the audio player
         if self.playlistExists:
             song = self.playlist.songs[self.currentSong]
-            self.audioPlayer.loadSong(song)
+            songLoaded:bool = False
+            while songLoaded == False and len(self.playlist.songs) > 0:
+                try:
+                    loaded = self.audioPlayer.loadSong(song)
+                except:
+                    print("Error loading song")
+                    loaded = -1
+                #Try to load a song into the audio player
+                if loaded == -1:
+                    #If the song failed to load, remove it from the playlist and try the next song.
+                    self.playlist.songs.pop(self.currentSong)
+                    if self.currentSong < 0:
+                        self.currentSong = 0
+                    song = self.playlist.songs[self.currentSong]
+                else:
+                    songLoaded = True
+
             self.progressBarUpdater = None
+            self.audioPlayerEnabled = True
 
         ########################
         ######   Layout  #######
@@ -238,6 +256,7 @@ class SlideshowPlayer(tb.Frame):
         ########################
         ######  MENU BAR #######
         ########################
+        self.update()
         #MenuFrame
         self.menuVisible: bool = False
         style = tb.Style()
@@ -258,6 +277,23 @@ class SlideshowPlayer(tb.Frame):
         self.fileMenu.add_command(label="Open Filles", command=self.printOpenFiles)
         self.fileMB.config(menu=self.fileMenu)
 
+        style.configure('TCheckbutton', font=("Arial", 10), background=style.colors.primary, foreground=style.colors.get("selectfg"))
+        #Create a checkbutton to toggle audio
+        self.audioCheckbutton = tb.Checkbutton(self.menuFrame, style="TCheckbutton", text="Enable Audio", command=self.toggleAudio)
+        self.audioCheckbutton.pack(side="left", padx=3)
+        #Set the checkbutton to the correct state
+        self.audioCheckbutton.state(["!alternate"])
+        self.audioCheckbutton.state(["selected"])
+
+        #Create a checkbutton to toggle fullscreen
+        self.fullscreenCheckbutton = tb.Checkbutton(self.menuFrame, style="TCheckbutton", text="Fullscreen", command=self.toggleFullScreen)
+        self.fullscreenCheckbutton.pack(side="left", padx=3)
+        #Set the checkbutton to the correct state
+        self.fullscreenCheckbutton.state(["!alternate"])
+        self.fullscreenCheckbutton.state(["selected"])
+
+        
+
 
         #After variable to keep track of slide changes.
         self.slideChangeAfter = None
@@ -266,6 +302,18 @@ class SlideshowPlayer(tb.Frame):
         #Bind a configure event to the window so we can create the components after the window is resized.
         self.bind("<Configure>", lambda e: self.createComponents())
 
+        return
+    
+    def toggleAudio(self):
+        self.pause(True)
+        if self.audioPlayerEnabled:
+            self.audioPlayerEnabled = False
+            self.hideProgressBar()
+        else:
+            self.audioPlayerEnabled = True
+        self.update()
+        self.update_ProgressBar()
+        self.showOverlay()
         return
     
     def printOpenFiles(self):
@@ -473,6 +521,8 @@ class SlideshowPlayer(tb.Frame):
         return
     
     def showProgressBar(self):
+        if self.audioPlayerEnabled == False:
+            return
         if self.fullscreen:
             self.progressBar_maxLabel.place(anchor="sw", relx=0.97, rely=1, relheight=0.02)
             self.progressBar.place(anchor="se", relx=0.97, rely=1, relwidth=0.83, relheight=0.02)
@@ -499,17 +549,29 @@ class SlideshowPlayer(tb.Frame):
 
 
     def showButtons(self):
-        if self.fullscreen:
-            #Center of screen
-            self.pauseButton.place(anchor="s", relx=0.5, rely=0.980, relwidth=0.12)
-            self.nextButton.place(anchor="s", relx=0.6, rely=0.980, relwidth=0.12)
-            self.prevButton.place(anchor="s", relx=0.4, rely=0.980, relwidth=0.12)
-
+        if self.audioPlayerEnabled:
+            if self.fullscreen:
+                #Center of screen
+                self.pauseButton.place(anchor="s", relx=0.5, rely=0.980, relwidth=0.12)
+                self.nextButton.place(anchor="s", relx=0.6, rely=0.980, relwidth=0.12)
+                self.prevButton.place(anchor="s", relx=0.4, rely=0.980, relwidth=0.12)
+            else:
+                #Center of screen
+                self.pauseButton.place(anchor="s", relx=0.5, rely=0.98, relwidth=0.12)
+                self.nextButton.place(anchor="s", relx=0.6, rely=0.98, relwidth=0.12)
+                self.prevButton.place(anchor="s", relx=0.4, rely=0.98, relwidth=0.12)
         else:
-            #Center of screen
-            self.pauseButton.place(anchor="s", relx=0.5, rely=0.98, relwidth=0.12)
-            self.nextButton.place(anchor="s", relx=0.6, rely=0.98, relwidth=0.12)
-            self.prevButton.place(anchor="s", relx=0.4, rely=0.98, relwidth=0.12)
+            if self.fullscreen:
+                #Center of screen
+                self.pauseButton.place(anchor="s", relx=0.5, rely=1, relwidth=0.12)
+                self.nextButton.place(anchor="s", relx=0.6, rely=1, relwidth=0.12)
+                self.prevButton.place(anchor="s", relx=0.4, rely=1, relwidth=0.12)
+            else:
+                #Center of screen
+                self.pauseButton.place(anchor="s", relx=0.5, rely=1, relwidth=0.12)
+                self.nextButton.place(anchor="s", relx=0.6, rely=1, relwidth=0.12)
+                self.prevButton.place(anchor="s", relx=0.4, rely=1, relwidth=0.12)
+            
 
     
     def showSlideCounter(self):
@@ -744,9 +806,10 @@ class SlideshowPlayer(tb.Frame):
                     self.after_cancel(self.slideChangeAfter)
                 except:
                     pass
+            self.update_idletasks()
             
             #Audio player
-            if self.playlistExists:
+            if self.playlistExists and self.audioPlayerEnabled:
                 #If the audio Player is playing, pause it.
                 if self.audioPlayer.state == FP.AudioPlayer.State.PLAYING:
                     self.audioPlayer.pause()
@@ -754,9 +817,11 @@ class SlideshowPlayer(tb.Frame):
             #Set slideshow to start playing
             self.pauseButton.config(text="Pause")
             self.automaticNext()
+            
+            self.update_idletasks()
 
             #Audio player
-            if self.playlistExists:
+            if self.playlistExists and self.audioPlayerEnabled:
                 #If the audio Player is paused, play it.
                 if self.audioPlayer.state == FP.AudioPlayer.State.PAUSED:
                     self.audioPlayer.resume()
@@ -768,7 +833,9 @@ class SlideshowPlayer(tb.Frame):
     
     def update_ProgressBar(self):
         if self.playlistExists:
-            
+            if self.audioPlayerEnabled == False:
+                self.audioPlayer.stop()
+                return
             #Update the progress bar
             self.progressBar["value"] = self.audioPlayer.getProgress()
             self.progressBar['maximum'] = self.audioPlayer.duration
@@ -779,11 +846,19 @@ class SlideshowPlayer(tb.Frame):
             if self.audioPlayer.isFinished():
                 self.nextSong()
 
-            self.progressBarUpdater = self.after(100, self.update_ProgressBar)
+            self.progressBarUpdater = self.after(120, self.update_ProgressBar)
+            print(f"Progress: {self.audioPlayer.getProgress()} / {self.audioPlayer.duration}")
         return
     
     def nextSong(self):
         if self.playlistExists:
+            #Check and see if any songs are even in the playlist.
+            if len(self.playlist.songs) == 0:
+                print("No songs in playlist")
+                self.playlistExists = False
+                self.audioPlayerEnabled:bool = False
+                return
+
             self.currentSong += 1
             #If we're at the end of the playlist, loop back to the beginning.
             if self.currentSong > len(self.playlist.songs)-1:
@@ -793,14 +868,20 @@ class SlideshowPlayer(tb.Frame):
                 self.currentSong = 0
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            self.audioPlayer.unloadSong()
+            # self.audioPlayer.unloadSong()
+            self.audioPlayer.stop()
+            self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
+                print("Error loading song in nextSong, moving to next song")
                 #If the song failed to load, move to the next song and remove the current song from the playlist
                 self.nextSong()
-                self.playlist.songs.pop(self.currentSong)
-                self.currentSong -= 1
+                # self.playlist.songs.pop(self.currentSong)
+                # self.currentSong -= 1
+                return
             else:
                 self.songLabel.config(text=song.name)
+
+            self.update_idletasks
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()
@@ -808,20 +889,32 @@ class SlideshowPlayer(tb.Frame):
     
     def previousSong(self):
         if self.playlistExists:
+            #Check and see if any songs are even in the playlist.
+            if len(self.playlist.songs) == 0:
+                print("No songs in playlist")
+                self.playlistExists = False
+                self.audioPlayerEnabled:bool = False
+                return
+
             self.currentSong -= 1
             #If we're at the beginning of the playlist, loop back to the end.
             if self.currentSong < 0:
                 self.currentSong = len(self.playlist.songs)-1
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            self.audioPlayer.unloadSong()
+            # self.audioPlayer.unloadSong()
+            self.audioPlayer.stop()
+            self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 #If the song failed to load, move to the next song and remove the current song from the playlist
                 self.nextSong()
-                self.playlist.songs.pop(self.currentSong)
-                self.currentSong -= 1
+                # self.playlist.songs.pop(self.currentSong)
+                # self.currentSong -= 1
+                return
             else:
                 self.songLabel.config(text=song.name)
+
+            self.update_idletasks()
             #If the slideshow is playing, play the song.
             if not self.isPaused:
                 self.audioPlayer.play()
@@ -833,7 +926,7 @@ class SlideshowPlayer(tb.Frame):
         print("\nQuitting...\n")
         self.quiting = True
         self.audioPlayer.stop()
-        self.audioPlayer.unloadSong()
+        # self.audioPlayer.unloadSong()
 
         self.dummy.quit()
         self.quit()
@@ -846,7 +939,7 @@ class SlideshowPlayer(tb.Frame):
         print("\nClosing...\n")
         self.closing = True
         self.audioPlayer.stop()
-        self.audioPlayer.unloadSong()
+        # self.audioPlayer.unloadSong()
         #Close all open files
         for f in FP.openFiles.values():
             f.close()

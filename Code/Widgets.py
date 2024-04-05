@@ -1172,7 +1172,7 @@ class InfoFrame(tb.Frame):
         self.playlistTree.move(selected, "", self.playlistTree.index(selected)-1)
         #Redo the order numbers
         for i in range(len(self.playlist.songs)):
-            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1, self.playlistTree.item(self.playlistTree.get_children()[i])['values'][2]))
         return
 
     def playListMoveDown(self):
@@ -1198,7 +1198,7 @@ class InfoFrame(tb.Frame):
         self.playlistTree.move(selected, "", self.playlistTree.index(selected)+1)
         #Redo the order numbers
         for i in range(len(self.playlist.songs)):
-            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1, self.playlistTree.item(self.playlistTree.get_children()[i])['values'][2]))
         return
 
     def playListRemove(self):
@@ -1234,11 +1234,12 @@ class InfoFrame(tb.Frame):
         #Remove the song from the treeview
         self.playlistTree.delete(selected)
         self.update_idletasks()
-        #Redo the order numbers
+        # #Redo the order numbers
         for i in range(len(self.playlist.songs)):
-            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1))
+            self.playlistTree.item(self.playlistTree.get_children()[i], values=(self.playlistTree.item(self.playlistTree.get_children()[i])['values'][0], i+1, self.playlistTree.item(self.playlistTree.get_children()[i])['values'][2]))
         duration = self.playlist.getDuration()
         self.playlistDuration.config(text=FP.formatTime(duration))
+        # self.fillProjectInfo()
 
         try:
             FP.openFiles[songToRemove.filePath].close()
@@ -1250,7 +1251,7 @@ class InfoFrame(tb.Frame):
     def playListAdd(self):
         print("")
         #Open a file dialog to select a .mp3, .mp4, .wav, or .aiff file
-        filetypes = [("Audio Files", "*.mp3 *.mp4 *.wav *.aiff")]
+        filetypes = [("Audio Files", "*.mp3 *.wav *.aiff")]
         file = filedialog.askopenfile(filetypes=filetypes, title="Select a song to add to the playlist")
         if file == None:
             return
@@ -1260,14 +1261,26 @@ class InfoFrame(tb.Frame):
             if song.filePath == file.name:
                 print(f"{file.name} is already in the playlist as {song}")
                 return
+            
+
+        song_location = FP.file_loc(song.filePath)
+        status = "Good"
+        if song_location == 1:
+            status = "In Project Folder"
+        elif song_location == 2:
+            status = "Warning: Only in Cache"
+        elif song_location == 3:
+            status = "Error: Missing"
 
         #Add the file to the playlist
         #How many songs are in the playlist
         songCount = len(self.playlist.songs)
-        self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1))
+        self.playlistTree.insert("", "end", values=(FP.getBaseName([file.name])[0], songCount+1, status), tags=("good"))
         self.playlist.addSong(file.name)
         duration = self.playlist.getDuration()
         self.playlistDuration.config(text=FP.formatTime(duration))
+        self.update_idletasks()
+        # self.fillProjectInfo()
 
         try:
             f = open(file.name, "rb")
