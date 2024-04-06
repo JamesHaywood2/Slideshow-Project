@@ -216,7 +216,7 @@ class SlideshowPlayer(tb.Frame):
                 try:
                     loaded = self.audioPlayer.loadSong(song)
                 except:
-                    print("Error loading song")
+                    print(f"Error loading song {song}")
                     loaded = -1
                 #Try to load a song into the audio player
                 if loaded == -1:
@@ -826,6 +826,7 @@ class SlideshowPlayer(tb.Frame):
                 if self.audioPlayer.state == FP.AudioPlayer.State.PAUSED:
                     self.audioPlayer.resume()
                 elif self.audioPlayer.state == FP.AudioPlayer.State.STOPPED:
+                    #Stopped is the default state, It is only at this state when the song is first loaded and has not played
                     self.audioPlayer.play()
 
         self.showOverlay()
@@ -836,18 +837,20 @@ class SlideshowPlayer(tb.Frame):
             if self.audioPlayerEnabled == False:
                 self.audioPlayer.stop()
                 return
+            
             #Update the progress bar
             self.progressBar["value"] = self.audioPlayer.getProgress()
             self.progressBar['maximum'] = self.audioPlayer.duration
             self.progressBar_maxLabel.config(text=FP.formatTime(self.audioPlayer.duration))
             self.progressBar_progressLabel.config(text=FP.formatTime(self.audioPlayer.progress))
-
             #If the song is over, move to the next song.
             if self.audioPlayer.isFinished():
                 self.nextSong()
 
+            # if self.audioPlayer.state == FP.AudioPlayer.State.PLAYING:
+            #     print(f"Progress: {self.audioPlayer.getProgress()} / {self.audioPlayer.duration}")
+            
             self.progressBarUpdater = self.after(120, self.update_ProgressBar)
-            # print(f"Progress: {self.audioPlayer.getProgress()} / {self.audioPlayer.duration}")
         return
     
     def nextSong(self):
@@ -880,6 +883,7 @@ class SlideshowPlayer(tb.Frame):
                 return
             else:
                 self.songLabel.config(text=song.name)
+            
 
             self.update_idletasks
             #If the slideshow is playing, play the song.
