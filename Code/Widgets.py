@@ -6,7 +6,7 @@ from ttkbootstrap.tooltip import ToolTip
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from PIL import Image, ImageTk, ImageDraw, ImageOps
+from PIL import Image, ImageTk, ImageOps
 import os
 from copy import deepcopy
 import time
@@ -1262,8 +1262,9 @@ class InfoFrame(tb.Frame):
                 print(f"{file.name} is already in the playlist as {song}")
                 return
             
-
-        song_location = FP.file_loc(song.filePath)
+        
+        # song_location = FP.file_loc(song.filePath)
+        song_location = FP.file_loc(file.name)
         status = "Good"
         if song_location == 1:
             status = "In Project Folder"

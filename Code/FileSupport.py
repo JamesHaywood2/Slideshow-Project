@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import random
 from PIL import Image, ImageOps
 import json
 
@@ -10,9 +9,9 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.aiff import AIFF
 from mutagen.wave import WAVE
-import threading
 import pydub
 
+# import pygame
 from pygame import mixer
 from enum import Enum
 
@@ -28,13 +27,14 @@ def resource_path(relative_path):
 
 # ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
 
+# MissingImage = resource_path(r"MissingImage.png")
+# refreshIcon  = resource_path(r"refreshIcon.png")
+# toolTipIcon  = resource_path(r"tooltip.png")
+
 MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
 toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 
-# MissingImage = resource_path(r"MissingImage.png")
-# refreshIcon  = resource_path(r"refreshIcon.png")
-# toolTipIcon  = resource_path(r"tooltip.png")
 
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
@@ -612,8 +612,10 @@ class Slideshow:
         #Export all the songs in the playlist to the export folder
         for song in self.playlist.songs:
             #Copy the song to the export folder
-            audio = pydub.AudioSegment.from_file(song.filePath)
-            audio.export(os.path.join(exportFolder, os.path.basename(song.filePath)))
+            f = open(song.filePath, 'rb')
+            with open(os.path.join(exportFolder, os.path.basename(song.filePath)), 'wb') as c:
+                c.write(f.read())
+            f.close()
 
         #Export all the slides in the slideshow to the export folder
         for slide in self.__slides:
@@ -657,19 +659,25 @@ class Song:
         #Get the duration of the song
         fileType = os.path.splitext(self.filePath)[1]
         print(f"filepath: {self.filePath}, fileType: {fileType}")
+        audio = None
         try:
             if fileType == ".mp3":
                 audio = MP3(self.filePath)
+                print(f"MP3 file audio loaded")
             elif fileType == ".wav":
                 audio = WAVE(self.filePath)
+                print(f"WAV file audio loaded")
             elif fileType == ".mp4":
                 audio = MP4(self.filePath)
+                print(f"MP4 file audio loaded")
             elif fileType == ".aiff":
                 audio = AIFF(self.filePath)
+                print(f"AIFF file audio loaded")
         except:
-            print(f"Error loading {self.filePath} at Song Object Creation.")
+            print(f"Error loading {self.filePath} at Song Object Creation. Trying generic load")
             try:
                 audio = mutagen.File(self.filePath)
+                print(f"Generic audio file loaded")
             except:
                 print(f"Error loading generic audio file {self.filePath}.")
                 return -1
@@ -833,9 +841,9 @@ class AudioPlayer:
             self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
 
 
-        #Set end of song event to change state to unload the song.
         try:
             mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
+            print(f"Loaded {self.current_song.name}")
         except:
             print(f"Failed to load song in loadsong() with mixer.music.load(). Song {self.current_song.filePath} failed to load.")
             self.state = AudioPlayer.State.FAILED_TO_LOAD
