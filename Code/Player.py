@@ -847,7 +847,7 @@ class SlideshowPlayer(tb.Frame):
                 self.nextSong()
 
             self.progressBarUpdater = self.after(120, self.update_ProgressBar)
-            print(f"Progress: {self.audioPlayer.getProgress()} / {self.audioPlayer.duration}")
+            # print(f"Progress: {self.audioPlayer.getProgress()} / {self.audioPlayer.duration}")
         return
     
     def nextSong(self):
