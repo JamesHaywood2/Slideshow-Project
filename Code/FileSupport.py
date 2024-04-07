@@ -9,7 +9,7 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.aiff import AIFF
 from mutagen.wave import WAVE
-import pydub
+import soundfile as sf
 
 # import pygame
 from pygame import mixer
@@ -34,6 +34,7 @@ def resource_path(relative_path):
 MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
 toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
+
 
 
 relative_project_path = ""
@@ -189,15 +190,34 @@ def updateSlideshowCacheList(slideshowPath:str):
 def getRecentSlideshows() -> list[str]:
     """Get the list of recent slideshows from the cache folder."""
     cacheDir = getUserCacheDir()
+    #Validate the recent slideshows list
+    validateRecentSlideshows()
     #Check if the RecentSlideshows file exists
     if not os.path.exists(os.path.join(cacheDir, "RecentSlideshows.txt")):
+        print(f"RecentSlideshows.txt does not exist in {cacheDir}. Creating it now.")
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'w') as f:
             pass
     else:
         #If the file exists, return the list of recent slideshows
         with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
+            print("Reading RecentSlideshows.txt")
             slideshows = f.readlines()
             slideshows = [s.strip() for s in slideshows]
+            for s in slideshows:
+                #Check if it's empty
+                if s == "":
+                    slideshows.remove(s)
+                    continue
+                #Split the entry into the file path and the last modified time
+                split = s.split("$")
+                #Check if the split is valid
+                if len(split) != 2:
+                    slideshows.remove(s)
+                    continue
+                #Check if the file path is valid
+                if not os.path.exists(split[0]):
+                    slideshows.remove(s)
+                    continue
             return slideshows
     return []
         
@@ -221,9 +241,17 @@ def validateRecentSlideshows():
     with open(os.path.join(cacheDir, "RecentSlideshows.txt"), 'r') as f:
         slideshows = f.readlines()
         slideshows = [s.strip() for s in slideshows]
+        #Check if the list is empty
+        if len(slideshows) == 0:
+            return
         #Iterate through the list
         for s in slideshows:
             split = s.split("$")
+            #Check if the split is valid
+            if len(split) != 2:
+                #If it's not valid, remove it from the list
+                slideshows.remove(s)
+                continue
             path = split[0]
             mod_time = split[1]
             #Check if already in the dictionary
@@ -471,7 +499,7 @@ class Slideshow:
     def getPlaylist(self):
         """Returns the playlist object. If a song is missing it will remove it from the playlist."""
         print("\nGetting playlist...")
-        print(self.playlist)
+        # print(self.playlist)
         #If the playlist is a disctionary, convert it to a Playlist object.
         if isinstance(self.playlist, dict):
             playlist = Playlist()
@@ -663,21 +691,17 @@ class Song:
         try:
             if fileType == ".mp3":
                 audio = MP3(self.filePath)
-                print(f"MP3 file audio loaded")
             elif fileType == ".wav":
                 audio = WAVE(self.filePath)
-                print(f"WAV file audio loaded")
             elif fileType == ".mp4":
                 audio = MP4(self.filePath)
-                print(f"MP4 file audio loaded")
             elif fileType == ".aiff":
                 audio = AIFF(self.filePath)
-                print(f"AIFF file audio loaded")
-        except:
+        except Exception as e:
             print(f"Error loading {self.filePath} at Song Object Creation. Trying generic load")
+            print("Error: ", e)
             try:
                 audio = mutagen.File(self.filePath)
-                print(f"Generic audio file loaded")
             except:
                 print(f"Error loading generic audio file {self.filePath}.")
                 return -1
@@ -815,8 +839,17 @@ class AudioPlayer:
         else:
             # print("Song is finished.")
             return True
+        
+    def get_bit_depth(self, wav_file):
+        with sf.SoundFile(wav_file, 'r') as f:
+            bit_depth = f.subtype
+            if 'PCM_' in bit_depth:
+                bit_depth = bit_depth.split('_')[-1]  # Extracting the bit depth from subtype
+                if bit_depth.isdigit():  # Check if it's a digit
+                    return int(bit_depth)
+        return None
 
-    def loadSong(self, song):
+    def loadSong(self, song, rewriteWav:bool=False):
         print(f"\nAttempting to load song {song}...\n")
         #song must either be a path to a file or a Song object
         if isinstance(song, Song):
@@ -831,27 +864,37 @@ class AudioPlayer:
             print("Invalid song type. Must be a path to a file or a Song object.")
             self.state = AudioPlayer.State.FAILED_TO_LOAD
             return -1
-        
-        #If mp4, convert to .wav, save to cache, and load the .wav file.
-        if self.current_song.fileType == ".mp4":
-            #Convert the mp4 to wav
-            audio = pydub.AudioSegment.from_file(file_check(self.current_song.filePath, relative_project_path), format="mp4")
-            audio.export(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"), format="wav")
-            #Load the wav file
-            self.current_song = Song(os.path.join(getUserCacheDir(), "cache", self.current_song.name + ".wav"))
 
+        if self.current_song.fileType == ".wav":
+            #Check if the bit depth is 16
+            bit_depth = self.get_bit_depth(self.current_song.filePath)
+            if bit_depth is not None:
+                print("Bit depth:", bit_depth)
+            else:
+                print("Unable to determine bit depth. Attempting to re-write to 16-bit.")
+                return -2
 
         try:
             mixer.music.load(file_check(self.current_song.filePath, relative_project_path))
             print(f"Loaded {self.current_song.name}")
-        except:
+        except Exception as e:
             print(f"Failed to load song in loadsong() with mixer.music.load(). Song {self.current_song.filePath} failed to load.")
+            print("Error: ", e)
             self.state = AudioPlayer.State.FAILED_TO_LOAD
             return -1
         self.state = AudioPlayer.State.STOPPED
         self.progress = 0
         self.duration = self.current_song.duration
         return 0
+    
+    def rewriteWavto16Bit(self, wav_file):
+        data, samplerate = sf.read(wav_file)
+        cachedWavPath = os.path.join(getUserCacheDir(), "cache", os.path.basename(wav_file))
+        sf.write(cachedWavPath, data, samplerate, subtype='PCM_16')
+        #Update the song object
+        self.current_song = Song(cachedWavPath)
+        return cachedWavPath
+
 
     def unloadSong(self):
         #If the song is unloaded or failed to load, don't do anything.
@@ -859,8 +902,9 @@ class AudioPlayer:
             return -1
         try:
             mixer.music.unload()
-        except:
+        except Exception as e:
             print(f"Failed to unload song {self.current_song.filePath}.")
+            print("Error: ", e)
             return -1
         print(f"Unloaded {self.current_song.name}")
         self.state = AudioPlayer.State.UNLOADED
@@ -888,8 +932,9 @@ class AudioPlayer:
             mixer.music.play()
             self.state = AudioPlayer.State.PLAYING
             print(f"Playing {self.current_song.name}")
-        except:
+        except Exception as e:
             print(f"Failed to play song {self.current_song.filePath}.")
+            print("Error: ", e)
             self.state = AudioPlayer.State.FAILED_TO_LOAD
             return -1
 
@@ -898,8 +943,9 @@ class AudioPlayer:
             try:
                 mixer.music.pause()
                 self.state = AudioPlayer.State.PAUSED
-            except:
+            except Exception as e:
                 print(f"Failed to pause song {self.current_song.filePath}.")
+                print("Error: ", e)
                 return -1
         else:
             print("Song is not playing.")
@@ -910,8 +956,9 @@ class AudioPlayer:
             try:
                 mixer.music.unpause()
                 self.state = AudioPlayer.State.PLAYING
-            except:
+            except Exception as e:
                 print(f"Failed to resume song {self.current_song.filePath}.")
+                print("Error: ", e)
                 return -1
         else:
             print("Song is not paused.")
@@ -923,8 +970,9 @@ class AudioPlayer:
                 mixer.music.stop()
                 self.state = AudioPlayer.State.STOPPED
                 self.progress = 0
-            except:
+            except Exception as e:
                 print(f"Failed to stop song {self.current_song.filePath}.")
+                print("Error: ", e)
                 return -1
         else:
             print("Song is not playing or paused.")
