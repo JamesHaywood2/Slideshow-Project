@@ -546,6 +546,7 @@ class SlideshowPlayer(tb.Frame):
             self.progressBar_progressLabel.place(anchor="se", relx=0.14, rely=1, relheight=0.02)
 
             self.songLabel.place(anchor="s", relx=0.05, rely=0.98)
+            self.songLabel.config(font=("Arial", 12))
 
             #Bottom left corner
             self.previousSongButton.place(anchor="sw", relx=0.01, rely=1, relwidth=0.05)
@@ -563,6 +564,14 @@ class SlideshowPlayer(tb.Frame):
             y=float(self.progressBar.winfo_height()/self.master.winfo_height())
             x=float(self.progressBar_maxLabel.winfo_width()/self.master.winfo_width())
             self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
+
+            songlabelWidth = (1-.6-.06-x) * self.master.winfo_width()
+            if songlabelWidth < 200:
+                self.songLabel.config(font=("Arial", 8))
+            elif songlabelWidth < 300:
+                self.songLabel.config(font=("Arial", 10))
+            else:
+                self.songLabel.config(font=("Arial", 12))
 
 
     def showButtons(self):
@@ -661,7 +670,7 @@ class SlideshowPlayer(tb.Frame):
             print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
             print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
             print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
-            self.imageViewer.loadImagePIL(self.ImageMap[self.slideList[self.currentSlide]['slideID']])
+            self.imageViewer.loadImagePIL(copy.deepcopy(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             self.automaticNext()
 
     def nextSlide(self):
@@ -965,12 +974,15 @@ class SlideshowPlayer(tb.Frame):
             self.fullScreenToggleReady = False
             if self.fullscreen:
                 self.deactivateFullScreen()
+                self.fullscreenCheckbutton.state(["!selected"])
             else:
                 self.activateFullScreen()
+                self.fullscreenCheckbutton.state(["selected"])
         return
 
     def activateFullScreen(self, event=None):
         print("Activating fullscreen")
+        self.fullscreenCheckbutton.state(["selected"])
         self.master.update()
         self.fullscreen = True
         global temp_geometry 
@@ -1000,6 +1012,7 @@ class SlideshowPlayer(tb.Frame):
         print("Deactivating fullscreen")
         #Pause the slideshow
         self.pause(True)
+        self.fullscreenCheckbutton.state(["!selected"])
         self.master.update()
         self.fullscreen = False
         self.master.overrideredirect(False)
