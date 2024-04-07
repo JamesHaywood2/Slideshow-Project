@@ -147,13 +147,11 @@ class SlideshowPlayer(tb.Frame):
         self.shuffleSlideshow:bool = False
         try:
             self.manual = self.slideshow.manual
-            # print(f"Manual: {self.manual}")
         except:
             print("Error loading manual setting")
 
         try:
             self.shuffleSlideshow = self.slideshow.shuffle
-            # print(f"Shuffle Slideshow: {self.shuffleSlideshow}")
         except:
             print("Error loading shuffle setting")
 
@@ -162,7 +160,6 @@ class SlideshowPlayer(tb.Frame):
         #If it is until_slideshow_ends, then we need to do a check every time we move to a new slide to see if the slideshow is over.
         try:
             self.loopSetting = self.slideshow.loopSettings
-            # print(f"Loop: {self.loopSetting}")
         except:
             print("Error loading loop setting")
             self.loopSetting = FP.loopSetting.INDEFINITE
@@ -178,12 +175,11 @@ class SlideshowPlayer(tb.Frame):
         self.playlistExists:bool = False
 
         if len(self.playlist.songs) > 0:
-            print("\Playlist found...\n")
+            print("\nPlaylist found...\n")
             print(f"Playlist: \n{self.playlist.songs}")
             self.playlistExists = True
             try:
                 self.shufflePlaylist = self.playlist.shuffle
-                # print(f"Shuffle Playlist: {self.shufflePlaylist}")
             except:
                 print("Error loading shuffle setting")
         else:
@@ -208,17 +204,38 @@ class SlideshowPlayer(tb.Frame):
         self.audioPlayer = FP.AudioPlayer()
         
         self.audioPlayerEnabled:bool = False
+        #Do a test load of all the songs
+        print("\nTest loading all songs...\n")
+        for song in self.playlist.songs:
+            print(f"Loading song: {song.name}")
+            loaded = self.audioPlayer.loadSong(song)
+            if loaded == -2:
+                #Song was a .wav file that was not read for some reason. Convert it to a 16-bit PCM wav file.
+                print(f"Converting {song.name} to 16-bit PCM wav file")
+                try:
+                    newPath = self.audioPlayer.rewriteWavto16Bit(song.filePath)
+                    #Change the song in the playlist to the song currently in the audio player
+                    song.filePath = newPath
+                    song.name = os.path.basename(newPath)
+                except Exception as e:
+                    print(f"Error converting {song.name} to 16-bit PCM wav file: {e}")
+                    self.playlist.songs.remove(song)
+                
+                #reload the song
+                loaded = self.audioPlayer.loadSong(song)
+            if loaded == -1:
+                print(f"Error loading song: {song.name}")
+                self.playlist.songs.remove(song)
+        print("\nTest loading complete\n")
+
         #Load first song into the audio player
         if self.playlistExists:
             song = self.playlist.songs[self.currentSong]
             songLoaded:bool = False
             while songLoaded == False and len(self.playlist.songs) > 0:
-                try:
-                    loaded = self.audioPlayer.loadSong(song)
-                except:
-                    print("Error loading song")
-                    loaded = -1
+                loaded = self.audioPlayer.loadSong(song)
                 #Try to load a song into the audio player
+                print(f"Loading song: {song.name} and loaded: {loaded}")
                 if loaded == -1:
                     #If the song failed to load, remove it from the playlist and try the next song.
                     self.playlist.songs.pop(self.currentSong)
@@ -868,12 +885,9 @@ class SlideshowPlayer(tb.Frame):
                 self.currentSong = 0
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            # self.audioPlayer.unloadSong()
             self.audioPlayer.stop()
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
-                print("Error loading song in nextSong, moving to next song")
-                #If the song failed to load, move to the next song and remove the current song from the playlist
                 self.nextSong()
                 # self.playlist.songs.pop(self.currentSong)
                 # self.currentSong -= 1
@@ -902,12 +916,11 @@ class SlideshowPlayer(tb.Frame):
                 self.currentSong = len(self.playlist.songs)-1
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            # self.audioPlayer.unloadSong()
             self.audioPlayer.stop()
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 #If the song failed to load, move to the next song and remove the current song from the playlist
-                self.nextSong()
+                self.previousSong()
                 # self.playlist.songs.pop(self.currentSong)
                 # self.currentSong -= 1
                 return
@@ -926,7 +939,6 @@ class SlideshowPlayer(tb.Frame):
         print("\nQuitting...\n")
         self.quiting = True
         self.audioPlayer.stop()
-        # self.audioPlayer.unloadSong()
 
         self.dummy.quit()
         self.quit()
@@ -939,7 +951,6 @@ class SlideshowPlayer(tb.Frame):
         print("\nClosing...\n")
         self.closing = True
         self.audioPlayer.stop()
-        # self.audioPlayer.unloadSong()
         #Close all open files
         for f in FP.openFiles.values():
             f.close()
