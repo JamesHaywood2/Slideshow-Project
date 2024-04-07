@@ -698,7 +698,7 @@ class SlideshowPlayer(tb.Frame):
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
-        transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        transitionSpeed = nextSlide['transitionSpeed']
         # transitionSpeed = 10000
 
         previous_ID = previousSlide['slideID']
@@ -742,7 +742,7 @@ class SlideshowPlayer(tb.Frame):
             #Automatic transitions
             if self.slideChangeAfter:
                 self.after_cancel(self.slideChangeAfter)
-            changeTime = self.slideList[self.currentSlide]['duration'] * 1000
+            changeTime = self.slideList[self.currentSlide]['duration']
             self.slideChangeAfter = self.after(changeTime, self.nextSlide)
             print(f"Next slide in {changeTime}ms")
 
@@ -776,7 +776,7 @@ class SlideshowPlayer(tb.Frame):
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
         transition = reverseTransitionDict[previousSlide['transition']]
-        transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        transitionSpeed = nextSlide['transitionSpeed']
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']

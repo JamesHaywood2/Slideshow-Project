@@ -339,8 +339,9 @@ class Slide:
         self.imagePath: str = None
         self.imageName: str = None
         self.transition: transitionType = transitionType.DEFAULT
-        self.transitionSpeed: int = 1
-        self.duration: int = 5
+        self.transitionSpeed: int = 1000
+        self.duration: int = 5000
+        self.slideDB_ID: int = None
 
         #Check if the imagePath is a valid picture
         try:
@@ -360,6 +361,15 @@ class Slide:
     def __str__(self) -> str:
         #Print __dict__ for debugging
         return str(self.__dict__)
+    
+    def update(self):
+        s = Slide(self['imagePath'])
+        s.__dict__.update(self)
+        self = s
+        print(f"Updated slide: {self}")
+
+
+        
         
 class transitionType:
     '''Transition types enumeration for the slideshow'''
@@ -397,6 +407,7 @@ class Slideshow:
         self.manual: bool = False
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
+        self.tags: list[str] = [] 
 
         #if the file path exists, open it.
         if os.path.exists(filePath):
@@ -667,6 +678,9 @@ class Song:
         self.name: str = None
         self.duration: int = 0
         self.fileType: str = None
+        self.duration: int = 0
+
+        self.songDB_ID: int = None
 
         #Check if the songPath is a valid song (.mp3, .mp4, .wav, .AAIF)
         try:
@@ -707,7 +721,7 @@ class Song:
                 return -1
 
         self.fileType = fileType
-        self.duration = audio.info.length
+        self.duration = int(audio.info.length)
 
     def __str__(self) -> str:
         """Print definition for debugging."""
