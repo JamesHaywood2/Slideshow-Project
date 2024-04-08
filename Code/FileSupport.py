@@ -480,8 +480,9 @@ class Slideshow:
                     s = Song(file_check(song['filePath'], relative_project_path))
                     s.__dict__.update(song)
                     self.playlist.songs[i] = s
-                except:
+                except Exception as e:
                     print(f"Error loading song {song['filePath']}!")
+                    print(e)
                     self.playlist.songs.pop(i)
                 
                 #Open the file and lock it
@@ -655,11 +656,7 @@ class Song:
         fileType = self.filePath.split('.')[-1]
         print(f"filepath: {self.filePath}, fileType: {fileType}")
         audio = None
-        try:
-            audio = pydub.AudioSegment.from_file(self.filePath, format=fileType)
-        except:
-            print(f"Error loading {self.filePath} into audio segment.")
-            return -1
+        audio = pydub.AudioSegment.from_file(self.filePath)
 
         self.fileType = fileType
         self.duration = audio.duration_seconds
@@ -823,7 +820,7 @@ class AudioPlayer:
 
         fileType = self.current_song.filePath.split('.')[-1]
         try:
-            self.audio = pydub.AudioSegment.from_file(file_check(self.current_song.filePath, relative_project_path), format=fileType)
+            self.audio = pydub.AudioSegment.from_file(file_check(self.current_song.filePath, relative_project_path))
         except:
             print(f"Failed to load song in loadsong() with pydub.AudioSegment.from_file(). Song {self.current_song.filePath} failed to load.")
             self.state = AudioPlayer.State.FAILED_TO_LOAD
