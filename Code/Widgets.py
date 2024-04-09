@@ -1330,9 +1330,13 @@ class InfoFrame(tb.Frame):
   
         if pth_location == 0: #Full path
             print("Full path")
+            self.imagePath.config(style="TLabel")
             pass
         elif pth_location == 1: #Project folder
             print("Project folder")
+            self.imagePath.config(style="success.TLabel")
+            rowNumber += 1
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="This image is in the project folder with the project file.", font=("Arial", 12), style="success.TLabel").grid(row=rowNumber, column=0, columnspan=7)
             pass
         elif pth_location == 2: #Cache
             print("Cache")

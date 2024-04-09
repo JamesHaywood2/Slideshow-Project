@@ -871,7 +871,7 @@ class AudioPlayer:
             if bit_depth is not None:
                 print("Bit depth:", bit_depth)
             else:
-                print("Unable to determine bit depth. Attempting to re-write to 16-bit.")
+                print("Error: Failed to get bit depth, file was not 16-bit.")
                 return -2
 
         try:
@@ -891,8 +891,6 @@ class AudioPlayer:
         data, samplerate = sf.read(wav_file)
         cachedWavPath = os.path.join(getUserCacheDir(), "cache", os.path.basename(wav_file))
         sf.write(cachedWavPath, data, samplerate, subtype='PCM_16')
-        #Update the song object
-        self.current_song = Song(cachedWavPath)
         return cachedWavPath
 
 
