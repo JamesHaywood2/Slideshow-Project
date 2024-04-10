@@ -9,6 +9,8 @@ import random
 
 import time
 import copy
+import pprint as pp
+
 
 temp_geometry = None
 
@@ -132,6 +134,8 @@ class SlideshowPlayer(tb.Frame):
             print("Cache initialziation failed")
         tb.Style().theme_use(FP.getPreferences())
 
+        # pp.pprint(self.slideshow.__dict__)
+
         self.debug = debug
 
         #List of all the slides
@@ -208,19 +212,31 @@ class SlideshowPlayer(tb.Frame):
         print("\nTest loading all songs...\n")
         for song in self.playlist.songs:
             print(f"Loading song: {song.name}")
+
+            #Get the location of the file
+            loc = FP.file_loc(song.filePath, FP.relative_project_path)
+            if loc == 3:
+                #File was just straight up not found anywhere. Remove it from the playlist.
+                print(f"File not found: {song.name}")
+                self.playlist.songs.remove(song)
+                continue
+
+            #If we did find the file, just go ahead and update the filepaths and stuff.
+            newpath = FP.file_check(song.filePath, FP.relative_project_path)
+            song.filePath = newpath
+            song.name = os.path.basename(newpath)
+
+            #Load the song into the audio player
             loaded = self.audioPlayer.loadSong(song)
             if loaded == -2:
-                #Song was a .wav file that was not read for some reason. Convert it to a 16-bit PCM wav file.
-                print(f"Converting {song.name} to 16-bit PCM wav file")
                 try:
-                    newPath = self.audioPlayer.rewriteWavto16Bit(song.filePath)
-                    #Change the song in the playlist to the song currently in the audio player
-                    song.filePath = newPath
-                    song.name = os.path.basename(newPath)
+                    cached_path = self.audioPlayer.rewriteWavto16Bit(song.filePath)
+                    song.filePath = cached_path
+                    song.name = os.path.basename(cached_path)
                 except Exception as e:
-                    print(f"Error converting {song.name} to 16-bit PCM wav file: {e}")
+                    print(f"Error rewriting song: {e}")
                     self.playlist.songs.remove(song)
-                
+                    continue
                 #reload the song
                 loaded = self.audioPlayer.loadSong(song)
             if loaded == -1:
@@ -278,7 +294,7 @@ class SlideshowPlayer(tb.Frame):
         self.menuVisible: bool = False
         style = tb.Style()
         style.configure("custom.TFrame", background=style.colors.primary)
-        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
+        self.menuFrame = tb.Frame(self, style="custom.TFrame")
         self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
         self.menuFrame.place_forget()
 
@@ -298,9 +314,13 @@ class SlideshowPlayer(tb.Frame):
         #Create a checkbutton to toggle audio
         self.audioCheckbutton = tb.Checkbutton(self.menuFrame, style="TCheckbutton", text="Enable Audio", command=self.toggleAudio)
         self.audioCheckbutton.pack(side="left", padx=3)
-        #Set the checkbutton to the correct state
-        self.audioCheckbutton.state(["!alternate"])
-        self.audioCheckbutton.state(["selected"])
+        #Check if the audio player is enabled
+        if self.playlistExists:
+            self.audioCheckbutton.state(["!disabled"])
+            self.audioCheckbutton.state(["!alternate"])
+            self.audioCheckbutton.state(["selected"])
+        else:
+            self.audioCheckbutton.state(["disabled"])
 
         #Create a checkbutton to toggle fullscreen
         self.fullscreenCheckbutton = tb.Checkbutton(self.menuFrame, style="TCheckbutton", text="Fullscreen", command=self.toggleFullScreen)
@@ -398,68 +418,66 @@ class SlideshowPlayer(tb.Frame):
         self.unbind("<Configure>")
         self.update_idletasks()
         #Only construct the layout if the project is not empty of slides.
+        # if len(self.slideList) > 0:
+        #Add first slide to the ImageViewer
         if len(self.slideList) > 0:
-            
-            #Add first slide to the ImageViewer
             pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
             print(f"First slide: {pth}")
             self.imageViewer.loadImage(pth)
 
             #Render the images
             self.renderImages()
-            
-            self.update_idletasks()
+        
+        self.update_idletasks()
 
-            #Add next and previous buttons using place.
-            self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
-            self.prevButton = tb.Button(self, text="Previous", command=self.prevSlide)
-            self.pauseButton = tb.Button(self, text="Play", command=self.pause)
+        #Add next and previous buttons using place.
+        self.nextButton = tb.Button(self, text="Next", command=self.nextSlide)
+        self.prevButton = tb.Button(self, text="Previous", command=self.prevSlide)
+        self.pauseButton = tb.Button(self, text="Play", command=self.pause)
 
-            
-            self.showButtons()
+        #Add a slide counter in the top right corner
+        self.slideMeterBroken: bool = False
 
-            #Add a slide counter in the top right corner
-            self.slideMeterBroken: bool = False
-
-            #Add a slide counter in the top right corner using a bootstrap meter
-            #Go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work
-            try:
+        #Add a slide counter in the top right corner using a bootstrap meter
+        #Go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work
+        try:
+            if len(self.slideList) > 0:
                 self.slideCounter = tb.Meter(self, 
-                                         bootstyle="primary",
-                                         metersize=100,
-                                         textright=f"/{len(self.slideList)}",
-                                         metertype="semi",
-                                         amounttotal=len(self.slideList),
-                                         amountused=self.currentSlide+1,
-                                         stripethickness=0,)
-                # self.slideCounter.place(relx=1, rely=0, anchor="ne")
-            except:
-                self.slideMeterBroken = True
-                self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
-                # self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
-                #Throw an error message: f"Error: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label."
-                print(f"\nError: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label.\n")
-            
+                                     bootstyle="primary",
+                                     metersize=100,
+                                     textright=f"/{len(self.slideList)}",
+                                     metertype="semi",
+                                     amounttotal=len(self.slideList),
+                                     amountused=self.currentSlide+1,
+                                     stripethickness=0,)
+            # self.slideCounter.place(relx=1, rely=0, anchor="ne")
+        except:
+            self.slideMeterBroken = True
+            self.slideCounter = tb.Label(self, text=f"Slide {self.currentSlide+1}/{len(self.slideList)}")
+            # self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
+            #Throw an error message: f"Error: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label."
+            print(f"\nError: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label.\n")
+        
+        if len(self.slideList) > 0:
+            self.showButtons()
             self.showSlideCounter()
 
+        if self.playlistExists:
+            #Add a tb.Progressbar to the bottom of the screen
+            self.progressBar = tb.Progressbar(self, orient="horizontal", mode="determinate")
+            self.progressBar["value"] = 0
+            self.progressBar_maxLabel = tb.Label(self, text="0:00", font=("Arial", 12))
+            self.progressBar_progressLabel = tb.Label(self, text="0:00", font=("Arial", 12))
+            self.songLabel = tb.Label(self, text=self.playlist.songs[self.currentSong].name, font=("Arial", 12))
 
-            if self.playlistExists:
-                #Add a tb.Progressbar to the bottom of the screen
-                self.progressBar = tb.Progressbar(self, orient="horizontal", mode="determinate")
-                self.progressBar["value"] = 0
-                self.progressBar_maxLabel = tb.Label(self, text="0:00", font=("Arial", 12))
-                self.progressBar_progressLabel = tb.Label(self, text="0:00", font=("Arial", 12))
-                self.songLabel = tb.Label(self, text=self.playlist.songs[self.currentSong].name, font=("Arial", 12))
+            #Next song buttons should use Left and Right arrow characters
+            self.nextSongButton = tb.Button(self, text="⮞", command=self.nextSong)
+            self.previousSongButton = tb.Button(self, text="⮜", command=self.previousSong)
 
-                #Next song buttons should use Left and Right arrow characters
-                self.nextSongButton = tb.Button(self, text="⮞", command=self.nextSong)
-                self.previousSongButton = tb.Button(self, text="⮜", command=self.previousSong)
-
+            if len(self.slideList) > 0:
                 self.showProgressBar()
-                self.update_ProgressBar()
-
+                self.update_ProgressBar()    
             
-
         self.master.bind("<Right>", lambda e: self.nextSlide())
         self.master.bind("<Left>", lambda e: self.prevSlide())
         self.master.bind("<space>", lambda e: self.pause())
@@ -483,14 +501,24 @@ class SlideshowPlayer(tb.Frame):
         y = event.y
         # print(f"Mouse at: {x}, {y}")
         #If the mouse is at the top of the screen, show the menu
-        if self.menuVisible == False and y < 10:
-            self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
-            self.menuVisible = True
-        elif self.menuVisible == True and y > 30:
-            self.menuFrame.place_forget()
-            self.menuVisible = False
+        try:
+            if self.menuVisible == False and y < 10:
+                self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
+                self.menuVisible = True
+            elif self.menuVisible == True and y > 30:
+                self.menuFrame.place_forget()
+                self.menuVisible = False
+        except Exception as e:
+            print(f"Error showing menu: {e}")
             
             
+            
+        #If there are no slides, return
+        try:
+            if len(self.slideList) == 0:
+                return
+        except:
+            return
         self.showOverlay()
         if self.mouse_after_id:
             self.after_cancel(self.mouse_after_id)
@@ -545,12 +573,15 @@ class SlideshowPlayer(tb.Frame):
             self.progressBar.place(anchor="se", relx=0.97, rely=1, relwidth=0.83, relheight=0.02)
             self.progressBar_progressLabel.place(anchor="se", relx=0.14, rely=1, relheight=0.02)
 
-            self.songLabel.place(anchor="s", relx=0.05, rely=0.98)
+            #Bottom left corner
+            self.previousSongButton.place(anchor="sw", relx=0.01, rely=1, relwidth=0.05, relheight=0.025)
+            self.nextSongButton.place(anchor="sw", relx=0.06, rely=1, relwidth=0.05, relheight=0.025)
+
+            #height of previousSongButton
+            y=float(self.previousSongButton.winfo_height()/self.master.winfo_height())
             self.songLabel.config(font=("Arial", 12))
 
-            #Bottom left corner
-            self.previousSongButton.place(anchor="sw", relx=0.01, rely=1, relwidth=0.05)
-            self.nextSongButton.place(anchor="sw", relx=0.06, rely=1, relwidth=0.05)
+            self.songLabel.place(anchor="sw", relx=0.01, rely=1-y)
         else:
             self.progressBar.place(relwidth=0.9, relheight=0.02, anchor="sw", relx=0.1, rely=1)
             self.progressBar_maxLabel.place(relx=1, rely=0.98, anchor="se")
@@ -563,7 +594,7 @@ class SlideshowPlayer(tb.Frame):
             #height of previousSongButton
             y=float(self.progressBar.winfo_height()/self.master.winfo_height())
             x=float(self.progressBar_maxLabel.winfo_width()/self.master.winfo_width())
-            self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
+
 
             songlabelWidth = (1-.6-.06-x) * self.master.winfo_width()
             if songlabelWidth < 200:
@@ -572,6 +603,8 @@ class SlideshowPlayer(tb.Frame):
                 self.songLabel.config(font=("Arial", 10))
             else:
                 self.songLabel.config(font=("Arial", 12))
+            self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
+
 
 
     def showButtons(self):
@@ -597,8 +630,16 @@ class SlideshowPlayer(tb.Frame):
                 self.pauseButton.place(anchor="s", relx=0.5, rely=1, relwidth=0.12)
                 self.nextButton.place(anchor="s", relx=0.6, rely=1, relwidth=0.12)
                 self.prevButton.place(anchor="s", relx=0.4, rely=1, relwidth=0.12)
-            
+                
+        # if self.audioPlayerEnabled == False and self.manual == True:
+        #     self.pauseButton.place_forget()
 
+        # if len(self.slideList) < 2:
+        #     self.nextButton.place_forget()
+        #     self.prevButton.place_forget()
+        #     if self.audioPlayerEnabled == False:
+        #         self.pauseButton.place_forget()
+            
     
     def showSlideCounter(self):
         if not self.slideMeterBroken:
@@ -637,16 +678,26 @@ class SlideshowPlayer(tb.Frame):
         del self.dummy
         
         #Stop any loops
-        if self.slideChangeAfter:
-            self.after_cancel(self.slideChangeAfter)
-        if self.progressBarUpdater:
-            self.after_cancel(self.progressBarUpdater)
-        if self.transition_checker:
-            self.after_cancel(self.transition_checker)
-        if self.mouse_after_id:
-            self.after_cancel(self.mouse_after_id)
-            
-
+        try:
+            if self.slideChangeAfter:
+                self.after_cancel(self.slideChangeAfter)
+        except:
+            pass
+        try:
+            if self.progressBarUpdater:
+                self.after_cancel(self.progressBarUpdater)
+        except:
+            pass
+        try:
+            if self.transition_checker:
+                self.after_cancel(self.transition_checker)
+        except:
+            pass
+        try:
+            if self.mouse_after_id:
+                self.after_cancel(self.mouse_after_id)
+        except:
+            pass
 
         self.pack_forget()
         self.destroy()
@@ -667,9 +718,16 @@ class SlideshowPlayer(tb.Frame):
                 pass
             self.transition_checker = None
             self.END = time.time()
-            print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
-            print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
-            print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
+
+            #If the transition was default
+            if self.slideList[self.currentSlide]['transition'] == FP.transitionType.DEFAULT:
+                print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
+                print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
+            else:
+                print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
+                print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
+                print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
+
             self.imageViewer.loadImagePIL(copy.deepcopy(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
             self.automaticNext()
 
@@ -698,7 +756,7 @@ class SlideshowPlayer(tb.Frame):
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
         transition = nextSlide['transition']
-        transitionSpeed = nextSlide['transitionSpeed']
+        transitionSpeed = nextSlide['transitionSpeed'] * 1000
         # transitionSpeed = 10000
 
         previous_ID = previousSlide['slideID']
@@ -743,10 +801,16 @@ class SlideshowPlayer(tb.Frame):
             if self.slideChangeAfter:
                 self.after_cancel(self.slideChangeAfter)
             changeTime = self.slideList[self.currentSlide]['duration']
+            #Clamp to range of 1-60 seconds
+            if changeTime < 1:
+                changeTime = 1
+            elif changeTime > 60:
+                changeTime = 60
+            changeTime = int(changeTime * 1000)
             self.slideChangeAfter = self.after(changeTime, self.nextSlide)
             print(f"Next slide in {changeTime}ms")
 
-        print(f"Current slide: {self.slideList[self.currentSlide]}")
+        print(f"Current slide: {self.slideList[self.currentSlide]}\n")
         return
     
     def prevSlide(self):
@@ -777,6 +841,12 @@ class SlideshowPlayer(tb.Frame):
         #Then gets the images and correctly sizes them.
         transition = reverseTransitionDict[previousSlide['transition']]
         transitionSpeed = nextSlide['transitionSpeed']
+        #Clamp to range of 0.5-10 seconds
+        if transitionSpeed < 0.5:
+            transitionSpeed = 0.5
+        elif transitionSpeed > 10:
+            transitionSpeed = 10
+        transitionSpeed = int(transitionSpeed * 1000)
 
         previous_ID = previousSlide['slideID']
         next_ID = nextSlide['slideID']
@@ -818,13 +888,16 @@ class SlideshowPlayer(tb.Frame):
         else:
             if paused:
                 self.isPaused = True
-                print("Pausing slideshow")
             else:
                 self.isPaused = False
                 print("Resuming slideshow")
+
+
         print(f"Pausing state: {self.isPaused}")
         self.update_idletasks()
+
         if self.isPaused:
+            print("Pausing slideshow")
             #Set slideshow to pause
             self.pauseButton.config(text="Play")
             if not self.manual: #If the slideshow is automatic transition and you pause, stop that transition.
@@ -840,6 +913,7 @@ class SlideshowPlayer(tb.Frame):
                 if self.audioPlayer.state == FP.AudioPlayer.State.PLAYING:
                     self.audioPlayer.pause()
         else: 
+            print("Resuming slideshow")
             #Set slideshow to start playing
             self.pauseButton.config(text="Pause")
             self.automaticNext()
@@ -852,7 +926,9 @@ class SlideshowPlayer(tb.Frame):
                 if self.audioPlayer.state == FP.AudioPlayer.State.PAUSED:
                     self.audioPlayer.resume()
                 elif self.audioPlayer.state == FP.AudioPlayer.State.STOPPED:
-                    self.audioPlayer.play()
+                    played = self.audioPlayer.play()
+                    if played == -1:
+                        self.nextSong()
 
         self.showOverlay()
         return
@@ -863,10 +939,13 @@ class SlideshowPlayer(tb.Frame):
                 self.audioPlayer.stop()
                 return
             #Update the progress bar
-            self.progressBar["value"] = self.audioPlayer.getProgress()
+            progress = self.audioPlayer.getProgress()
+            # print(f"Progress: {progress} / {self.audioPlayer.duration}")
+            self.progressBar["value"] = progress
             self.progressBar['maximum'] = self.audioPlayer.duration
             self.progressBar_maxLabel.config(text=FP.formatTime(self.audioPlayer.duration))
             self.progressBar_progressLabel.config(text=FP.formatTime(self.audioPlayer.progress))
+
 
             #If the song is over, move to the next song.
             if self.audioPlayer.isFinished():
@@ -894,7 +973,8 @@ class SlideshowPlayer(tb.Frame):
                 self.currentSong = 0
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            self.audioPlayer.stop()
+            # self.audioPlayer.stop()
+
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 self.nextSong()
@@ -903,6 +983,8 @@ class SlideshowPlayer(tb.Frame):
                 return
             else:
                 self.songLabel.config(text=song.name)
+                print(f"{song.name} loaded successfully")
+
 
             self.update_idletasks
             #If the slideshow is playing, play the song.
@@ -925,7 +1007,8 @@ class SlideshowPlayer(tb.Frame):
                 self.currentSong = len(self.playlist.songs)-1
             song = self.playlist.songs[self.currentSong]
             #unload the current song
-            self.audioPlayer.stop()
+            # self.audioPlayer.stop()
+
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 #If the song failed to load, move to the next song and remove the current song from the playlist
@@ -935,6 +1018,7 @@ class SlideshowPlayer(tb.Frame):
                 return
             else:
                 self.songLabel.config(text=song.name)
+                print(f"{song.name} loaded successfully")
 
             self.update_idletasks()
             #If the slideshow is playing, play the song.
@@ -945,12 +1029,34 @@ class SlideshowPlayer(tb.Frame):
     def quit(self, event=None):
         if self.quiting:
             return
-        print("\nQuitting...\n")
+        print("\nQuitting Player...\n")
         self.quiting = True
         self.audioPlayer.stop()
 
-        self.dummy.quit()
-        self.quit()
+        #Stop any loops
+        try:
+            if self.slideChangeAfter:
+                self.after_cancel(self.slideChangeAfter)
+        except:
+            pass
+        try:
+            if self.progressBarUpdater:
+                self.after_cancel(self.progressBarUpdater)
+        except:
+            pass
+        try:
+            if self.transition_checker:
+                self.after_cancel(self.transition_checker)
+        except:
+            pass
+        try:
+            if self.mouse_after_id:
+                self.after_cancel(self.mouse_after_id)
+        except:
+            pass
+
+        self.dummy.close(False)
+        self.master.destroy()
         self.update()
         return
     
@@ -963,6 +1069,28 @@ class SlideshowPlayer(tb.Frame):
         #Close all open files
         for f in FP.openFiles.values():
             f.close()
+
+        #Stop any loops
+        try:
+            if self.slideChangeAfter:
+                self.after_cancel(self.slideChangeAfter)
+        except:
+            pass
+        try:
+            if self.progressBarUpdater:
+                self.after_cancel(self.progressBarUpdater)
+        except:
+            pass
+        try:
+            if self.transition_checker:
+                self.after_cancel(self.transition_checker)
+        except:
+            pass
+        try:
+            if self.mouse_after_id:
+                self.after_cancel(self.mouse_after_id)
+        except:
+            pass
 
         self.dummy.close(False)
         self.update()

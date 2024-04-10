@@ -360,26 +360,25 @@ class ImageViewer(tb.Canvas):
 
         #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
         booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
-        print(f"Booster: {booster}%")
         self.frameCounter = 0
         self.totalTransitionTime = 0
 
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
             print(f"Default transition. Nothing to really preview")
-            self.loadImagePIL(endImg)
+            # self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
             increment = endImg.height / (transitionTime) #Unit per ms
             increment = increment * self.deltaTime * booster
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeDown(startImg, endImg, 0, increment)
         elif transitionType == FP.transitionType.WIPEUP:
             increment = endImg.height / (transitionTime) #Unit per ms
             increment = increment * self.deltaTime * booster
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeUp(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPELEFT:
@@ -388,7 +387,7 @@ class ImageViewer(tb.Canvas):
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeLeft(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPERIGHT:
@@ -397,14 +396,14 @@ class ImageViewer(tb.Canvas):
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeRight(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.FADE:
             inc = 255 / (transitionTime) #Unit per ms
             inc = inc * self.deltaTime * booster
             self.transitioning = True
-            print(f"Increment: {inc:.2f}")
+            # print(f"Increment: {inc:.2f}")
             self.transition_Fade(startImg, endImg, 0, inc)
 
     #########################
@@ -562,11 +561,11 @@ class ImageViewer(tb.Canvas):
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
         self.canvasHeight = self.canvas.winfo_height()
-        print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
+        # print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
         return
 
     def setBlankImage(self):
-        print("Setting Blank Image")
+        # print("Setting Blank Image")
         self.imagePath = ""
         self.redrawImage()
         return
@@ -1330,9 +1329,13 @@ class InfoFrame(tb.Frame):
   
         if pth_location == 0: #Full path
             print("Full path")
+            self.imagePath.config(style="TLabel")
             pass
         elif pth_location == 1: #Project folder
             print("Project folder")
+            self.imagePath.config(style="success.TLabel")
+            rowNumber += 1
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="This image is in the project folder with the project file.", font=("Arial", 12), style="success.TLabel").grid(row=rowNumber, column=0, columnspan=7)
             pass
         elif pth_location == 2: #Cache
             print("Cache")
@@ -1382,7 +1385,7 @@ class InfoFrame(tb.Frame):
         tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.slideDuration.config(width=7)
-        self.slideDuration.insert(0, float(icon.slide['duration'])/1000)
+        self.slideDuration.insert(0, float(icon.slide['duration']))
         self.slideDuration.insert(tk.END, "s")
         self.slideDuration.grid(row=rowNumber, column=3, sticky="w")
         self._slideDurationTemp = float(icon.slide['duration'])
@@ -1399,7 +1402,7 @@ class InfoFrame(tb.Frame):
         tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.transitionSpeed.config(width=7)
-        self.transitionSpeed.insert(0, float(icon.slide['transitionSpeed']/1000))
+        self.transitionSpeed.insert(0, float(icon.slide['transitionSpeed']))
         self.transitionSpeed.insert(tk.END, "s")
         self.transitionSpeed.grid(row=rowNumber, column=3, sticky="w")
         self._transitionSpeedTemp = float(icon.slide['transitionSpeed'])
@@ -1490,7 +1493,7 @@ class InfoFrame(tb.Frame):
         except:
             print("Invalid input for slide duration.")
             self.slideDuration.delete(0, tk.END)
-            self.slideDuration.insert(0, self._slideDurationTemp/1000)
+            self.slideDuration.insert(0, self._slideDurationTemp)
             #Set the outline to red
             self.slideDuration.config(style="danger.TEntry")
             return
@@ -1512,7 +1515,7 @@ class InfoFrame(tb.Frame):
         self.slideDurationRangeLabel.grid_remove()
         #Insert an s character at the end of the number
         self.slideDuration.config(style="TEntry")
-        self.__icon.slide['duration'] = time * 1000
+        self.__icon.slide['duration'] = time
         self.winfo_toplevel().focus_set()
         self._slideDurationTemp = time
         return
@@ -1554,7 +1557,7 @@ class InfoFrame(tb.Frame):
         except:
             print("Invalid input for transition speed.")
             self.transitionSpeed.delete(0, tk.END)
-            self.transitionSpeed.insert(0, self._transitionSpeedTemp/1000)
+            self.transitionSpeed.insert(0, self._transitionSpeedTemp)
             #Set the outline to red
             self.transitionSpeed.config(style="danger.TEntry")
             return
@@ -1576,7 +1579,7 @@ class InfoFrame(tb.Frame):
         self.transitionSpeedRangeLabel.grid_remove()
         self.transitionSpeed.config(style="TEntry")
         # print(f"Slide Duration: {self.transitionSpeed.get()}")
-        self.__icon.slide['transitionSpeed'] = speed * 1000
+        self.__icon.slide['transitionSpeed'] = speed
         self.winfo_toplevel().focus_set()
         self._transitionSpeedTemp = speed
         return
@@ -1639,7 +1642,7 @@ class InfoFrame(tb.Frame):
         #Have the image previewer do a transition 
         if type(self.__icon) == SlideIcon:
             transitionType = self.__icon.slide['transition']
-            transitionSpeed = self.__icon.slide['transitionSpeed']
+            transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
             
             endImg = Image.open(FP.file_check(self.__icon.imagepath, FP.relative_project_path))
             endImg = ImageOps.exif_transpose(endImg)
