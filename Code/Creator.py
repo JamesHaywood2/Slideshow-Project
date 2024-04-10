@@ -582,6 +582,7 @@ class SlideshowCreator(tb.Frame):
         self.redraw()
 
     def quit(self):
+        print("Quiting Creator...")
         self.master.quit()
 
 if __name__ == "__main__":

@@ -945,8 +945,9 @@ class AudioPlayer:
                 print(f"Failed to pause song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} paused.")
         else:
-            print("Song is not playing.")
+            print(f"{self.current_song.name} is not playing.")
             return -1
 
     def resume(self):
@@ -958,8 +959,9 @@ class AudioPlayer:
                 print(f"Failed to resume song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} resumed.")
         else:
-            print("Song is not paused.")
+            print(f"{self.current_song.name} is not paused.")
             return -1
 
     def stop(self):
@@ -972,8 +974,10 @@ class AudioPlayer:
                 print(f"Failed to stop song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} stopped.")
         else:
-            print("Song is not playing or paused.")
+            print(f"{self.current_song.name} is not playing or paused.")
+            return -1
 
     def togglePause(self):
         if self.state == AudioPlayer.State.PLAYING:
@@ -989,6 +993,11 @@ class AudioPlayer:
         if self.state != AudioPlayer.State.UNLOADED and self.state != AudioPlayer.State.FAILED_TO_LOAD:
             self.progress = mixer.music.get_pos() / 1000
         else:
+            self.progress = 0
+
+        if self.progress > self.duration:
+            self.progress = self.duration
+        if self.progress < 0:
             self.progress = 0
         return self.progress
             
