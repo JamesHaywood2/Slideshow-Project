@@ -320,6 +320,7 @@ def getSlideshow(slideshowPath):
 # saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\exported_assets_Kitty - Copy - Copy\kitty-TEST.pyslide")
 # saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty - Copy.pyslide")
 # saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+saveSlideshow(r"C:\Users\JamesH\Downloads\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
 # validateDatabase()
 # getSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\exported_assets_Kitty - Copy - Copy\kitty-TEST.pyslide")
     

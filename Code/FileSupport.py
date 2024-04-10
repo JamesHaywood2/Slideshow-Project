@@ -398,6 +398,7 @@ class Slideshow:
         self.manual: bool = False
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
+        self.tags: list[str] = [] #This is a list of tags for the project. Used for searching.
 
         #if the file path exists, open it.
         if os.path.exists(filePath):
