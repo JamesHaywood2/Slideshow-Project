@@ -165,8 +165,10 @@ class SlideshowCreator(tb.Frame):
         #MenuFrame
         self.style = tb.Style()
         self.style.configure("custom.TFrame", background=self.style.colors.primary)
-        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
+        self.menuFrame = tb.Frame(self, style="custom.TFrame")
         self.menuFrame.pack(side="top", fill="x")
+        self.PanedWindow_Base.pack_forget()
+        self.PanedWindow_Base.pack(expand=True, fill="both")
 
         #MenuButtons
         self.style.configure('TMenubutton', arrowsize=0, relief=FLAT, arrowpadding=0, font=("Arial", 10))
@@ -431,6 +433,12 @@ class SlideshowCreator(tb.Frame):
         if self.debugWindow:
             self.debugWindow.destroy()
 
+
+        #Destroy the menubar
+        if self.menuFrame:
+            print("Destroying menuFrame")
+            self.menuFrame.destroy()
+
         #Destroy EVERYTHING child of the master window
         for widget in self.master.winfo_children():
             widget.destroy()
@@ -582,6 +590,7 @@ class SlideshowCreator(tb.Frame):
         self.redraw()
 
     def quit(self):
+        print("Quiting Creator...")
         self.master.quit()
 
 if __name__ == "__main__":

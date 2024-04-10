@@ -360,26 +360,25 @@ class ImageViewer(tb.Canvas):
 
         #Booster just makes the transition SLIGHTLY faster. Maybe not necessary if we made the transitions better, but whatever.
         booster = 1 + (transitionTime * (0.0005/100)) #For every ms, add X% to the transition speed
-        print(f"Booster: {booster}%")
         self.frameCounter = 0
         self.totalTransitionTime = 0
 
         if transitionType == FP.transitionType.DEFAULT:
             #Just change the image after the transition time
             print(f"Default transition. Nothing to really preview")
-            self.loadImagePIL(endImg)
+            # self.loadImagePIL(endImg)
         elif transitionType == FP.transitionType.WIPEDOWN:
             increment = endImg.height / (transitionTime) #Unit per ms
             increment = increment * self.deltaTime * booster
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeDown(startImg, endImg, 0, increment)
         elif transitionType == FP.transitionType.WIPEUP:
             increment = endImg.height / (transitionTime) #Unit per ms
             increment = increment * self.deltaTime * booster
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeUp(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPELEFT:
@@ -388,7 +387,7 @@ class ImageViewer(tb.Canvas):
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeLeft(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.WIPERIGHT:
@@ -397,14 +396,14 @@ class ImageViewer(tb.Canvas):
 
             #Basically it's going to get the amount of pixels that needs to reveal every 40ms to complete the transition in the specified time.
             self.transitioning = True
-            print(f"Increment: {increment}")
+            # print(f"Increment: {increment}")
             self.transition_WipeRight(startImg, endImg, 0, increment)
 
         elif transitionType == FP.transitionType.FADE:
             inc = 255 / (transitionTime) #Unit per ms
             inc = inc * self.deltaTime * booster
             self.transitioning = True
-            print(f"Increment: {inc:.2f}")
+            # print(f"Increment: {inc:.2f}")
             self.transition_Fade(startImg, endImg, 0, inc)
 
     #########################
@@ -562,11 +561,11 @@ class ImageViewer(tb.Canvas):
     def printCanvasSize(self):
         self.canvasWidth = self.canvas.winfo_width()
         self.canvasHeight = self.canvas.winfo_height()
-        print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
+        # print(f"Canvas Size: {self.canvasWidth}x{self.canvasHeight}")
         return
 
     def setBlankImage(self):
-        print("Setting Blank Image")
+        # print("Setting Blank Image")
         self.imagePath = ""
         self.redrawImage()
         return
@@ -1330,9 +1329,13 @@ class InfoFrame(tb.Frame):
   
         if pth_location == 0: #Full path
             print("Full path")
+            self.imagePath.config(style="TLabel")
             pass
         elif pth_location == 1: #Project folder
             print("Project folder")
+            self.imagePath.config(style="success.TLabel")
+            rowNumber += 1
+            tb.Label(self.slideInfoFrame.scrollable_frame, text="This image is in the project folder with the project file.", font=("Arial", 12), style="success.TLabel").grid(row=rowNumber, column=0, columnspan=7)
             pass
         elif pth_location == 2: #Cache
             print("Cache")

@@ -841,6 +841,11 @@ class AudioPlayer:
             return True
         
     def get_bit_depth(self, wav_file):
+
+        #Check if the file exists
+        if not os.path.exists(wav_file):
+            return None
+
         with sf.SoundFile(wav_file, 'r') as f:
             bit_depth = f.subtype
             if 'PCM_' in bit_depth:
@@ -867,11 +872,14 @@ class AudioPlayer:
 
         if self.current_song.fileType == ".wav":
             #Check if the bit depth is 16
-            bit_depth = self.get_bit_depth(self.current_song.filePath)
+
+            bit_depth = self.get_bit_depth(file_check(self.current_song.filePath, relative_project_path))
             if bit_depth is not None:
-                print("Bit depth:", bit_depth)
+                # print("Bit depth:", bit_depth)
+                pass
             else:
-                print("Unable to determine bit depth. Attempting to re-write to 16-bit.")
+                print("Error: Failed to get bit depth, file was not 16-bit.")
+
                 return -2
 
         try:
@@ -891,8 +899,10 @@ class AudioPlayer:
         data, samplerate = sf.read(wav_file)
         cachedWavPath = os.path.join(getUserCacheDir(), "cache", os.path.basename(wav_file))
         sf.write(cachedWavPath, data, samplerate, subtype='PCM_16')
+
         #Update the song object
         self.current_song = Song(cachedWavPath)
+
         return cachedWavPath
 
 
@@ -947,8 +957,9 @@ class AudioPlayer:
                 print(f"Failed to pause song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} paused.")
         else:
-            print("Song is not playing.")
+            print(f"{self.current_song.name} is not playing.")
             return -1
 
     def resume(self):
@@ -960,8 +971,9 @@ class AudioPlayer:
                 print(f"Failed to resume song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} resumed.")
         else:
-            print("Song is not paused.")
+            print(f"{self.current_song.name} is not paused.")
             return -1
 
     def stop(self):
@@ -974,8 +986,10 @@ class AudioPlayer:
                 print(f"Failed to stop song {self.current_song.filePath}.")
                 print("Error: ", e)
                 return -1
+            print(f"{self.current_song.name} stopped.")
         else:
-            print("Song is not playing or paused.")
+            print(f"{self.current_song.name} is not playing or paused.")
+            return -1
 
     def togglePause(self):
         if self.state == AudioPlayer.State.PLAYING:
@@ -991,6 +1005,11 @@ class AudioPlayer:
         if self.state != AudioPlayer.State.UNLOADED and self.state != AudioPlayer.State.FAILED_TO_LOAD:
             self.progress = mixer.music.get_pos() / 1000
         else:
+            self.progress = 0
+
+        if self.progress > self.duration:
+            self.progress = self.duration
+        if self.progress < 0:
             self.progress = 0
         return self.progress
             
