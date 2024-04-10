@@ -581,8 +581,9 @@ class SlideshowPlayer(tb.Frame):
             #height of previousSongButton
             y=float(self.previousSongButton.winfo_height()/self.master.winfo_height())
             self.songLabel.config(font=("Arial", 12))
+            songlabelWidth = (1-.6-.06-0.01) * self.master.winfo_width()
 
-            self.songLabel.place(anchor="sw", relx=0.01, rely=1-y)
+            self.songLabel.place(anchor="sw", relx=0.01, rely=1-y, width=songlabelWidth)
         else:
             self.progressBar.place(relwidth=0.9, relheight=0.02, anchor="sw", relx=0.1, rely=1)
             self.progressBar_maxLabel.place(relx=1, rely=0.98, anchor="se")
@@ -604,9 +605,7 @@ class SlideshowPlayer(tb.Frame):
                 self.songLabel.config(font=("Arial", 10))
             else:
                 self.songLabel.config(font=("Arial", 12))
-            self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
-
-
+            self.songLabel.place(anchor="se", relx=1-x, rely=1-y, width=songlabelWidth)
 
     def showButtons(self):
         if self.audioPlayerEnabled:
