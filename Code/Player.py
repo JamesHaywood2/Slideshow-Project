@@ -13,6 +13,8 @@ import pprint as pp
 
 temp_geometry = None
 
+temp_geometry = None
+
 class SlideshowPlayerStart(tb.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -211,6 +213,7 @@ class SlideshowPlayer(tb.Frame):
         print("\nTest loading all songs...\n")
         for song in self.playlist.songs:
             print(f"Loading song: {song.name}")
+
             #Get the location of the file
             loc = FP.file_loc(song.filePath, FP.relative_project_path)
             if loc == 3:
@@ -249,6 +252,7 @@ class SlideshowPlayer(tb.Frame):
             while songLoaded == False and len(self.playlist.songs) > 0:
                 loaded = self.audioPlayer.loadSong(song)
                 #Try to load a song into the audio player
+                print(f"Loading song: {song.name} and loaded: {loaded}")
                 if loaded == -1:
                     #If the song failed to load, remove it from the playlist and try the next song.
                     self.playlist.songs.pop(self.currentSong)
@@ -417,7 +421,6 @@ class SlideshowPlayer(tb.Frame):
         #Only construct the layout if the project is not empty of slides.
         # if len(self.slideList) > 0:
         #Add first slide to the ImageViewer
-        
         if len(self.slideList) > 0:
             pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
             print(f"First slide: {pth}")
@@ -456,11 +459,9 @@ class SlideshowPlayer(tb.Frame):
             #Throw an error message: f"Error: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label."
             print(f"\nError: Slide meter broken. Please go into ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.\n Defaulting to label.\n")
         
-
         if len(self.slideList) > 0:
             self.showButtons()
             self.showSlideCounter()
-
 
         if self.playlistExists:
             #Add a tb.Progressbar to the bottom of the screen
@@ -478,9 +479,6 @@ class SlideshowPlayer(tb.Frame):
                 self.showProgressBar()
                 self.update_ProgressBar()    
             
-
-            
-
         self.master.bind("<Right>", lambda e: self.nextSlide())
         self.master.bind("<Left>", lambda e: self.prevSlide())
         self.master.bind("<space>", lambda e: self.pause())
@@ -598,6 +596,7 @@ class SlideshowPlayer(tb.Frame):
             y=float(self.progressBar.winfo_height()/self.master.winfo_height())
             x=float(self.progressBar_maxLabel.winfo_width()/self.master.winfo_width())
 
+
             songlabelWidth = (1-.6-.06-x) * self.master.winfo_width()
             if songlabelWidth < 200:
                 self.songLabel.config(font=("Arial", 8))
@@ -605,8 +604,8 @@ class SlideshowPlayer(tb.Frame):
                 self.songLabel.config(font=("Arial", 10))
             else:
                 self.songLabel.config(font=("Arial", 12))
-
             self.songLabel.place(anchor="se", relx=1-x, rely=1-y)
+
 
 
     def showButtons(self):
@@ -632,7 +631,7 @@ class SlideshowPlayer(tb.Frame):
                 self.pauseButton.place(anchor="s", relx=0.5, rely=1, relwidth=0.12)
                 self.nextButton.place(anchor="s", relx=0.6, rely=1, relwidth=0.12)
                 self.prevButton.place(anchor="s", relx=0.4, rely=1, relwidth=0.12)
-
+                
         # if self.audioPlayerEnabled == False and self.manual == True:
         #     self.pauseButton.place_forget()
 
@@ -642,7 +641,6 @@ class SlideshowPlayer(tb.Frame):
         #     if self.audioPlayerEnabled == False:
         #         self.pauseButton.place_forget()
             
-
     
     def showSlideCounter(self):
         if not self.slideMeterBroken:
@@ -702,7 +700,6 @@ class SlideshowPlayer(tb.Frame):
         except:
             pass
 
-
         self.pack_forget()
         self.destroy()
         self.update_idletasks()
@@ -722,6 +719,7 @@ class SlideshowPlayer(tb.Frame):
                 pass
             self.transition_checker = None
             self.END = time.time()
+
             #If the transition was default
             if self.slideList[self.currentSlide]['transition'] == FP.transitionType.DEFAULT:
                 print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
@@ -977,6 +975,7 @@ class SlideshowPlayer(tb.Frame):
             song = self.playlist.songs[self.currentSong]
             #unload the current song
             # self.audioPlayer.stop()
+
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 self.nextSong()
@@ -986,6 +985,7 @@ class SlideshowPlayer(tb.Frame):
             else:
                 self.songLabel.config(text=song.name)
                 print(f"{song.name} loaded successfully")
+
 
             self.update_idletasks
             #If the slideshow is playing, play the song.
@@ -1009,6 +1009,7 @@ class SlideshowPlayer(tb.Frame):
             song = self.playlist.songs[self.currentSong]
             #unload the current song
             # self.audioPlayer.stop()
+
             self.update_idletasks()
             if self.audioPlayer.loadSong(song) == -1:
                 #If the song failed to load, move to the next song and remove the current song from the playlist
@@ -1185,6 +1186,104 @@ class DummyWindow(tb.Toplevel):
         self.destroy()
         if quit:
             self.master.destroy()
+        return
+
+
+    def focusIn(self, event):
+        #Bring the master window to the front
+        self.master.lift()
+        #Focus the master window
+        self.master.focus_set()
+
+
+    def toggleFullScreen(self, event=None):
+        if self.fullScreenToggleReady:
+            self.fullScreenToggleReady = False
+            if self.fullscreen:
+                self.deactivateFullScreen()
+                self.fullscreenCheckbutton.state(["!selected"])
+            else:
+                self.activateFullScreen()
+                self.fullscreenCheckbutton.state(["selected"])
+        return
+
+    def activateFullScreen(self, event=None):
+        print("Activating fullscreen")
+        self.fullscreenCheckbutton.state(["selected"])
+        self.master.update()
+        self.fullscreen = True
+        global temp_geometry 
+        temp_geometry = self.master.geometry()
+        self.master.overrideredirect(True)
+        self.master.state('zoomed')
+        self.master.update()
+        self.dummy.deiconify()
+        self.master.update_idletasks()
+        #Update the canvas size
+        self.imageViewer.canvasWidth = self.master.winfo_width()
+        self.imageViewer.canvasHeight = self.master.winfo_height()
+        self.imageViewer.update_idletasks()
+        self.renderImages()
+        self.master.update()
+        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.master.update()
+        self.hideOverlay()
+        self.showOverlay()
+        self.master.update_idletasks()
+        self.after(50, self.__set_fullscreen_toggle_ready)
+
+    def __set_fullscreen_toggle_ready(self):
+        self.fullScreenToggleReady = True
+
+    def deactivateFullScreen(self, event=None):
+        print("Deactivating fullscreen")
+        #Pause the slideshow
+        self.pause(True)
+        self.fullscreenCheckbutton.state(["!selected"])
+        self.master.update()
+        self.fullscreen = False
+        self.master.overrideredirect(False)
+        self.master.state('normal')
+        self.update()
+        self.dummy.withdraw()
+        self.master.update_idletasks()
+        global temp_geometry 
+        self.master.geometry(temp_geometry )
+        self.master.update()
+        #Just load the image
+        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.master.update()
+        self.hideOverlay()
+        self.showOverlay()
+        self.master.update_idletasks()
+        self.after(50, self.__set_fullscreen_toggle_ready)
+
+class DummyWindow(tb.Toplevel):
+    def __init__(self, master: tk.Tk):
+        super().__init__(master)
+        self.master = master
+        
+        self.title("PySlide Viewer")
+        #Alpha to 0
+        self.attributes("-alpha", 0)
+        self.geometry("700x700")
+        
+
+        self.master = master
+
+        #The idea here is that when you do overrideredirect(True) and state("zoomed") on the master window, the dummy window will be "visible" so it's still on the taskbar.
+
+        #Bind focus in event for the dummy window to focus the master window
+        self.bind("<FocusIn>", self.focusIn)
+
+        self.protocol("WM_DELETE_WINDOW", lambda: self.close(True))
+
+    def close(self, quit: bool):
+        print("\nClosing dummy window...\n")
+        self.update()
+        self.destroy()
+        if quit:
+            self.master.quit()
         return
 
 

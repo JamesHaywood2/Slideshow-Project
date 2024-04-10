@@ -433,6 +433,7 @@ class SlideshowCreator(tb.Frame):
         if self.debugWindow:
             self.debugWindow.destroy()
 
+
         #Destroy the menubar
         if self.menuFrame:
             print("Destroying menuFrame")

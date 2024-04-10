@@ -841,9 +841,11 @@ class AudioPlayer:
             return True
         
     def get_bit_depth(self, wav_file):
+
         #Check if the file exists
         if not os.path.exists(wav_file):
             return None
+
         with sf.SoundFile(wav_file, 'r') as f:
             bit_depth = f.subtype
             if 'PCM_' in bit_depth:
@@ -870,12 +872,14 @@ class AudioPlayer:
 
         if self.current_song.fileType == ".wav":
             #Check if the bit depth is 16
+
             bit_depth = self.get_bit_depth(file_check(self.current_song.filePath, relative_project_path))
             if bit_depth is not None:
                 # print("Bit depth:", bit_depth)
                 pass
             else:
                 print("Error: Failed to get bit depth, file was not 16-bit.")
+
                 return -2
 
         try:
@@ -895,6 +899,10 @@ class AudioPlayer:
         data, samplerate = sf.read(wav_file)
         cachedWavPath = os.path.join(getUserCacheDir(), "cache", os.path.basename(wav_file))
         sf.write(cachedWavPath, data, samplerate, subtype='PCM_16')
+
+        #Update the song object
+        self.current_song = Song(cachedWavPath)
+
         return cachedWavPath
 
 
