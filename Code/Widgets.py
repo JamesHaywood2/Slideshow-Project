@@ -1129,7 +1129,7 @@ class InfoFrame(tb.Frame):
                 song = FP.Song(song['filePath'])
             song_name = FP.getBaseName([song.filePath])[0]
             
-            song_location = FP.file_loc(song.filePath)
+            song_location = FP.file_loc(song.filePath, FP.relative_project_path)
             status = "Good"
             if song_location == 1:
                 status = "In Project Folder"

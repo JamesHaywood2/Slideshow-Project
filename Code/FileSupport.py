@@ -40,6 +40,10 @@ toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
 
+def set_relative_project_path(path:str):
+    global relative_project_path
+    relative_project_path = path
+
 openFiles = {}
 
 def printOpenFiles():
@@ -575,6 +579,7 @@ class Slideshow:
         #Basically if you have a slideshow file and it has changed name or location it's going to act as if it's it's in the old location. We want the current ones.
         self.__filePath = tempPath
         self.name = tempName
+        set_relative_project_path(self.__filePath)
 
     def __str__(self) -> str:
         """Print definition for debugging."""
