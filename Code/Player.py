@@ -9,6 +9,7 @@ import random
 
 import time
 import copy
+import pprint as pp
 
 temp_geometry = None
 
@@ -132,6 +133,8 @@ class SlideshowPlayer(tb.Frame):
             print("Cache initialziation failed")
         tb.Style().theme_use(FP.getPreferences())
 
+        # pp.pprint(self.slideshow.__dict__)
+
         self.debug = debug
 
         #List of all the slides
@@ -208,6 +211,20 @@ class SlideshowPlayer(tb.Frame):
         print("\nTest loading all songs...\n")
         for song in self.playlist.songs:
             print(f"Loading song: {song.name}")
+            #Get the location of the file
+            loc = FP.file_loc(song.filePath, FP.relative_project_path)
+            if loc == 3:
+                #File was just straight up not found anywhere. Remove it from the playlist.
+                print(f"File not found: {song.name}")
+                self.playlist.songs.remove(song)
+                continue
+
+            #If we did find the file, just go ahead and update the filepaths and stuff.
+            newpath = FP.file_check(song.filePath, FP.relative_project_path)
+            song.filePath = newpath
+            song.name = os.path.basename(newpath)
+
+            #Load the song into the audio player
             loaded = self.audioPlayer.loadSong(song)
             if loaded == -2:
                 try:
@@ -274,7 +291,7 @@ class SlideshowPlayer(tb.Frame):
         self.menuVisible: bool = False
         style = tb.Style()
         style.configure("custom.TFrame", background=style.colors.primary)
-        self.menuFrame = tb.Frame(self.master, style="custom.TFrame")
+        self.menuFrame = tb.Frame(self, style="custom.TFrame")
         self.menuFrame.place(relx=0.5, anchor="n", relwidth=1)
         self.menuFrame.place_forget()
 
