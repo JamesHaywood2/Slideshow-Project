@@ -19,7 +19,7 @@ def resource_path(relative_path):
     """Get the absolute path to the resource, works for PyInstaller."""
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = sys._MEIPASS # type: ignore
     except Exception:
         base_path = os.path.abspath(".")
 
@@ -96,7 +96,7 @@ def getUserHome():
 
 def getUserCacheDir():
     """Print the user's AppData/Local/PySlideshow directory. This is where the program will store its cache files."""
-    return os.path.join(os.getenv('LOCALAPPDATA'), "PySlideshow")
+    return os.path.join(os.getenv('LOCALAPPDATA'), "PySlideshow") # type: ignore
 
 def initializeCache():
     """Initialize the cache directory. Creates it if it doesn't exist."""
@@ -294,11 +294,11 @@ def resetPreferences():
     """Reset the preferences file to the default theme."""
     updatePreferences("litera")
 
-def saveImageToCache(image:Image, name:str):
+def saveImageToCache(image:Image, name:str): # type: ignore
     """Save the image to the cache folder."""
     cacheDir = os.path.join(getUserCacheDir(), "cache")
     #Save the image to the cache folder
-    image.save(os.path.join(cacheDir, name))
+    image.save(os.path.join(cacheDir, name)) # type: ignore
 
 def copyFileToCache(file:str):
     """Copy a file to the cache folder."""
@@ -339,13 +339,13 @@ class Slide:
     As of 2/14/2024 when slides get added to the slideshow they SHOULD be converted to dictionaries. So by default try subscript if dealing with slides from Slideshow object.\n
     """
     def __init__(self, imagePath:str):
-        self.slideID: int = None
-        self.imagePath: str = None
-        self.imageName: str = None
-        self.transition: transitionType = transitionType.DEFAULT
+        self.slideID: int = None # type: ignore
+        self.imagePath: str = None # type: ignore
+        self.imageName: str = None # type: ignore
+        self.transition: transitionType = transitionType.DEFAULT # type: ignore
         self.transitionSpeed: int = 1
         self.duration: int = 5
-        self.slideDB_ID: int = None
+        self.slideDB_ID: int = None # type: ignore
 
         #Check if the imagePath is a valid picture
         try:
@@ -395,7 +395,7 @@ class Slideshow:
     def __init__(self, filePath:str="New Project"):
         self.__filePath: str = filePath #The file path of the slideshow file
         self.name = getBaseName([self.__filePath])[0]
-        self.__slides: list[Slide] = []
+        self.slides: list[Slide] = []
         self.__count: int = 0
         self.playlist: Playlist = Playlist()
         self.loopSettings: str = loopSetting.INDEFINITE
@@ -403,6 +403,8 @@ class Slideshow:
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
         self.tags: list[str] = [] #This is a list of tags for the project. Used for searching.
+
+        self.slideshowID: int = None # type: ignore
 
         #if the file path exists, open it.
         if os.path.exists(filePath):
@@ -427,18 +429,21 @@ class Slideshow:
         # print(f"Adding slide at index {index}")
         
         #convert Slide to dict
-        slide = slide.__dict__
+        slide = slide.__dict__ # type: ignore
         #IMPORTANT: Basically, when it was adding new slides it was adding them as a Slide object. Pre-existing slides were as a dictionary.
         #This caused a lot of issues. This should fix it by converting them all to dictionaries. Reference slides with subscript notation.
 
         if index == -1:
-            self.__slides.append(slide)
+            self.slides.append(slide)
         else:
-            self.__slides.insert(index, slide)
+            self.slides.insert(index, slide)
 
         #Make slideID the index of the slide in the list
-        for i, slide in enumerate(self.__slides):
-            slide['slideID'] = i
+        for i, slide in enumerate(self.slides):
+            try:
+                slide['slideID'] = i
+            except:
+                slide.slideID = i
         self.__count += 1
         self.printSlides()
 
@@ -446,13 +451,17 @@ class Slideshow:
         """Just prints a list of slides in the slideshow. For debugging."""
         print(f"Slide count: {self.__count}")
         print(f"Slide list:")
-        for slide in self.__slides:
+        for slide in self.slides:
             print(slide)
         print("\n")
     
     def removeSlide(self, slide:Slide):
         print(slide)
-        print(f"Removing slide {slide['slideID']}")
+        try:
+            id = slide['slideID']
+        except:
+            id = slide.slideID
+        print(f"Removing slide {id}")
         try:
             imgPth = slide['imagePath']
         except:
@@ -462,17 +471,8 @@ class Slideshow:
             del openFiles[imgPth]
         except:
             print(f"Error closing {imgPth}")
-        self.__slides.remove(slide)
+        self.slides.remove(slide)
         self.__count -= 1
-
-    def swapSlides(self, index1:int, index2:int):
-        """
-        Swap the slides at index1 and index2.
-        """
-        self.__slides[index1], self.__slides[index2] = self.__slides[index2], self.__slides[index1]
-        #Update the slideID
-        for i, slide in enumerate(self.__slides):
-            slide['slideID'] = i
 
     def moveSlide(self, index:int, newIndex:int):
         """
@@ -482,29 +482,33 @@ class Slideshow:
         if newIndex > index:
             newIndex -= 1
 
-        slide = self.__slides.pop(index)
-        self.__slides.insert(newIndex, slide)
+        slide = self.slides.pop(index)
+        self.slides.insert(newIndex, slide)
         print(f"Moved slide from {index} to {newIndex}")
         #Update the slideID
-        for i, slide in enumerate(self.__slides):
-            slide['slideID'] = i
+        for i, slide in enumerate(self.slides):
+            try:
+                slide['slideID'] = i
+            except:
+                slide.slideID = i
 
     #Haven't tested. Should work
     def getSlide(self, index:int):
-        return self.__slides[index]
+        return self.slides[index]
     
     def getSlides(self):
         """
         Returns a list of slides. Use subscript notation to access the slides. EX slide['imagePath'] if dot notation doesn't work.
         """
-        return self.__slides
+        return self.slides
     
     def getSlideCount(self):
+        self.__count = len(self.slides)
         return self.__count
     
     def getPlaylist(self):
         """Returns the playlist object. If a song is missing it will remove it from the playlist."""
-        print("\nGetting playlist...")
+        print(f"\nGetting playlist for {self.name}...")
         # print(self.playlist)
         #If the playlist is a disctionary, convert it to a Playlist object.
         if isinstance(self.playlist, dict):
@@ -522,7 +526,7 @@ class Slideshow:
                 except:
                     print(f"Error loading song {song['filePath']}")
                     self.playlist.songs.pop(i)
-                
+
                 #Open the file and lock it
                 try:
                     f = open(song['filePath'], 'rb')
@@ -546,11 +550,23 @@ class Slideshow:
         """
         Save the slideshow to a file by dumping the __dict__ to a json file.
         """
-        print(f"Saving slideshow to {self.__filePath}\n{self}")
+        print(f"Saving slideshow to {self.__filePath}")
+        # print(self)
+        # from SQLSaver import saveSlideshow
+        # saveSlideshow(self)
+
+        for file in self.filesInProject:
+            fileExtension = file.split(".")[-1]
+            validExtensions = ["jpg", "jpeg", "png"]
+            if fileExtension not in validExtensions:
+                #remove the file from the list
+                self.filesInProject.remove(file)
+
         with open(self.__filePath, 'w') as f:
             #Basically it's going to dump the __dict__ to a JSON file. If it encounters another object it's going to dump that object's __dict__ to the JSON file as well.
             json.dump(self.__dict__, f, default=lambda o: o.__dict__, indent=4)
             openFiles[self.__filePath] = f
+
         updateSlideshowCacheList(self.__filePath)
 
     def load(self):
@@ -574,6 +590,14 @@ class Slideshow:
             print(f"Error loading file: {str(e)}")
             #Basically if there is an error loading the file it's going to create a new slideshow.
             self.__init__()
+
+        for file in self.filesInProject:
+            fileExtension = file.split(".")[-1]
+            validExtensions = ["jpg", "jpeg", "png"]
+            if fileExtension not in validExtensions:
+                #remove the file from the list
+                self.filesInProject.remove(file)
+                continue
 
         #Restore the file path and name
         #Basically if you have a slideshow file and it has changed name or location it's going to act as if it's it's in the old location. We want the current ones.
@@ -611,7 +635,7 @@ class Slideshow:
                     print(f"Error copying {song.filePath} to cache folder.")
 
         #Go through all the slides in the slideshow and export them to the cache folder.
-        for slide in self.__slides:
+        for slide in self.slides:
             #Check if the slide exists in the cache folder
             if checkCache(slide['imagePath']) == None:
                 #If it's not yet in the cache, save a copy of the image to the cache folder
@@ -653,7 +677,7 @@ class Slideshow:
             f.close()
 
         #Export all the slides in the slideshow to the export folder
-        for slide in self.__slides:
+        for slide in self.slides:
             #Copy the slide to the export folder
             img = Image.open(slide['imagePath'])
             img.save(os.path.join(exportFolder, os.path.basename(slide['imagePath'])))
@@ -692,11 +716,11 @@ class Song:
             # print(f"{songPath} is not a valid song file.")
             self.filePath = "Error: Missing Song"
             self.name = "Error: Missing Song"
-            return -1
+            return
         
         #Get the duration of the song
         fileType = os.path.splitext(self.filePath)[1]
-        print(f"filepath: {self.filePath}, fileType: {fileType}")
+        # print(f"filepath: {self.filePath}, fileType: {fileType}")
         audio = None
         try:
             if fileType == ".mp3":
@@ -714,7 +738,7 @@ class Song:
                 audio = mutagen.File(self.filePath)
             except:
                 print(f"Error loading generic audio file {self.filePath}.")
-                return -1
+                return
 
         self.fileType = fileType
         self.duration = int(audio.info.length)
@@ -1066,16 +1090,16 @@ def file_loc(file_path:str, project_path:str=None):
     #Check if the file exists at the file path
     # print(f"Checking full path: {file_path}")
     if os.path.exists(file_path):
-        print(f"Found {file_path} at full path.")
+        # print(f"Found {file_path} at full path.")
         return 0
     
     #Check if the file exists in the project folder
     if project_path != None:
         project_folder = os.path.dirname(project_path)
         path = os.path.join(project_folder, os.path.basename(file_path))
-        print(f"Checking project folder: {path}")
+        # print(f"Checking project folder: {path}")
         if os.path.exists(path):
-            print(f"Found {path} in project folder.")
+            # print(f"Found {path} in project folder.")
             return 1
         
     #Check if the file exists in the cache folder
@@ -1083,8 +1107,8 @@ def file_loc(file_path:str, project_path:str=None):
     path = os.path.join(cache_folder, os.path.basename(file_path))
     # print(f"Checking cache: {path}")
     if os.path.exists(path):
-        print(f"Found {path} in cache folder.")
+        # print(f"Found {path} in cache folder.")
         return 2
     
-    print(f"file_loc: File {file_path} not found.")
+    # print(f"file_loc: File {file_path} not found.")
     return 3

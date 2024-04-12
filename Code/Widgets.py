@@ -761,8 +761,12 @@ class FileIcon(tk.Frame):
                         if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
                             if (type(self) == SlideIcon):
                                 #If the slideID is within two of the divider index, return early.
-                                distance: int = abs(self.slide['slideID'] - (divider.index//2))
-                                if divider.index//2 > self.slide['slideID']:
+                                try:
+                                    id = self.slide.slideID
+                                except:
+                                    id = self.slide['slideID']
+                                distance: int = abs(id - (divider.index//2))
+                                if divider.index//2 > id:
                                     distance -= 1
                                 # print(f"Distance: {distance}")
                                 if distance == 0:
@@ -897,7 +901,11 @@ class SlideIcon(FileIcon):
 
                     #If they dropped the icon onto a divider, move the slide icon to that index.
                     if event.x_root > x and event.x_root < x+w and event.y_root > y and event.y_root < y+h:
-                        slideID = self.slide['slideID']
+                        try:
+                            id = self.slide.slideID
+                        except:
+                            id = self.slide['slideID']
+                        slideID = id
                         self.linkedReel.slideshow.moveSlide(slideID, divider.index//2)
                         self.update_idletasks()
                         self.after(33, self.linkedReel.fillReel)
@@ -1374,7 +1382,11 @@ class InfoFrame(tb.Frame):
         #Slide ID
         rowNumber += 1
         tb.Label(self.slideInfoFrame.scrollable_frame, text="Slide ID: \t\t", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
-        self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(icon.slide['slideID']), font=("Arial", 12))
+        try:
+            id = icon.slide.slideID
+        except:
+            id = icon.slide['slideID']
+        self.slideID = tb.Label(self.slideInfoFrame.scrollable_frame, text=str(id), font=("Arial", 12))
         self.slideID.grid(row=rowNumber, column=3, sticky="w")
 
         rowNumber += 1
@@ -1385,10 +1397,14 @@ class InfoFrame(tb.Frame):
         tb.Label(self.slideInfoFrame.scrollable_frame, text="Duration: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.slideDuration = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.slideDuration.config(width=7)
-        self.slideDuration.insert(0, float(icon.slide['duration']))
+        try:
+            duration = icon.slide.duration
+        except:
+            duration = icon.slide['duration']
+        self.slideDuration.insert(0, float(duration))
         self.slideDuration.insert(tk.END, "s")
         self.slideDuration.grid(row=rowNumber, column=3, sticky="w")
-        self._slideDurationTemp = float(icon.slide['duration'])
+        self._slideDurationTemp = float(duration)
 
         self.slideDuration.bind("<FocusIn>", self.onSlideDurationFocusIn)
         self.slideDuration.bind("<FocusOut>", self.onSlideDurationFocusOut)
@@ -1402,10 +1418,14 @@ class InfoFrame(tb.Frame):
         tb.Label(self.slideInfoFrame.scrollable_frame, text="Transition Speed: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
         self.transitionSpeed = tb.Entry(self.slideInfoFrame.scrollable_frame, font=("Arial", 12), state=tk.NORMAL, takefocus=0)
         self.transitionSpeed.config(width=7)
-        self.transitionSpeed.insert(0, float(icon.slide['transitionSpeed']))
+        try:
+            transitionSpeed = icon.slide.transitionSpeed
+        except:
+            transitionSpeed = icon.slide['transitionSpeed']
+        self.transitionSpeed.insert(0, float(transitionSpeed))
         self.transitionSpeed.insert(tk.END, "s")
         self.transitionSpeed.grid(row=rowNumber, column=3, sticky="w")
-        self._transitionSpeedTemp = float(icon.slide['transitionSpeed'])
+        self._transitionSpeedTemp = float(transitionSpeed)
 
         self.transitionSpeed.bind("<FocusIn>", self.onTransitionSpeedFocusIn)
         self.transitionSpeed.bind("<FocusOut>", self.onTransitionSpeedFocusOut)
@@ -1426,7 +1446,10 @@ class InfoFrame(tb.Frame):
         self.transitionType.bind("<<ComboboxSelected>>", self.setTransitionType)
 
         #Set the transition type to the slide's transition type
-        self.transitionType.set(icon.slide['transition'])
+        try:
+            self.transitionType.set(icon.slide.transition)
+        except:
+            self.transitionType.set(icon.slide['transition'])
 
         #Preview Transition - Button
         rowNumber+= 1
@@ -1452,8 +1475,10 @@ class InfoFrame(tb.Frame):
             pass
 
         #Replace the image in the icon
-        self.__icon.slide['imagePath'] = file.name
-        self.__icon.imagepath = file.name
+        try:
+            self.__icon.slide['imagePath'] = file.name
+        except:
+            self.__icon.imagepath = file.name
         #Update the image path label
         self.imagePath.config(text=file.name)
 
@@ -1515,7 +1540,10 @@ class InfoFrame(tb.Frame):
         self.slideDurationRangeLabel.grid_remove()
         #Insert an s character at the end of the number
         self.slideDuration.config(style="TEntry")
-        self.__icon.slide['duration'] = time
+        try:
+            self.__icon.slide['duration'] = time
+        except:
+            self.__icon.slide.duration = time
         self.winfo_toplevel().focus_set()
         self._slideDurationTemp = time
         return
@@ -1579,7 +1607,10 @@ class InfoFrame(tb.Frame):
         self.transitionSpeedRangeLabel.grid_remove()
         self.transitionSpeed.config(style="TEntry")
         # print(f"Slide Duration: {self.transitionSpeed.get()}")
-        self.__icon.slide['transitionSpeed'] = speed
+        try:
+            self.__icon.slide['transitionSpeed'] = speed
+        except:
+            self.__icon.slide.transitionSpeed = speed
         self.winfo_toplevel().focus_set()
         self._transitionSpeedTemp = speed
         return
@@ -1613,7 +1644,10 @@ class InfoFrame(tb.Frame):
         self.transitionType.selection_range(0,0)
         self.focus_set()
         print(f"Transition Type: {self.transitionType.get()}")
-        self.__icon.slide['transition'] = self.transitionType.get()
+        try:
+            self.__icon.slide['transition'] = self.transitionType.get()
+        except:
+            self.__icon.slide.transition = self.transitionType.get()
         self.update_idletasks()
         print(self.__icon.slide)
         return
@@ -1641,22 +1675,38 @@ class InfoFrame(tb.Frame):
             self.after_cancel(self.__icon.linkedViewer.transition_id)
         #Have the image previewer do a transition 
         if type(self.__icon) == SlideIcon:
-            transitionType = self.__icon.slide['transition']
-            transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
+            try:
+                transitionType = self.__icon.slide['transition']
+                transitionSpeed = self.__icon.slide['transitionSpeed'] * 1000
+            except:
+                transitionType = self.__icon.slide.transition
+                transitionSpeed = self.__icon.slide.transitionSpeed * 1000
             
             endImg = Image.open(FP.file_check(self.__icon.imagepath, FP.relative_project_path))
             endImg = ImageOps.exif_transpose(endImg)
-            previousSlide = self.slideshow.getSlide(self.__icon.slide['slideID']-1)
+            try:
+                id = self.__icon.slide.slideID
+            except:
+                id = self.__icon.slide['slideID']
+            previousSlide = self.slideshow.getSlide(id-1)
             if previousSlide == None:
                 startImg = Image.new("RGB", (1920, 1080), (0, 0, 0))
             else:
-                startImg = Image.open(FP.file_check(previousSlide['imagePath'], FP.relative_project_path))
+                try:
+                    path = previousSlide['imagePath']
+                except:
+                    path = previousSlide.imagePath
+                startImg = Image.open(FP.file_check(path, FP.relative_project_path))
                 startImg = ImageOps.exif_transpose(startImg)
             startImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             endImg.thumbnail((self.__icon.linkedViewer.canvasWidth, self.__icon.linkedViewer.canvasHeight), resample=Image.NEAREST, reducing_gap=None)
             
             self.__icon.linkedViewer.executeTransition(transitionType, transitionSpeed, endImg, startImg)
-            self.checkTransition(self.__icon.slide['imagePath'])
+            try:
+                path = self.__icon.slide['imagePath']
+            except:
+                path = self.__icon.slide.imagePath
+            self.checkTransition(path)
         return
 
     def addSlide(self):
@@ -1821,7 +1871,11 @@ class SlideReel(tk.Frame):
             slideIcon.linkedViewer = self.previewer
             slideIcon.linkedReel = self
             slideIcon.linkedInfo = self.infoFrame
-            slide['slideID'] = i//2
+            id = i//2
+            try:
+                slide.slideID = id
+            except:
+                slide['slideID'] = id
             slideIcon.slide = slide
             slideIcon.grid(row=0, column=i, padx=0, pady=10, sticky="w")
             i += 1
@@ -1869,7 +1923,11 @@ class SlideReel(tk.Frame):
         for child in children:
             #If ANY child is a SlideIcon, test if it has a slideID. If it does we good. If it doesn't then something is wrong and we should call fillReel.
             if type(child) == SlideIcon:
-                if child.slide['slideID'] == None:
+                try:
+                    id = child.slide.slideID
+                except:
+                    id = child.slide['slideID']
+                if id == None:
                     print("Redraw Error: SlideID is None")
                     self.fillReel()
                     return
@@ -2017,6 +2075,13 @@ class MediaBucket(tb.Frame):
         i=0
         j=0
         for file in self.files:
+            fileExtension = file.split(".")[-1]
+            validExtensions = ["jpg", "jpeg", "png"]
+            if fileExtension not in validExtensions:
+                #remove the file from the list
+                self.files.remove(file)
+                self.project.filesInProject.remove(file)
+                continue
             icon = FileIcon(self.iconFrame, file)
             icon.linkedViewer = self.previewer
             icon.linkedReel = self.reel
@@ -2028,8 +2093,6 @@ class MediaBucket(tb.Frame):
             if j == columnCount:
                 j = 0
                 i += 1
-        
-        
         return
           
     def loadProject(self, project: FP.Slideshow):
@@ -2038,6 +2101,13 @@ class MediaBucket(tb.Frame):
         self.projectLabel.config(text=project.name)
         self.fillBucket()
         for file in self.files:
+            fileExtension = file.split(".")[-1]
+            validExtensions = ["jpg", "jpeg", "png"]
+            if fileExtension not in validExtensions:
+                #remove the file from the list
+                self.files.remove(file)
+                project.filesInProject.remove(file)
+                continue
             try:
                 f = open(file, "rb")
                 FP.openFiles[file] = f
