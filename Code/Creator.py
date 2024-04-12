@@ -5,6 +5,7 @@ from Widgets import *
 from tkinter import filedialog
 import Player as Player
 import FileSupport as FP
+import SQLSaver as SQ
 
 
 # FP.file_check(path, RELATIVE_PROJECT_PATH)
@@ -33,6 +34,10 @@ class SlideshowCreatorStart(tb.Frame):
         self.newProjectButton.pack(padx=10, side="left")
         self.openProjectButton.pack(padx=10, side="right")
         self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
+
+        #Button to open from a project ID
+        self.openProjectIDButton = tb.Button(self.buttonFrame, text="Open Project ID", command=lambda id=1: self.openProjectID(id))
+        self.openProjectIDButton.pack(padx=10, side="right")
 
         #Set window size
         self.master.geometry("800x600")
@@ -91,7 +96,15 @@ class SlideshowCreatorStart(tb.Frame):
         self.destroy()
         self = SlideshowCreator(self.master, projectPath=projectPath)
         self.pack(expand=True, fill="both")
-  
+
+    def openProjectID(self, projectID: int):
+        """Loads the slideshow creator window with a project file. This will open an existing project."""
+        if not SQ.checkSlideshowExists(projectID):
+            print("Slideshow does not exist")
+            return
+        self.destroy()
+        self = SlideshowCreator(self.master, slideshowID=projectID)
+        self.pack(expand=True, fill="both")
 class SlideshowCreator(tb.Frame):
     """
     The main application frame. Contains four main sections: MediaBucket, ImageViewer, SlideInfo, and SlideReel.\n
@@ -103,20 +116,24 @@ class SlideshowCreator(tb.Frame):
     DebugWindow(): Creates a debug window that has a bunch of buttons that do debug stuff.
     redraw(): Redraws the ImageViewer, MediaBucket, and SlideReel. 
     """
-    def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", **kw):
+    def __init__(self, master=None, debug: bool=False, projectPath: str="New Project", slideshowID:int = None, **kw):
         master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
         master.resizable(True, True)
         super().__init__(master, **kw)
         self.debug = debug
         #Check if the projectPath even exists
+        openFromPath = False
         try:
             open(projectPath, "r")
+            openFromPath = True
         except:
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
-        self.slideshow.load()
-        FP.relative_project_path = self.slideshow.getSaveLocation()
-        
+
+        if openFromPath == False and slideshowID !=None:
+            self.slideshow = SQ.loadSlideshow(slideshowID=slideshowID)
+
+
         self.update_idletasks()
         try:
             FP.initializeCache()

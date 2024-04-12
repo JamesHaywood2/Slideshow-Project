@@ -15,6 +15,9 @@ import soundfile as sf
 from pygame import mixer
 from enum import Enum
 
+import pprint
+
+
 def resource_path(relative_path):
     """Get the absolute path to the resource, works for PyInstaller."""
     try:
@@ -392,7 +395,7 @@ class Slideshow:
     Be careful how you reference slides (and songs too I guess) from a Slideshow object. They can be a dictionary or a Slide object.\n
     Just be aware of this when you are working with it. As of 2/14/2024 it should be a dictionary MOST of the time.\n
     """
-    def __init__(self, filePath:str="New Project"):
+    def __init__(self, filePath:str="New Project", **kw):
         self.__filePath: str = filePath #The file path of the slideshow file
         self.name = getBaseName([self.__filePath])[0]
         self.slides: list[Slide] = []
@@ -402,7 +405,7 @@ class Slideshow:
         self.manual: bool = False
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
-        self.tags: list[str] = [] #This is a list of tags for the project. Used for searching.
+        self.__tags: str = "" #This is a list of tags for the project. Used for searching.
 
         self.slideshowID: int = None # type: ignore
 
@@ -411,9 +414,10 @@ class Slideshow:
             try:
                 f = open(filePath, 'r')
                 openFiles[filePath] = f
+                print(f"Opened {filePath}")
             except:
                 print(f"Error opening {filePath}")
-            self.load()
+            self.loadFromFile()
         else:
             print("New project created.")
 
@@ -552,8 +556,6 @@ class Slideshow:
         """
         print(f"Saving slideshow to {self.__filePath}")
         # print(self)
-        # from SQLSaver import saveSlideshow
-        # saveSlideshow(self)
 
         for file in self.filesInProject:
             fileExtension = file.split(".")[-1]
@@ -569,13 +571,14 @@ class Slideshow:
 
         updateSlideshowCacheList(self.__filePath)
 
-    def load(self):
+    def loadFromFile(self):
         """
         Loads data from the JSON file into the slideshow.
         """
         #This could probably just be in the __init__ method. I don't know why I made it seperate, but I don't want to change it and see if it breaks anything. - James
         #If the slideshow is new just skip checking and seeing if you can load it.
         if self.name == "New Project":
+            print("New project detected.")
             return
         
         #Save the filepath and name to a temp variable
@@ -599,10 +602,19 @@ class Slideshow:
                 self.filesInProject.remove(file)
                 continue
 
+        
+        
+
         #Restore the file path and name
         #Basically if you have a slideshow file and it has changed name or location it's going to act as if it's it's in the old location. We want the current ones.
         self.__filePath = tempPath
         self.name = tempName
+
+        #rename self.__slides to self.slides if it exists
+        if '__slides' in self.__dict__: # type: ignore
+            self.slides = self.__slides # type: ignore
+            self.__dict__.pop('__slides')
+
         set_relative_project_path(self.__filePath)
 
     def __str__(self) -> str:
@@ -688,6 +700,29 @@ class Slideshow:
         self.setSaveLocation(newSaveLoc)
         self.save()
         self.setSaveLocation(saveLoc)
+
+    def getTags(self):
+        #tokenize self.__tags by , and return a list of tags
+        return self.__tags.split(",")
+
+    def addTag(self, tag:str):
+        #Check if the tag is already in the list
+        if tag in self.getTags():
+            return False
+        #Add the tag to the list
+        self.__tags += f",{tag}"
+        return True
+
+    def removeTag(self, tag:str):
+        #Check if the tag is in the list
+        if tag in self.getTags():
+            #Remove the tag from the list
+            self.__tags = self.__tags.replace(tag, "")
+            return True
+        return False
+    
+    def getTagsAsString(self):
+        return self.__tags
 
 
 class Song:

@@ -6,11 +6,13 @@ from ttkbootstrap.tooltip import ToolTip
 from ttkbootstrap.constants import *
 import FileSupport as FP
 from tkinter import filedialog
-from PIL import Image, ImageTk, ImageOps
+from PIL import Image, ImageTk, ImageOps, ImageDraw
 import os
 from copy import deepcopy
 import time
 import math
+import SQLSaver as SQ
+import tkinter.font as tkFont
 
 updateRate = 100 #Milliseconds
 transition_START = time.time()
@@ -1148,12 +1150,64 @@ class InfoFrame(tb.Frame):
 
             self.playlistTree.insert("", "end", values=(song_name, i+1, status))
 
-
-
-
         #Empty space to pad the bottom of grid
         rowNumber += 7
         tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
+
+        #Separator
+        rowNumber += 1
+        tb.Separator(self.projectInfoFrame.scrollable_frame, orient="horizontal").grid(row=rowNumber, column=0, columnspan=10, sticky="ew", pady=10)
+
+        #Tag label
+        rowNumber += 1
+        tb.Label(self.projectInfoFrame.scrollable_frame, text="Tags: ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=3, sticky="w")
+
+        #Replace possible tags with a SQLSaver function later.
+        possibleTags = SQ.getAllTags()
+        slideshowTags = self.slideshow.getTags()
+
+        rowNumber += 1
+        #Add tag button
+        self.addTagButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.addTag, takefocus=0, style="success.TButton")
+        self.addTagButton.grid(row=rowNumber, column=0, sticky="e", padx=5)
+
+        #Tag writable combobox
+        self.tagCombo = tb.Combobox(self.projectInfoFrame.scrollable_frame, font=("Arial", 12), takefocus=0)
+        self.tagCombo.config(width=15)
+        self.tagCombo['values'] = possibleTags
+        self.tagCombo.grid(row=rowNumber, column=1, columnspan=3, sticky="ew")
+
+        #TagBox scrollable frame
+        rowNumber += 1
+        self.tagBoxFrame = ScrolledFrame(self.projectInfoFrame.scrollable_frame, autohide=True, width=450, height=300)
+        self.tagBoxFrame.grid(row=rowNumber, column=0, columnspan=8, sticky="w")
+        self.tagBoxFrame.update_idletasks()
+
+
+        #TagBox
+        self.tagBox = TagBox(self.tagBoxFrame, slideshowTags)
+        self.tagBox.linkSlideshow(self.slideshow)
+        self.tagBox.pack(expand=True, fill="both")
+
+        #Empty space to pad the bottom of grid
+        for i in range(7):
+            rowNumber += 1
+            tb.Label(self.projectInfoFrame.scrollable_frame, text=" ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
+
+        #Bind hitting enter in the combobox to adding the tag
+        self.tagCombo.bind("<Return>", lambda event: self.addTag())
+        
+        return
+    
+    def addTag(self):
+        tag = self.tagCombo.get()
+        if tag == "":
+            return
+        if self.tagBox.addTag(tag):
+            self.tagCombo.set("")
+            self.slideshow.addTag(tag)
+        else:
+            print(f"Could not add tag {tag}")
         return
 
     def playListMoveUp(self):
@@ -2306,3 +2360,162 @@ class ToolTipIcon(tk.Canvas):
         self.tkimage = ImageTk.PhotoImage(self.image)
         self.create_image(self.width//2, self.height//2, image=self.tkimage)
         return
+    
+
+class TagBox(tb.Frame):
+    """
+    TagBox is a frame which will house several frames on top of each other.\n
+    Each of those inner frames will have some TagButtons, atleast one. Whenever a TagButton is added to the TagBox, it will check if the current inner frame has enough space to house the new TagButton.\n
+    If not, it will create a new inner frame and add the TagButton below the last one.
+    """
+    fontSize = 10
+    xNormal = None
+    xHover = None
+
+    def __init__(self, master, tags=None, justDisplay=False, **kw):
+        super().__init__(master, **kw)
+        self.tagFrames: list[tb.Frame] = []
+        self.tags: list[str] = []
+        self.tagButtons: dict = {}
+        self.tagFrame: tb.Frame = tb.Frame(self)
+        self.tagFrame.pack(fill=X, expand=True)
+        self.width = 0
+        self.oldWidth = 0
+        self.initialResize = True
+        self.slideshow: FP.Slideshow = None
+        self.justDisplay = justDisplay
+
+        if tags != None:
+            self.tags = tags
+
+        #Bind the resize event to the TagBox
+        self.bind("<Configure>", self.resizeEvent)
+
+        #Create the style 'TagButton.TButton' for the TagButtons
+        style = tb.Style()
+        style.configure('TagButton.TButton', font=('Arial', 10))
+        TagBox.fontSize = int(style.configure('TagButton.TButton')['font'].split()[1])
+
+        TagBox.xNormal = TagBox.draw_X(style.colors.get('primary'), 1)
+        TagBox.xHover = TagBox.draw_X(style.colors.get('danger'), TagBox.fontSize)
+
+
+    def resizeEvent(self, event):
+        self.update_idletasks()
+        self.width = self.winfo_width()
+        #If the width has grown by atleast 30 pixels, refill the tagbox
+        if self.width > self.oldWidth + 30:
+            self.oldWidth = self.width
+            self.fillTagBox()
+
+    def addTag(self, tag: str):
+        #Check if the tag is already in the list
+        if tag in self.tags:
+            return False
+        self.tags.append(tag)
+        self.fillTagBox()
+        return True
+
+    def removeTag(self, tag: str):
+        #Remove the tag if it exists
+        if tag in self.tags:
+            self.tags.remove(tag)
+            self.fillTagBox()
+            if self.slideshow != None:
+                self.slideshow.removeTag(tag)
+            return True
+        return False
+    
+    def linkSlideshow(self, slideshow: FP.Slideshow):
+        self.slideshow = slideshow
+        return
+    
+
+    def fillTagBox(self):
+        self.update()
+        self.width = self.winfo_width()
+        self.oldWidth = self.width
+        
+        #Destroy all the tagFrames and TagButtons
+        [tagFrame.destroy() for tagFrame in self.tagFrames]
+        self.tagFrames = []
+        self.tagButtons = {}
+        #Create a new tagFrame
+        self.tagFrame = tb.Frame(self)
+        self.tagFrame.pack(fill=X, expand=True, pady=2)
+        self.tagFrames.append(self.tagFrame)
+        self.tagFrame.update_idletasks()
+        # print(f"TagFrame width: {self.tagFrame.winfo_width()}")
+
+        self.spaceLeft = self.width - 2
+
+        buttonPadX = 3
+        #Add all the tags back
+        # print(self.tags)
+        for tag in self.tags:
+            #Estimate the width of the tag
+            tagWidth = self.estimateWidth(tag)
+            
+            #If the tag cannot fit in the current tagFrame, create a new one
+            if tagWidth > self.spaceLeft:
+                self.tagFrame = tb.Frame(self)
+                self.tagFrame.pack(fill=X, expand=True, pady=2)
+                self.tagFrames.append(self.tagFrame)
+                self.tagFrame.update_idletasks()
+                self.spaceLeft = self.width - 2
+
+            #Create a new TagButton
+            tagButton = self.TagButton(self.tagFrame, tag, style='TagButton.TButton', justDisplay=self.justDisplay)
+            if self.justDisplay == False:
+                tagButton.config(command=lambda x=tag: self.removeTag(x))
+            tagButton.pack(side=LEFT, padx=buttonPadX)
+            self.tagButtons[tag] = tagButton
+            buttonWidth = tagButton.getWidth() + buttonPadX*2
+            self.spaceLeft -= buttonWidth
+            # print(f"{tag} width: {buttonWidth} estimated: {tagWidth} spaceLeft: {self.spaceLeft} | sL-W: {self.spaceLeft - buttonWidth}")
+
+
+    def estimateWidth(self, tag):
+        font = tkFont.Font()
+        return font.measure(" " + tag + " ") + 3
+    
+    @staticmethod
+    def draw_X(color: str, size=10):
+        #Scale the x symbol to the font size
+        x = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(x)
+        draw.line((0, 0, size, size), fill=color, width=2)
+        draw.line((0, size, size, 0), fill=color, width=2)
+        #Convert the image to a tkinter image
+        x = ImageTk.PhotoImage(x)
+        return x
+    
+        
+    class TagButton(tb.Button):
+        """
+        TagButton is a button that will be used to display a tag.\n
+        Whenever a TagButton is clicked it will remove itself and the tag it represents from the TagBox.
+        It will have a little x symbol that will be styled to change when hovered over.
+        """
+        def __init__(self, master=None, tagText="None", justDisplay=False, **kw):
+            super().__init__(master, **kw)
+            self.tag = tagText
+            self.config(text=self.tag)
+            self.tagbox: TagBox = master.master
+
+            self.config(image=TagBox.xNormal, compound=RIGHT)
+
+            # self.config(image=self.xNormal, compound=RIGHT)
+            if justDisplay == False:
+                self.bind("<Enter>", self.enter)
+                self.bind("<Leave>", self.leave)
+
+        def getWidth(self):
+            self.update_idletasks()
+            return self.winfo_width()
+            
+        def enter(self, event):
+            self.config(image=TagBox.xHover, compound=RIGHT)
+
+        def leave(self, event):
+            self.config(image=TagBox.xNormal, compound=RIGHT)

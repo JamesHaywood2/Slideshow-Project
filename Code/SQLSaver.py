@@ -32,6 +32,7 @@ def clearDatabase():
     c.execute("DELETE FROM File")
     c.execute("DELETE FROM FileRecord")
     c.execute("DELETE FROM Tags")
+    c.execute("DELETE FROM TagRecord")
     conn.commit()
     conn.close()
 
@@ -46,6 +47,7 @@ def resetDatabase():
     c.execute("DROP TABLE IF EXISTS File")
     c.execute("DROP TABLE IF EXISTS FileRecord")
     c.execute("DROP TABLE IF EXISTS Tags")
+    c.execute("DROP TABLE IF EXISTS TagRecord")
     conn.commit()
     conn.close()
     createDatabase()
@@ -65,9 +67,7 @@ def createDatabase():
 	`slide_shuffle` REAL NOT NULL DEFAULT 'False',
 	`playlist_shuffle` REAL NOT NULL DEFAULT 'False',
 	`playlist_duration` INTEGER DEFAULT '0',
-    'LastModified' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`tags` TEXT,
-FOREIGN KEY(`tags`) REFERENCES `Tags`(`tag_name`)
+    'LastModified' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS `Song` (
@@ -112,11 +112,17 @@ FOREIGN KEY('slideshow_id') REFERENCES 'Slideshows'('slideshow_ID')
 );''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS `Tags` (
-        `tag_name` integer primary key NOT NULL UNIQUE,
-        `slideshow_list` TEXT NOT NULL,
-    FOREIGN KEY(`slideshow_list`) REFERENCES `Slideshows`(`slideshow_ID`)
+        `tag_id` integer primary key NOT NULL UNIQUE,
+        `tag_name` TEXT NOT NULL UNIQUE
     );''')
     
+    c.execute('''CREATE TABLE IF NOT EXISTS `TagRecord` (
+        `id` integer primary key NOT NULL UNIQUE,
+        `tag_id` TEXT NOT NULL,
+        `slideshow_id` INTEGER NOT NULL,
+    FOREIGN KEY(`tag_id`) REFERENCES `Tags`(`tag_id`),
+    FOREIGN KEY(`slideshow_id`) REFERENCES `Slideshows`(`slideshow_ID`)
+    );''')
 
     # c.execute("FOREIGN KEY(`tags`) REFERENCES `Tags`(`tag_name`);")
     # c.execute("FOREIGN KEY(`SongRecord_id`) REFERENCES `File`(`id`);")
@@ -192,7 +198,7 @@ def saveSlideshow(slideshow, fromFile=False):
     playlistShuffle = playlist.shuffle
     playlistDuration = playlist.getDuration()
 
-    tags = slideshow.tags
+    tags = slideshow.getTags() #list of tags
 
     # Get the current date
     current_date = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -289,62 +295,6 @@ def saveSlideshow(slideshow, fromFile=False):
         #I think every possible scenario has been covered. If this is triggered then something is wrong.
         print("Error: Uknown error.")
         
-
-
-
-    # #If name_id is not None then a slideshow with the same name is already in the database. Check if it's the same slideshow.
-    # if name_id != None and name_id != slideshowID:
-    #     #Name exists in database, but is not the same ID. That means the name is already in use.
-    #     print(f"Name already in use: {slideshowName}")
-    #     #Make a new name
-    #     i = 1
-    #     while True:
-    #         newName = f"{slideshowName} ({i})"
-    #         c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (newName,))
-    #         name_id = c.fetchone()
-    #         if name_id == None:
-    #             break
-    #         i += 1
-    #     print(f"New name: {newName}")
-    #     slideshow.name = newName
-    #     return saveSlideshow(slideshow, fromFile)
-    # elif name_id != None and name_id == slideshowID:
-    #     #Name exists in database and is the same ID. This means the slideshow is already in the database.
-    #     c.execute('''UPDATE Slideshows
-    #               SET slideshow_name = ?, LoopSetting = ?, manual_controls = ?, slide_shuffle = ?, playlist_shuffle = ?, playlist_duration = ?, LastModified = ? WHERE slideshow_ID = ?''',
-    #               (slideshowName, loopSetting, manualControls, slideShuffle, playlistShuffle, playlistDuration, current_date, slideshowID))
-    #     print(f"Updating slideshow: {slideshowID}")
-    # elif name_id == None and slideshowID != None:
-    #     #The name is not used in the database, but the slideshowID is.
-    #     #This means a slideshow was either renamed or it was loaded from a file.
-    #     if fromFile:
-    #         #If loaded from a file and the slideshowID is already in use, just use a new ID.
-    #         c.execute('''INSERT INTO Slideshows
-    #                   (slideshow_name, LoopSetting, manual_controls, slide_shuffle, playlist_shuffle, playlist_duration, LastModified) VALUES (?, ?, ?, ?, ?, ?, ?)''',
-    #                   (slideshowName, loopSetting, manualControls, slideShuffle, playlistShuffle, playlistDuration, current_date))
-    #         #Get the slideshow ID of the slideshow that matches what was just inserted
-    #         c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (slideshowName,))
-    #         slideshowID = c.fetchone()[0]
-    #         #Update the slideshow with the new slideshowID
-    #         slideshow.slideshowID = slideshowID
-    #         print(f"New slideshow ID: {slideshowID}")
-    #     else:
-    #         #Not loaded from a file. Name is not in use but ID is. Which means the slideshow was renamed.
-    #         c.execute('''UPDATE Slideshows
-    #                   SET slideshow_name = ?, LoopSetting = ?, manual_controls = ?, slide_shuffle = ?, playlist_shuffle = ?, playlist_duration = ?, LastModified = ? WHERE slideshow_ID = ?''',
-    #                   (slideshowName, loopSetting, manualControls, slideShuffle, playlistShuffle, playlistDuration, current_date, slideshowID))
-    #         print(f"Renaming slideshow: {slideshowID}")
-    # elif name_id == None and slideshowID == None:
-    #     #Name is not in use anywhere and the slideshowID is not in use. This means it's a new slideshow.
-    #     c.execute('''INSERT INTO Slideshows
-    #               (slideshow_name, LoopSetting, manual_controls, slide_shuffle, playlist_shuffle, playlist_duration, LastModified) VALUES (?, ?, ?, ?, ?, ?, ?)''',
-    #               (slideshowName, loopSetting, manualControls, slideShuffle, playlistShuffle, playlistDuration, current_date))
-    #     #Get the slideshow ID of the slideshow that matches what was just inserted
-    #     c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (slideshowName,))
-    #     slideshowID = c.fetchone()[0]
-    #     #Update the slideshow with the new slideshowID
-    #     slideshow.slideshowID = slideshowID
-    #     print(f"New slideshow ID: {slideshowID}")
 
     slidePathList = []
     for slide in slideList:
@@ -528,7 +478,37 @@ def saveSlideshow(slideshow, fromFile=False):
         if song not in [song.songDB_ID for song in playlist.songs]:
             c.execute("DELETE FROM Song WHERE id = ?", (song,))
             print(f"Deleting song: {song}")
-            
+
+
+    #remove tags that are just whitespace
+    tags = [tag for tag in tags if tag.strip() != ""]
+
+    #Insert tags into the database
+    print("\nInserting tags into the database...")
+    print(f"Tags: {tags}")
+    for tag in tags:
+        if sqlProtector(tag):
+            return False
+        #Check if the tag is already in the database
+        c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
+        tag_id = c.fetchone()
+        if tag_id == None:
+            #We need to insert the tag into the database.
+            c.execute("INSERT INTO Tags (tag_name) VALUES (?)", (tag,))
+            #Get the tag id of the tag that matches what was just inserted
+            c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
+            tag_id = c.fetchone()[0]
+
+        #clean the tag_id
+        if isinstance(tag_id, tuple):
+            tag_id = tag_id[0]
+
+        #Clear the tag records for this specific slideshow
+        c.execute("DELETE FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
+        #Insert the tag record into the database
+        c.execute("INSERT INTO TagRecord (tag_id, slideshow_id) VALUES (?, ?)", (tag_id, slideshowID))
+
+
     conn.commit()
     conn.close()
 
@@ -538,10 +518,37 @@ def saveSlideshow(slideshow, fromFile=False):
     return True
 
 def getSlideshows():
+    print("\nGetting slideshows from the database...")
+    print("Slideshows in the database:")
     conn = sqlite3.connect(databasePath)
     c = conn.cursor()
 
-    c.execute("SELECT slideshow_ID, slideshow_name, LastModified, tags FROM Slideshows")
+    c.execute("SELECT * FROM Slideshows")
+    slideshows = c.fetchall()
+    conn.close()
+    #Put them into a dictionary
+    sd = {}
+    for slideshow in slideshows:
+        s = {
+            "slideshowID": slideshow[0],
+            "slideshowName": slideshow[1],
+            "lastModified": slideshow[7],
+            "tags": slideshow[8]
+        }
+        sd[slideshow[0]] = s
+    
+    pprint.pprint(sd)
+    return sd
+
+def checkSlideshowExists(slideshowID):
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+    c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_ID = ?", (slideshowID,))
+    result = c.fetchone()
+    conn.close()
+    if result == None:
+        return False
+    return True
 
 def loadSlideshow(slideshowID) -> FP.Slideshow:
     conn = sqlite3.connect(databasePath)
@@ -562,7 +569,9 @@ def loadSlideshow(slideshowID) -> FP.Slideshow:
     playlistShuffle = bool(slideshow[5])
     playlistDuration = slideshow[6]
     lastModified = slideshow[7]
-    tags = slideshow[8]
+
+    #Get the tags for the slideshow
+    tags = getTags(slideshowID)
 
     #Get files in the project
     c.execute("SELECT file_id FROM FileRecord WHERE slideshow_id = ?", (slideshowID,))
@@ -630,8 +639,9 @@ def loadSlideshow(slideshowID) -> FP.Slideshow:
     #Get the files that end with an image extension
     imageFiles = [file for file in filesInProject if file.endswith((".png", ".jpg", ".jpeg"))]
     slideshow.filesInProject = imageFiles
-    slideshow.tags = tags
     slideshow.slideshowID = slideshowID
+    for tag in tags:
+        slideshow.addTag(tag)
 
     # print(slideshow)
     return slideshow
@@ -703,16 +713,6 @@ def validateDatabase():
     conn.commit()
     conn.close()
 
-
-def getSlideshows():
-    conn = sqlite3.connect(databasePath)
-    c = conn.cursor()
-
-    c.execute("SELECT slideshow_id FROM Slideshows")
-    slideshows = c.fetchall()
-
-    print(slideshows)
-
 def sqlProtector(string):
     if string == None:
         return False
@@ -727,6 +727,40 @@ def sqlProtector(string):
     else:
         return False
     
+
+def getTags(slideshowID):
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+
+    #Get the tags for the slideshow
+    c.execute("SELECT tag_id FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
+    tag_ids = c.fetchall()
+    tag_ids = [tag_id[0] for tag_id in tag_ids]
+
+    tags = []
+    for tag_id in tag_ids:
+        c.execute("SELECT tag_name FROM Tags WHERE tag_id = ?", (tag_id,))
+        tag = c.fetchone()[0]
+        tags.append(tag)
+    
+    conn.commit()
+    conn.close()
+    return tags
+
+def getAllTags():
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+
+    #Get the tags for the slideshow
+    c.execute("SELECT tag_name FROM Tags")
+    tags = c.fetchall()
+    tags = [tag[0] for tag in tags]
+    
+    conn.commit()
+    conn.close()
+    return tags
+
+
 # clearDatabase()
 # resetDatabase()
 # createDatabase()
