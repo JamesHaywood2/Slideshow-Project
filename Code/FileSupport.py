@@ -397,7 +397,11 @@ class Slideshow:
     """
     def __init__(self, filePath:str="New Project", **kw):
         self.__filePath: str = filePath #The file path of the slideshow file
-        self.name = getBaseName([self.__filePath])[0]
+        #if the filepath is an existing file, get the name of the file without the extension
+        if os.path.exists(filePath):
+            self.name = getBaseName([self.__filePath])[0]
+        else:
+            self.name = "New Project"
         self.slides: list[Slide] = []
         self.__count: int = 0
         self.playlist: Playlist = Playlist()
@@ -405,7 +409,7 @@ class Slideshow:
         self.manual: bool = False
         self.shuffle: bool = False
         self.filesInProject: list[str] = [] #This is a list of all the files in the project folder. Not necessarily a list of slides.
-        self.__tags: str = "" #This is a list of tags for the project. Used for searching.
+        self.tags: list[str] = [] #This is a list of tags for the project. Used for searching.
 
         self.slideshowID: int = None # type: ignore
 
@@ -548,7 +552,6 @@ class Slideshow:
         Used to set the file path of the slideshow. Only used when creating a new slideshow or saving as.
         """
         self.__filePath = filePath
-        self.name = getBaseName([self.__filePath])[0]
     
     def save(self):
         """
@@ -602,18 +605,16 @@ class Slideshow:
                 self.filesInProject.remove(file)
                 continue
 
-        
-        
-
         #Restore the file path and name
         #Basically if you have a slideshow file and it has changed name or location it's going to act as if it's it's in the old location. We want the current ones.
         self.__filePath = tempPath
         self.name = tempName
 
         #rename self.__slides to self.slides if it exists
-        if '__slides' in self.__dict__: # type: ignore
+        if '_Slideshow__slides' in self.__dict__: # type: ignore
+            print("Renaming __slides to slides.")
             self.slides = self.__slides # type: ignore
-            self.__dict__.pop('__slides')
+            self.__dict__.pop('_Slideshow__slides')
 
         set_relative_project_path(self.__filePath)
 
@@ -700,29 +701,6 @@ class Slideshow:
         self.setSaveLocation(newSaveLoc)
         self.save()
         self.setSaveLocation(saveLoc)
-
-    def getTags(self):
-        #tokenize self.__tags by , and return a list of tags
-        return self.__tags.split(",")
-
-    def addTag(self, tag:str):
-        #Check if the tag is already in the list
-        if tag in self.getTags():
-            return False
-        #Add the tag to the list
-        self.__tags += f",{tag}"
-        return True
-
-    def removeTag(self, tag:str):
-        #Check if the tag is in the list
-        if tag in self.getTags():
-            #Remove the tag from the list
-            self.__tags = self.__tags.replace(tag, "")
-            return True
-        return False
-    
-    def getTagsAsString(self):
-        return self.__tags
 
 
 class Song:

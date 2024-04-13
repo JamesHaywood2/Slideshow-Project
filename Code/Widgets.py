@@ -631,6 +631,9 @@ class FileIcon(tk.Frame):
         pth = imagepath
         if isinstance(self, SlideIcon):
             pth = FP.file_check(imagepath, FP.relative_project_path)
+        
+        if isinstance(self, FileIcon):
+            pth = FP.file_check(imagepath, FP.relative_project_path)
             
         #Test if the file is a valid image file
         try:
@@ -673,11 +676,12 @@ class FileIcon(tk.Frame):
         return int((height - minSize)/growthIncrement) * growthIncrement + minSize
 
 
-
-
     def refreshImage(self):
         pth = self.imagepath
         if isinstance(self, SlideIcon):
+            pth = FP.file_check(self.imagepath, FP.relative_project_path)
+
+        if isinstance(self, FileIcon):
             pth = FP.file_check(self.imagepath, FP.relative_project_path)
 
 
@@ -1164,7 +1168,7 @@ class InfoFrame(tb.Frame):
 
         #Replace possible tags with a SQLSaver function later.
         possibleTags = SQ.getAllTags()
-        slideshowTags = self.slideshow.getTags()
+        slideshowTags = self.slideshow.tags
 
         rowNumber += 1
         #Add tag button
@@ -1201,15 +1205,21 @@ class InfoFrame(tb.Frame):
     
     def addTag(self):
         tag = self.tagCombo.get()
+        if SQ.sqlProtector(tag):
+            return False
         if tag == "":
-            return
+            print("No tag to add")
+            return False
+        if tag.split() == "":
+            print("No tag to add")
+            return False
         if self.tagBox.addTag(tag):
             self.tagCombo.set("")
-            self.slideshow.addTag(tag)
-        else:
-            print(f"Could not add tag {tag}")
-        return
-
+            self.tagCombo['values'] = SQ.getAllTags()
+            return True
+        return False
+        
+        
     def playListMoveUp(self):
         #Get the selected item
         selected = self.playlistTree.selection()
@@ -1518,7 +1528,17 @@ class InfoFrame(tb.Frame):
     def replaceImage(self):
         #Open a file dialog to select a new image
         filetypes = [("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif *.tiff")]
-        file = filedialog.askopenfile(filetypes=filetypes, title="Select a new image")
+        loc = FP.file_loc(self.__icon.imagepath, FP.relative_project_path)
+        if loc == 0:
+            start = os.path.dirname(FP.file_check(self.__icon.imagepath, FP.relative_project_path))
+        elif loc == 1:
+            start = os.path.dirname(FP.file_check(self.__icon.imagepath, FP.relative_project_path))
+        elif loc == 2:
+            start = os.path.dirname(self.__icon.imagepath)
+        else:
+            start = None
+        print(f"Start: {start}")
+        file = filedialog.askopenfile(filetypes=filetypes, title="Select a new image", initialdir=start)
         if file == None:
             return
         #Close the previous imagePath in FP.openFiles
@@ -2384,6 +2404,7 @@ class TagBox(tb.Frame):
         self.initialResize = True
         self.slideshow: FP.Slideshow = None
         self.justDisplay = justDisplay
+        self.slideshow: FP.Slideshow = None
 
         if tags != None:
             self.tags = tags
@@ -2410,9 +2431,17 @@ class TagBox(tb.Frame):
 
     def addTag(self, tag: str):
         #Check if the tag is already in the list
+        if SQ.sqlProtector(tag):
+            return False
         if tag in self.tags:
             return False
+        if tag.split() == "":
+            return False
         self.tags.append(tag)
+        if self.slideshow != None:
+            self.slideshow.tags = self.tags
+            
+        SQ.addTag(tag, self.slideshow.slideshowID)
         self.fillTagBox()
         return True
 
@@ -2422,7 +2451,9 @@ class TagBox(tb.Frame):
             self.tags.remove(tag)
             self.fillTagBox()
             if self.slideshow != None:
-                self.slideshow.removeTag(tag)
+                self.slideshow.tags = self.tags
+                print(f"Removing tag: {tag}")
+                SQ.removeTag(tag, self.slideshow.slideshowID)
             return True
         return False
     
@@ -2453,6 +2484,12 @@ class TagBox(tb.Frame):
         #Add all the tags back
         # print(self.tags)
         for tag in self.tags:
+            # print(f"Tag: {tag}")
+            #If the tag is empty, remove and skip it
+            if len(tag.split()) == 0:
+                self.tags.remove(tag)
+                continue
+
             #Estimate the width of the tag
             tagWidth = self.estimateWidth(tag)
             

@@ -1,11 +1,17 @@
+from os import rename
+from re import T
 import tkinter as tk
+from numpy import save
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs import *
 from Widgets import *
 from tkinter import filedialog
 import Player as Player
 import FileSupport as FP
 import SQLSaver as SQ
+
+import pprint
 
 
 # FP.file_check(path, RELATIVE_PROJECT_PATH)
@@ -130,8 +136,16 @@ class SlideshowCreator(tb.Frame):
             projectPath = "New Project"
         self.slideshow = FP.Slideshow(projectPath)
 
-        if openFromPath == False and slideshowID !=None:
-            self.slideshow = SQ.loadSlideshow(slideshowID=slideshowID)
+        if slideshowID != None and SQ.checkSlideshowExists(slideshowID) and not openFromPath:
+            self.slideshow = SQ.loadSlideshow(slideshowID)
+            print("\nOpening project from ID")
+        else:
+            if openFromPath:
+                print("\nOpening project from path")
+            else:
+                print("\nCreating new project")
+
+        pprint.pprint(self.slideshow.__dict__)
 
 
         self.update_idletasks()
@@ -471,24 +485,23 @@ class SlideshowCreator(tb.Frame):
 
     def save(self):
         print("Save")
-        self.slideshow.filesInProject = self.mediaBucket.files
-        if self.slideshow.getSaveLocation() == "New Project":
-            self.saveAs()
+        #Check if the project has a save location
+        saveLocation = self.slideshow.getSaveLocation()
+        if saveLocation == "New Project" or saveLocation == "Saved To Database":
+            if self.slideshow.name == "New Project":
+                self.renameProjectDialog()
+            SQ.saveSlideshow(self.slideshow)
         else:
-            self.slideshow.save()
-            self.redraw()
-            try:
-                FP.updateSlideshowCacheList(self.slideshow.getSaveLocation())
-            except:
-                print("Failed to update the slideshow cache list")
+            print(f"Save Location: {saveLocation}")
+            SQ.saveSlideshow(self.slideshow, fromFile=True)
 
-            try:
-                #Export the project to the cache
-                self.slideshow.exportToCache()
-            except:
-                print("Failed to export the project to the cache")
+        self.update_idletasks()
+        self.redraw()
+        return True
+
         
     def saveAs(self):
+        """Effectively saves the project to a file."""
         print("Save As")
         path = filedialog.asksaveasfilename(defaultextension=".pyslide", filetypes=[("Slideshow Files", "*.pyslide")])
         if not path:
@@ -499,6 +512,21 @@ class SlideshowCreator(tb.Frame):
         self.update_idletasks()
         self.slideshow.save()
         self.redraw()
+
+    def renameProjectDialog(self, invalid=False):
+        #ttkbootstrap Querybox get_string
+        if invalid:
+            name = Querybox.get_string(prompt="Invalid name. Please enter a name for the project", title="Rename Project")
+        else:
+            name = Querybox.get_string(prompt="Enter a name for the project", title="Rename Project")
+        if name == "":
+            return self.renameProjectDialog()
+        self.slideshow.name = name
+        self.redraw()
+        self.save()
+        return True
+        
+
 
     def exportToPlayer(self):
         #Save the project

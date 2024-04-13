@@ -1,4 +1,5 @@
 import re
+from tkinter import filedialog
 import FileSupport as FP
 import os
 import sys
@@ -112,13 +113,13 @@ FOREIGN KEY('slideshow_id') REFERENCES 'Slideshows'('slideshow_ID')
 );''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS `Tags` (
-        `tag_id` integer primary key NOT NULL UNIQUE,
+        `tag_id` INTEGER primary key NOT NULL UNIQUE,
         `tag_name` TEXT NOT NULL UNIQUE
     );''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS `TagRecord` (
         `id` integer primary key NOT NULL UNIQUE,
-        `tag_id` TEXT NOT NULL,
+        `tag_id` INTEGER NOT NULL,
         `slideshow_id` INTEGER NOT NULL,
     FOREIGN KEY(`tag_id`) REFERENCES `Tags`(`tag_id`),
     FOREIGN KEY(`slideshow_id`) REFERENCES `Slideshows`(`slideshow_ID`)
@@ -164,10 +165,9 @@ def renameSlideshow(slideshowID:int, newName:str) -> bool:
     conn.close()
     return True
 
-def saveSlideshow(slideshow, fromFile=False):
+def saveSlideshow(slideshow, fromFile=False, toFile=False):
     """Will take a slideshow object and then save it to the database."""
     #If the slideshow is a path to a slideshow file, load the slideshow from the file first.
-    fromFile = False
     if isinstance(slideshow, str):
         #Check the file extension
         if not slideshow.endswith(".pyslide"):
@@ -183,6 +183,15 @@ def saveSlideshow(slideshow, fromFile=False):
     elif not isinstance(slideshow, FP.Slideshow):
         print("Invalid slideshow object")
         return False
+    
+    tempSaveLocation = ""
+    saveLocation = ""
+    if toFile:
+        tempSaveLocation = slideshow.getSaveLocation()
+        saveLocation = filedialog.asksaveasfilename(defaultextension=".pyslide", filetypes=[("PySlide Files", "*.pyslide")])
+        if saveLocation == "":
+            print("No file selected")
+            return False
         
     #Get the slideshow information
     slideshowPath = slideshow.getSaveLocation()
@@ -198,7 +207,9 @@ def saveSlideshow(slideshow, fromFile=False):
     playlistShuffle = playlist.shuffle
     playlistDuration = playlist.getDuration()
 
-    tags = slideshow.getTags() #list of tags
+    tags = slideshow.tags
+
+    pprint.pprint(slideshow)
 
     # Get the current date
     current_date = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -216,8 +227,10 @@ def saveSlideshow(slideshow, fromFile=False):
             return False
         
     if fromFile:
+        print(f"Saving from a file: {slideshowPath}")
         slideshowID = None
         slideshow.slideshowID = None
+        FP.set_relative_project_path(slideshow.getSaveLocation())
 
         #Check if the name is already in use
         c.execute("SELECT slideshow_name FROM Slideshows WHERE slideshow_name = ?", (slideshowName,))
@@ -236,6 +249,7 @@ def saveSlideshow(slideshow, fromFile=False):
             print(f"New name: {newName}")
             slideshow.name = newName
             slideshowName = slideshow.name
+            slideshow.setSaveLocation("Saved To Database")
 
     #Check if the slideshowID is already in use
     c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_ID = ?", (slideshowID,))
@@ -244,10 +258,12 @@ def saveSlideshow(slideshow, fromFile=False):
         #SlideshowID is not in use.
         slideshowID = None
         slideshow.slideshowID = None
+        print(f"ID was not in use: {slideshowID}")
     else:
         #SlideshowID is in use.
         slideshowID = id[0]
         slideshow.slideshowID = slideshowID
+        print(f"ID was in use: {slideshowID}")
 
     #Check if the name is already in use
     c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (slideshowName,))
@@ -255,10 +271,13 @@ def saveSlideshow(slideshow, fromFile=False):
     if name_id == None:
         #Name is not in use.
         name_id = None
+        print(f"Name was not in use: {slideshowName}")
     else:
         #Name is in use.
         name_id = name_id[0]
+        print(f"Name was in use: {slideshowName}")
 
+    print(f"\nDoing Name: {name_id} ID: {slideshowID} Check")
     #If both name and ID None then this is a branch new slideshow. - Insert the slideshow into the database.
     if name_id == None and slideshowID == None:
         c.execute('''INSERT INTO Slideshows
@@ -291,9 +310,31 @@ def saveSlideshow(slideshow, fromFile=False):
         print(f"Updating slideshow: {slideshowID}")
 
     #If both name and ID are in use but don't match, then the name is already in use. - Make a new name and insert the slideshow into the database.
+    elif name_id != None and slideshowID != None and name_id != slideshowID:
+        print(f"Name and ID are in use but don't match. Name: {name_id} ID: {slideshowID}")
+        while True:
+            i = 1
+            newName = f"{slideshowName} ({i})"
+            c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (newName,))
+            name_id = c.fetchone()
+            if name_id == None:
+                break
+            i += 1
+        print(f"New name: {newName}")
+        slideshow.name = newName
+        slideshowName = slideshow.name
+        c.execute('''INSERT INTO Slideshows
+                    (slideshow_name, LoopSetting, manual_controls, slide_shuffle, playlist_shuffle, playlist_duration, LastModified) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (slideshowName, loopSetting, manualControls, slideShuffle, playlistShuffle, playlistDuration, current_date))
+        #Get the slideshow ID of the slideshow that matches what was just inserted
+        c.execute("SELECT slideshow_ID FROM Slideshows WHERE slideshow_name = ?", (slideshowName,))
+        slideshowID = c.fetchone()[0]
+        #Update the slideshow with the new slideshowID
+        slideshow.slideshowID = slideshowID
+        print(f"New slideshow ID: {slideshowID}")
     else:
-        #I think every possible scenario has been covered. If this is triggered then something is wrong.
-        print("Error: Uknown error.")
+        print("Error: Unknown error")
+        return False
         
 
     slidePathList = []
@@ -304,6 +345,14 @@ def saveSlideshow(slideshow, fromFile=False):
             slideList[slideList.index(slide)] = s
             slide = s
         except:
+            pass
+
+        #Locate the file in the system. We either want it to be at the full path or the relative path.
+        loc = FP.file_loc(slide.imagePath, FP.relative_project_path)
+        if loc == 1:
+            slide.imagePath = FP.file_check(slide.imagePath, FP.relative_project_path)
+        else:
+            #We want to update the filepath when it is in the projectPath. Otherwise just keep the full one and hope for the best. lmao.
             pass
 
         # #Append the imagePath to the filesinproject list
@@ -325,6 +374,14 @@ def saveSlideshow(slideshow, fromFile=False):
             playlist.songs[playlist.songs.index(song)] = s
             song = s
 
+        #Locate the file in the system. We either want it to be at the full path or the relative path.
+        loc = FP.file_loc(song.filePath, FP.relative_project_path)
+        if loc == 1:
+            song.filePath = FP.file_check(song.filePath, FP.relative_project_path)
+        else:
+            #We want to update the filepath when it is in the projectPath. Otherwise just keep the full one and hope for the best. lmao.
+            pass
+
         #Append the songPath to the songPathList
         if song.filePath not in songPathList:
             songPathList.append(song.filePath)
@@ -338,6 +395,14 @@ def saveSlideshow(slideshow, fromFile=False):
 
     #Insert the files into the database
     for file in files:
+
+        #locate the file in the system. We either want it to be at the full path or the relative path.
+        loc = FP.file_loc(file, FP.relative_project_path)
+        if loc == 1:
+            file = FP.file_check(file, FP.relative_project_path)
+        else:
+            #We want to update the filepath when it is in the projectPath. Otherwise just keep the full one and hope for the best. lmao.
+            pass
         
         #Check if the file is already in the database
         c.execute("SELECT id FROM File WHERE file_path = ?", (file,))
@@ -485,26 +550,29 @@ def saveSlideshow(slideshow, fromFile=False):
 
     #Insert tags into the database
     print("\nInserting tags into the database...")
+    #First delete all TagRecords for this specific slideshow
+    c.execute("DELETE FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
+    # print(f"TagRecords for slideshow: {slideshowID} deleted")
     print(f"Tags: {tags}")
     for tag in tags:
-        if sqlProtector(tag):
-            return False
+        # print(f"Inserting tag: {tag}")
         #Check if the tag is already in the database
         c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
         tag_id = c.fetchone()
         if tag_id == None:
-            #We need to insert the tag into the database.
+            #If there is no tag_id its a brand new tag so we need to insert it.
             c.execute("INSERT INTO Tags (tag_name) VALUES (?)", (tag,))
             #Get the tag id of the tag that matches what was just inserted
             c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
             tag_id = c.fetchone()[0]
+        else:
+            #Tag is already in the database so we don't need to worry about it.
+            tag_id = tag_id[0]
 
         #clean the tag_id
         if isinstance(tag_id, tuple):
             tag_id = tag_id[0]
 
-        #Clear the tag records for this specific slideshow
-        c.execute("DELETE FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
         #Insert the tag record into the database
         c.execute("INSERT INTO TagRecord (tag_id, slideshow_id) VALUES (?, ?)", (tag_id, slideshowID))
 
@@ -512,8 +580,15 @@ def saveSlideshow(slideshow, fromFile=False):
     conn.commit()
     conn.close()
 
-    if fromFile:
+    print("\nSlideshow saved to the database.")
+    if toFile:
+        print(f"Saving to file: {saveLocation}")
+        tempSaveLocation = slideshow.getSaveLocation()
+        slideshow.setSaveLocation(saveLocation)
         slideshow.save()
+        slideshow.setSaveLocation(tempSaveLocation)
+
+    validateDatabase()
 
     return True
 
@@ -537,7 +612,7 @@ def getSlideshows():
         }
         sd[slideshow[0]] = s
     
-    pprint.pprint(sd)
+    # pprint.pprint(sd)
     return sd
 
 def checkSlideshowExists(slideshowID):
@@ -602,6 +677,8 @@ def loadSlideshow(slideshowID) -> FP.Slideshow:
     #Get the slides in the project
     c.execute("SELECT * FROM Slide WHERE Slideshow_ID = ?", (slideshowID,))
     slides = c.fetchall()
+
+    conn.close()
     
     slideList = []
     for slide in slides:
@@ -640,8 +717,8 @@ def loadSlideshow(slideshowID) -> FP.Slideshow:
     imageFiles = [file for file in filesInProject if file.endswith((".png", ".jpg", ".jpeg"))]
     slideshow.filesInProject = imageFiles
     slideshow.slideshowID = slideshowID
-    for tag in tags:
-        slideshow.addTag(tag)
+    slideshow.tags = tags
+    slideshow.setSaveLocation("Saved To Database")
 
     # print(slideshow)
     return slideshow
@@ -659,6 +736,8 @@ def deleteSlideshow(slideshowID):
     c.execute("DELETE FROM Song WHERE Slideshow_ID = ?", (slideshowID,))
     #Delete the file records
     c.execute("DELETE FROM FileRecord WHERE slideshow_id = ?", (slideshowID,))
+    #Delete the tag records
+    c.execute("DELETE FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
     
     conn.commit()
     conn.close()
@@ -691,6 +770,7 @@ def validateDatabase():
             print(f"Deleting dead slideshow: {slideshowID}")
             deleteSlideshow(slideshowID)
 
+    conn.commit()
     #Delete unused files
 
     #Get a list of all fileIDs in the database
@@ -709,6 +789,53 @@ def validateDatabase():
             print(f"Deleting unused file: {fileID}")
             c.execute("DELETE FROM File WHERE id = ?", (fileID,))
 
+    conn.commit()
+
+
+    #Get all tags_ids from tagRecord
+    c.execute("SELECT tag_id FROM TagRecord")
+    tags_In_Use = c.fetchall()
+    tags_In_Use = [tag[0] for tag in tags_In_Use]
+    # print(f"Tags in use: {tags_In_Use}")
+
+    #Get all tags in the database
+    c.execute("SELECT tag_id FROM Tags")
+    all_tags = c.fetchall()
+    all_tags = [tag[0] for tag in all_tags]
+    # print(f"All tags: {all_tags}")
+
+    #If there is a tag without a record, then it isn't being used and it should be deleted.
+    for tag in all_tags:
+        if tag not in tags_In_Use:
+            print(f"Deleting unused tag: {tag}")
+            c.execute("DELETE FROM Tags WHERE tag_id = ?", (tag,))
+
+
+    conn.commit()
+
+    #Get all the tagRecords
+    c.execute("SELECT * FROM TagRecord")
+    tagRecords = c.fetchall()
+    
+    #Get all slideshowIDS and tagIDs
+    c.execute("SELECT slideshow_ID FROM Slideshows")
+    slideshowIDs = c.fetchall()
+    slideshowIDs = [slideshowID[0] for slideshowID in slideshowIDs]
+
+    c.execute("SELECT tag_id FROM Tags")
+    tagIDs = c.fetchall()
+    tagIDs = [tagID[0] for tagID in tagIDs]
+
+    #If a tagRecord has a slideshowID or tagID that doesn't exist, then it should be deleted.
+    for tagRecord in tagRecords:
+        id = tagRecord[0]
+        tag_id = tagRecord[1]
+        slideshow_id = tagRecord[2]
+        if tag_id not in tagIDs or slideshow_id not in slideshowIDs:
+            print(f"Deleting tagRecord: {id}")
+            c.execute("DELETE FROM TagRecord WHERE id = ?", (id,))
+
+
 
     conn.commit()
     conn.close()
@@ -725,6 +852,64 @@ def sqlProtector(string):
         print(f"Injections detected. attempt={string}")
         return True
     else:
+        return False
+    
+def addTag(tag:str, slideshowID:int):
+    print(f"\nAdding tag: {tag} to the database...")
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+
+    if sqlProtector(tag):
+        print("Injection detected")
+        return False
+
+    #Check if the tag is already in the database
+    c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
+    tag_id = c.fetchone()
+    if tag_id == None:
+        #We need to insert the tag into the database.
+        c.execute("INSERT INTO Tags (tag_name) VALUES (?)", (tag,))
+        #Get the tag id of the tag that matches what was just inserted
+        c.execute("SELECT tag_id FROM Tags WHERE tag_name = ?", (tag,))
+        tag_id = c.fetchone()[0]
+        conn.commit()
+    else:
+        #Tag is already in the database so we don't need to worry about it.
+        print("Tag already in the database")
+        tag_id = tag_id[0]
+
+    #clean the tag_id
+    if isinstance(tag_id, tuple):
+        tag_id = tag_id[0]
+
+    #Insert the tag record into the database
+    c.execute("INSERT INTO TagRecord (tag_id, slideshow_id) VALUES (?, ?)", (tag_id, slideshowID))
+    conn.commit()
+    conn.close()
+    return True
+    
+def removeTag(tag:str, slideshowID:int):
+    print(f"\nRemoving tag: {tag} from Slideshow: {slideshowID}...")
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+
+    if sqlProtector(tag):
+        print("Injection detected")
+        conn.close()
+        return False
+    
+    #Remove the tagrecord from the database
+    c.execute("SELECT id FROM TagRecord WHERE tag_id = ? AND slideshow_id = ?", (tag, slideshowID))
+    tagRecord = c.fetchone()
+    if tagRecord != None:
+        c.execute("DELETE FROM TagRecord WHERE id = ?", (tagRecord[0],))
+        conn.commit()
+        conn.close()
+        return True
+    else:
+        print("Tag not found")
+        conn.commit()
+        conn.close()
         return False
     
 
@@ -761,22 +946,24 @@ def getAllTags():
     return tags
 
 
-# clearDatabase()
-# resetDatabase()
-# createDatabase()
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-# renameSlideshow(1, "Test1")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+createDatabase()
+validateDatabase()
+
+resetDatabase()
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
+renameSlideshow(1, "Test1")
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
+saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
 
 
-#Latop
+# Latop
 # saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\OneSlide.pyslide")
 # saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
 # saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
 
-# validateDatabase()
 # deleteSlideshow(1)
+
+# clearDatabase()
