@@ -1,6 +1,8 @@
 import tkinter as tk
+from matplotlib.pylab import f
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs import *
 from Widgets import *
 from tkinter import filedialog
 from PIL import Image, ImageOps
@@ -14,75 +16,434 @@ import pprint as pp
 
 temp_geometry = None
 
-class SlideshowPlayerStart(tb.Frame):
-    def __init__(self, master):
-        super().__init__(master)
+class StartMenu(tb.Frame):
+    """Start window for the Slideshow Creator but using the Database.\n
+    This window will allow you to select a project, choose to delete it, rename it, open it, create a new one, whatever."""
+    def __init__(self, master=None, **kw):
+        super().__init__(master, **kw)
         try:
             FP.initializeCache()
         except:
             print("Cache initialziation failed")
         tb.Style().theme_use(FP.getPreferences())
-        self.master = master
-        self.pack(expand=True, fill="both")
-        self.label = tb.Label(self, text="Slideshow Player", font=("Arial", 24)).place(relx=0.5, rely=0.15, anchor="center")
-        self.openProjectButton = tb.Button(self, text="Open Project", command=self.openProject).place(anchor="center", relx=0.5, rely=0.25)
-        self.recentSlideshowList = RecentSlideshowList(self)
-        self.recentSlideshowList.place(relx=0.5, rely=0.6, anchor="center", relwidth=0.8, relheight=0.5)
+        self.master.protocol("WM_DELETE_WINDOW", self.quit)
 
-        #Set window size
-        self.master.geometry("800x600")
-        global temp_geometry 
-        temp_geometry  = self.master.geometry()
-        #Resizable window false
-        self.master.resizable(False, False)
+        self.bind("<Configure>", self.create_widgets)
+
+
+    def create_widgets(self, *args):
+        """Creates the widgets for the start window."""
+        #unbind the configure event
+        self.unbind("<Configure>")
+        self.label = tb.Label(self, text="Slideshow Creator", font=("Arial", 28, "bold"))
+        self.label.place(relx=0.5, rely=0.1, anchor="s")
+
+        self.slideshowList = SlideshowListDatabase(self)
+        self.slideshowList.place(anchor="nw", relx=0.505, rely=0.15, relwidth=0.48, relheight=0.82)
 
         #Bind double clicking the recentSlideshowList to open the project
-        self.recentSlideshowList.tableView.view.bind("<Double-1>", self.openRecentProject)
+        # self.slideshowList.tableView.view.bind("<Double-1>", self.openProject)
+
+        #Bind single clicking the recentSlideshowList to display the project info
+        self.slideshowList.tableView.view.bind("<ButtonRelease-1>", self.displayProjectInfo)
+
+        #Sort the tableview by the 3rd column (last modified)
+        self.slideshowList.tableView.sort_column_data(cid=2, sort=1)
+
+        #Labelframe for info
+        self.infoFrame = tb.LabelFrame(self, text="Project Info", bootstyle="primary")
+        self.infoFrame.place(anchor="ne", relx=0.495, rely=0.15, relwidth=0.48, relheight=0.6105)
+
+        self.scrollFrame = ScrollableFrame(self.infoFrame, orient="both", autohide=False)
+        # self.Frame = ScrolledFrame(self.infoFrame, autohide=False)
+        self.Frame = self.scrollFrame.scrollable_frame
+
+        #Set the ScrolledFrame style to be red
+        # tb.Style().configure("test.TFrame", background="red")
+        # self.Frame.config(style="test.TFrame")
+
+        # Create a custom style for the bold labels
+        tb.Style().configure("Bold.TLabel", font=("Arial", 14, "bold"))
+        tb.Style().configure("value.TLabel", font=("Arial", 12))
+
+        # Create the bold labels
+        self.nameLabel = tb.Label(self.Frame, text="Name:", style="Bold.TLabel")
+        self.idLabel = tb.Label(self.Frame, text="ID:", style="Bold.TLabel")
+        self.modifiedLabel = tb.Label(self.Frame, text="Last Modified:", style="Bold.TLabel")
+
+        self.nameLabel.grid(row=0, column=0)
+        self.idLabel.grid(row=1, column=0)
+        self.modifiedLabel.grid(row=2, column=0)
+
+        self.nameValue = tb.Label(self.Frame, text="Name Value", style="value.TLabel")
+        self.idValue = tb.Label(self.Frame, text="ID Value", style="value.TLabel")
+        self.modifiedValue = tb.Label(self.Frame, text="Last Modified Value", style="value.TLabel")
+
+        self.nameValue.grid(row=0, column=1, sticky="w")
+        self.idValue.grid(row=1, column=1, sticky="w")
+        self.modifiedValue.grid(row=2, column=1, sticky="w")
+
+
+        self.tagFrame = ScrolledFrame(self.infoFrame, autohide=False)
+        self.tagLabel = tb.Label(self.tagFrame, text="Tags:", style="Bold.TLabel")
+        self.tagLabel.pack(fill="x", expand=True)
+
+        self.update()
+        buttonHeight = self.nameLabel.winfo_height() * 3
+
+        self.scrollFrame.place(anchor="nw", relx=0, rely=0, relwidth=1, height=buttonHeight+20)
+        relHeight = 1 - (buttonHeight / self.infoFrame.winfo_height())
+        self.tagFrame.place(anchor="nw", relx=0, y=buttonHeight, relwidth=1, relheight=relHeight)
+
+
+        # Create a list of 100 tags
+        # testTags = ["tag" + str(i) for i in range(1, 101)]
+
+        self.tagBox = TagBox(self.tagFrame, tags=[], justDisplay=True)
+        self.tagBox.pack(fill="both", expand=True)
+
+        #Load the first entry if there is one
+        if len(self.slideshowList.slideshows) > 0:
+            #Get the very first entry in the list
+            item = self.slideshowList.tableView.view.item(self.slideshowList.tableView.view.get_children()[0], "values")
+            projectID = int(item[0])
+            self.displayProjectInfo(projectID=projectID)
+
+        #set the focus to the slideshowList
+        self.slideshowList.tableView.view.focus_set()
+
+        ########
+        #Buttons:
+        ########
+        #new, open, rename, deleted, import, play
+
+        #Convert a relative height of 0.205 to a pixel value
+        height = self.winfo_height() * 0.205
+
+        self.actionsFrame = tb.LabelFrame(self, text="Actions", bootstyle="primary")
+        self.actionsFrame.place(anchor="ne", relx=0.495, rely=0.762, relwidth=0.48, height=height)
+
+        self.topFrame = tb.Frame(self.actionsFrame)
+        self.topFrame.pack(expand=True, fill="both")
+        self.bottomFrame = tb.Frame(self.actionsFrame)
+        self.bottomFrame.pack(expand=True, fill="both")
+        self.topFrame.update_idletasks()
+        self.bottomFrame.update_idletasks()
+
+        #Button for new project, open project, rename project, delete project
+        self.newProjectButton = tb.Button(self.topFrame, text="New Project", command=self.newProject, style="success.TButton")
+        self.openProjectButton = tb.Button(self.topFrame, text="Open Project", command=self.openProject)
+        self.renameProjectButton = tb.Button(self.topFrame, text="Rename Project", command=self.renameProject)
+        self.deleteProjectButton = tb.Button(self.topFrame, text="Delete Project", command=self.deleteProject, style="danger.TButton")
+        self.importButton = tb.Button(self.bottomFrame, text="Import", command=self.importFromFile)
+        self.themesButton = tb.Button(self.bottomFrame, text="Themes", command=self.ThemeSelector, style="info.TButton")
+        self.actionsFrame.update_idletasks()
+
+        self.newProjectButton.pack(side="left", padx=10, pady=10)
+        self.openProjectButton.pack(side="left", padx=10, pady=10)
+        self.renameProjectButton.pack(side="left", padx=10, pady=10)
+        self.deleteProjectButton.pack(side="left", padx=10, pady=10)
+        self.importButton.pack(side="left", padx=10, pady=10)
+        self.themesButton.pack(side="left", padx=10, pady=10)
+
+        self.topFrame.update_idletasks()
+        self.bottomFrame.update_idletasks()
+
+        self.defaultDeleteWidth = self.deleteProjectButton.winfo_width()
+        self.defaultDeleteX = self.deleteProjectButton.winfo_x()
+
+        #bind the configure event to the afterEvent function
+        self.bind("<Configure>", lambda event: self.afterEvent(event, "<<Resize>>"))
+        #bind custom event to resizeEvent
+        self.bind("<<Resize>>", self.resizeEvent)
+        self.after_id = {}
+        self.after_id["<<Resize>>"] = None
+
+    def afterEvent(self, event, event2=None):
+        # print(event2)
+        try:
+            if self.after_id[event2]:
+                self.after_cancel(self.after_id[event2])
+                self.after_id[event2] = None
+            else:
+                #Generate an event for event2
+                self.after_id[event2] = self.after(33, self.resizeEvent)
+        except Exception as e:
+            print(e)
         return
-    
-    def openRecentProject(self, event):
-        #Get the selected item
-        item = self.recentSlideshowList.tableView.view.selection()
+            
+
+    def resizeEvent(self, event=None):
+        self.after_id["<<Resize>>"] = None
+        # print("Resizing")
+
+        self.update_idletasks()
+        win_height = self.winfo_height()
+
+        actionsFrame_height = self.actionsFrame.winfo_height()
+        slideshowList_height = self.slideshowList.winfo_height()
+
+        height_available = slideshowList_height - actionsFrame_height
+        rel_height = height_available / win_height
+        self.infoFrame.place_configure(relheight=rel_height)
+        #Adjust actionsFrame rely to be slightly below the infoFrame
+        self.actionsFrame.place_configure(rely=0.15 + rel_height)
+
+        #Check if any of the buttons were cut off width wise
+        self.deleteProjectButton.update_idletasks()
+
+        defaultxval = self.defaultDeleteX + self.defaultDeleteWidth
+
+        #Action frame width
+        actionsFrameWidth = self.actionsFrame.winfo_width()
+
+        if defaultxval > actionsFrameWidth:
+            #Shorten to "del"
+            self.deleteProjectButton.config(text="Del")
+            self.newProjectButton.config(text="New")
+            self.openProjectButton.config(text="Open")
+            self.renameProjectButton.config(text="Rename")
+            #Slightly reduce padx
+            self.deleteProjectButton.pack_configure(padx=5)
+            self.newProjectButton.pack_configure(padx=5)
+            self.openProjectButton.pack_configure(padx=5)
+            self.renameProjectButton.pack_configure(padx=5)
+        else:
+            self.deleteProjectButton.config(text="Delete Project")
+            self.newProjectButton.config(text="New Project")
+            self.openProjectButton.config(text="Open Project")
+            self.renameProjectButton.config(text="Rename Project")
+            self.deleteProjectButton.pack_configure(padx=10)
+            self.newProjectButton.pack_configure(padx=10)
+            self.openProjectButton.pack_configure(padx=10)
+            self.renameProjectButton.pack_configure(padx=10)
+
+
+        #Resize the infoFrame
+        self.infoFrame.update_idletasks()
+        buttonHeight = self.nameLabel.winfo_height() * 3
+
+        self.scrollFrame.place(anchor="nw", relx=0, rely=0, relwidth=1, height=buttonHeight+20)
+        relHeight = 1 - (buttonHeight / self.infoFrame.winfo_height())
+        self.tagFrame.place(anchor="nw", relx=0, y=buttonHeight, relwidth=1, relheight=relHeight)
+
+        #Refill the RecentSlideshowList
+        
+        
+        return
+
+    def ThemeSelector(self):
+        window = tb.Toplevel()
+        window.transient(self.master)
+        window.title("Theme Selector")
+        window.geometry("400x400")
+        #Get the theme currently used by the program.
+        currentTheme: str = self.master.tk.call("ttk::style", "theme", "use")
+        print(f"Current Theme: {currentTheme}")
+        selectedTheme: str = currentTheme
+        
+        #Current theme label
+        currentThemeLabel = tb.Label(window, text=f"Current Theme: {currentTheme}")
+        currentThemeLabel.pack(pady=10)
+
+        #Label for the currently selected theme
+        selectedThemeLabel = tb.Label(window, text=f"Selected Theme: {selectedTheme}")
+        selectedThemeLabel.pack(pady=10)
+
+        def saveTheme(theme: str):
+            nonlocal currentTheme
+            currentTheme = theme
+            currentThemeLabel.config(text=f"Current Theme: {currentTheme}")
+            FP.updatePreferences(theme)
+
+        #save theme button
+        saveThemeButton = tb.Button(window, text="Save Theme", command=lambda: saveTheme(selectedTheme))
+        saveThemeButton.pack(pady=10)
+
+        #List of themes in TTKBootstrap
+        #https://ttkbootstrap.readthedocs.io/en/latest/themes/
+        # themes = ["litera", "solar", "superhero", "darkly", "cyborg", "vapor", "cosmo", "flatly", "journal", "lumen", "minty", "pulse", "sandstone", "united", "yeti", "morph", "simplex", "cerculean"]
+        themes = tb.Style().theme_names()
+        #combobox for the themes
+        themeList = tb.Combobox(window, values=themes)
+        themeList.pack(expand=False, fill="none", pady=10)
+        themeList.set(selectedTheme)
+
+        def changeTheme(theme: str):
+            nonlocal selectedTheme
+            selectedTheme = theme
+            selectedThemeLabel.config(text=f"Selected Theme: {theme}")
+            self.changeTheme(theme)
+
+        themeList.bind("<<ComboboxSelected>>", lambda event: changeTheme(themeList.get()))
+
+        #Bind closing the window to changing the theme to the currentTheme
+        def on_closing():
+            self.changeTheme(currentTheme)
+            window.destroy()
+        window.protocol("WM_DELETE_WINDOW", on_closing)
+
+    def changeTheme(self, theme: str):
+        tb.Style().theme_use(theme)
+        #Update the InfoLabels
+        tb.Style().configure("Bold.TLabel", font=("Arial", 14, "bold"))
+        tb.Style().configure("value.TLabel", font=("Arial", 12))
+        self.update_idletasks()
+        return
+        
+
+    def displayProjectInfo(self, event=None, projectID=None):
+        print("Displaying Project Info")
+        item = self.slideshowList.tableView.view.selection()
+
+        print(f"Item: \n{item}")
+        if len(item) == 0:
+            name = ""
+            projectID = ""
+            date = ""
+            tags = []
+
+            #Update the labels
+            self.nameValue.config(text=name)
+            self.idValue.config(text=projectID)
+            self.modifiedValue.config(text=date)
+            self.tagBox.updateTags(tags)
+            return
+        
+        if projectID == None:
+            projectID = self.slideshowList.tableView.view.item(item, "values")[0]
+            projectID = int(projectID)
+        s = self.slideshowList.slideshows[projectID]
+        projectID, name, date, tags, tagString = SlideshowListDatabase.slideshowInfo(s)
+
+        #Update the labels
+        self.nameValue.config(text=name)
+        self.idValue.config(text=projectID)
+        self.modifiedValue.config(text=date)
+        self.tagBox.updateTags(tags)
+
+    def newProject(self):
+        print("New Project")
+        name = self.nameProjectDialog()
+        if name == None:
+            return
+        print(f"Creating new project: {name}")
+        self.destroy()
+        self = SlideshowPlayer(self.master, projectPath="New Project")
+        self.pack(expand=True, fill="both")
+        
+
+    def openProject(self, event=None, projectID=None):
+        if projectID == None:
+            #Get the selected project ID
+            item = self.slideshowList.tableView.view.selection()
+            if len(item) == 0:
+                return
+            projectID = self.slideshowList.tableView.view.item(item, "values")[0]
+            projectID = int(projectID)
+            s = self.slideshowList.slideshows[projectID]
+            projectID, name, date, tags, tagString = SlideshowListDatabase.slideshowInfo(s)
+ 
+        self.destroy()
+        self = SlideshowPlayer(self.master, projectID=projectID)
+        self.pack(expand=True, fill="both")
+        SQ.updateLastModified(projectID)
+
+
+    def renameProject(self):
+        print("Rename Project")
+        #Get the ID from the selected project
+        item = self.slideshowList.tableView.view.selection()
         if len(item) == 0:
             return
-        #Get the project path
-        projectPath = self.recentSlideshowList.tableView.view.item(item, "values")[2]
-        # print(f"Opening project: {projectPath}")
-        #Open the project
-        self.openProjectPath(projectPath)
-
-    def openProject(self):
-        """Loads the slideshow creator window with a project file. This will open an existing project."""
-        #Create a SlideshowCreator object, destroy the current window, and pack the new window
-        projectPath = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")], multiple=False)
-        if projectPath == "":
+        projectID = self.slideshowList.tableView.view.item(item, "values")[0]
+        projectID = int(projectID)
+        s = self.slideshowList.slideshows[projectID]
+        projectID, oldName, date, tags, tagString = SlideshowListDatabase.slideshowInfo(s)
+        name = self.nameProjectDialog()
+        while name == oldName or name == "":
+            name = self.nameProjectDialog(invalid=True)
+        if name == None:
             return
+        print(f"Renaming project {oldName} to {name}")
+        #Update the name in the database
+        SQ.renameSlideshow(projectID, name)
+        #Update the name in the list
+        self.slideshowList.slideshows[projectID]["name"] = name
+        self.slideshowList.tableView.view.item(item, values=[projectID, name, self.slideshowList.slideshows[projectID]["lastModified"], tagString])
+        #update the infoFrame
+        self.nameValue.config(text=name)
+        self.update_idletasks()
+        
+    def deleteProject(self):
+        #Get the ID from the selected project
+        item = self.slideshowList.tableView.view.selection()
+        if len(item) == 0:
+            return
+        projectID = self.slideshowList.tableView.view.item(item, "values")[0]
+        projectID = int(projectID)
+        s = self.slideshowList.slideshows[projectID]
+        projectID, name, date, tags, tagString = SlideshowListDatabase.slideshowInfo(s)
+        #Dialog box to confirm deletion
+        if not Messagebox.yesno(title="Delete Project", message=f"Are you sure you want to delete the project {name}?"):
+            return
+        print(f"Deleting project {name}")
+        #Delete the project from the database
+        SQ.deleteSlideshow(projectID)
+        #Update the rowdata
+        self.slideshowList.tableView.view.delete(item)
+        #Update the infoFrame
+        self.displayProjectInfo()
+       
+
+    def nameProjectDialog(self, invalid=False, ErrorMessage:str="Invalid name. Please enter a name for the project"):
+        if invalid:
+            name = Querybox.get_string(prompt=ErrorMessage, title="Name Project")
+        else:
+            name = Querybox.get_string(prompt="Enter a name for the project", title="Name Project")
+        if name == "":
+            return self.nameProjectDialog(invalid=True, ErrorMessage="Name cannot be blank. Please enter a name for the project")
+        if SQ.sqlProtector(name):
+            return self.nameProjectDialog(invalid=True, ErrorMessage="SQL Injection detected. Please enter a different name for the project")
+        if SQ.checkNameExists(name):
+            return self.nameProjectDialog(invalid=True, ErrorMessage="Name already exists. Please enter a different name for the project")
+        return name
+    
+    def importFromFile(self):
+        print("Import from File")
+        #Open a file dialog to select a file
+        file = filedialog.askopenfilename(filetypes=[("Slideshow Files", "*.pyslide")])
+        if file == "":
+            return
+        #Save the file to the database
         self.destroy()
         self.update_idletasks()
-        self = SlideshowPlayer(self.master, projectPath=projectPath)
+        self = SlideshowPlayer(self.master, projectPath=file)
         self.pack(expand=True, fill="both")
-
-
-    def openProjectPath(self, projectPath: str):
-        """Loads the slideshow creator window with a project file. This will open an existing project."""
-        #Create a SlideshowCreator object, destroy the current window, and pack the new window
-        #check if the projectPath even exists
+        return
+class SlideshowPlayer(tb.Frame):
+    def __init__(self, master: tk.Tk, debug:bool= False, projectPath: str="New Project", geometry: str=None, projectID: int=None):
+        #Check if the projectPath even exists
+        openFromPath = False
         try:
-            with open(projectPath, "r"):
-                pass
+            open(projectPath, "r")
+            print(f"Opening project: {projectPath}")
+            openFromPath = True
         except:
             projectPath = "New Project"
-        #Check if it's a .pyslide file
-        if not projectPath.endswith(".pyslide"):
-            projectPath = "New Project"
-        self.destroy()
-        self.update_idletasks()
-        self = SlideshowPlayer(self.master, projectPath=projectPath)
-        self.pack(expand=True, fill="both")
+        self.slideshow: FP.Slideshow = FP.Slideshow(projectPath)
 
-
-class SlideshowPlayer(tb.Frame):
-    def __init__(self, master: tk.Tk, debug:bool= False, projectPath: str="New Project", geometry: str=None):
+        if projectID != None and SQ.checkSlideshowExists(projectID) and not openFromPath:
+            self.slideshow = SQ.loadSlideshow(projectID)
+            print(f"\nLoaded project from database: {projectID}")
+        else:
+            if openFromPath:
+                print(f"\nOpening project from path")
+            else:
+                print(f"\nProject ID not found in database, opening project from path")
+        
+        # self.update()
+        
         self.quiting: bool = False
         self.closing: bool = False
         if geometry is not None:
@@ -119,15 +480,8 @@ class SlideshowPlayer(tb.Frame):
         super().__init__(master)
         print("\nNEW SLIDESHOW PLAYER\n")
         self.master = master
-        #Check if the projectPath even exists
-        try:
-            with open(projectPath, "r"):
-                pass
-        except:
-            projectPath = "New Project"
-        self.slideshow = FP.Slideshow(projectPath)
-        self.slideshow.load()
-        FP.relative_project_path = self.slideshow.getSaveLocation()
+
+        # FP.relative_project_path = self.slideshow.getSaveLocation()
         try:
             FP.initializeCache()
         except:
@@ -193,14 +547,23 @@ class SlideshowPlayer(tb.Frame):
         if self.shuffleSlideshow:
             #Randomize the order of the slides
             for slide in self.slideList:
-                print(f"Slide: {slide['slideID']}")
+                print(f"Slide: {slide.slideID}")
             print("Shuffling slideshow")
             random.shuffle(self.slideList)
             for slide in self.slideList:
-                print(f"Slide: {slide['slideID']}")
+                print(f"Slide: {slide.slideID}")
         if self.shufflePlaylist:
             random.shuffle(self.playlist.songs)
             # print("Shuffling playlist")
+
+        for slide in self.slideList:
+            try:
+                s = FP.Slide(slide['imagePath'])
+                s.__dict__.update(slide)
+                self.slideList[self.slideList.index(slide)] = s
+                slide = s
+            except:
+                pass
 
         # print(f"Playlist: \n{self.playlist.songs}")
 
@@ -307,7 +670,7 @@ class SlideshowPlayer(tb.Frame):
         self.fileMenu.add_command(label="Open", command=self.openProject)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label="Exit", command=self.quit)
-        self.fileMenu.add_command(label="Open Filles", command=self.printOpenFiles)
+        # self.fileMenu.add_command(label="Open Filles", command=self.printOpenFiles)
         self.fileMB.config(menu=self.fileMenu)
 
         style.configure('TCheckbutton', font=("Arial", 10), background=style.colors.primary, foreground=style.colors.get("selectfg"))
@@ -373,7 +736,7 @@ class SlideshowPlayer(tb.Frame):
             max_height = -1
             for slide in self.slideList:
                 #Open the image and convert it etc etc and resize it to the max canvas size.
-                pth = FP.file_check(slide['imagePath'], FP.relative_project_path)
+                pth = FP.file_check(slide.imagePath, FP.relative_project_path)
                 try:
                     slideImage = Image.open(pth)
                 except:
@@ -390,7 +753,7 @@ class SlideshowPlayer(tb.Frame):
                 slideImage = ImageOps.exif_transpose(slideImage).convert("RGBA")
                 slideImage.thumbnail((canvas_width, canvas_height), resample=Image.NEAREST, reducing_gap=3)
                 #Add the image to the list
-                self.ImageList[slide['slideID']] = slideImage
+                self.ImageList[slide.slideID] = slideImage
 
                 #check if the image is the largest so far
                 if slideImage.width > max_width:
@@ -403,7 +766,7 @@ class SlideshowPlayer(tb.Frame):
             #Create a background image at the size of the max image sizes and then paste the images in the center.
             #This is done so all images are the exact same size and transitions are consistent in positioning and stuff.
             for slide in self.slideList:
-                i = slide['slideID']
+                i = slide.slideID
                 bg = Image.new("RGBA", (max_width, max_height), (255, 255, 255, 0))
                 x, y = (bg.width - self.ImageList[i].width) // 2, (bg.height - self.ImageList[i].height) // 2
                 bg.paste(self.ImageList[i], (x, y), self.ImageList[i])
@@ -421,7 +784,7 @@ class SlideshowPlayer(tb.Frame):
         # if len(self.slideList) > 0:
         #Add first slide to the ImageViewer
         if len(self.slideList) > 0:
-            pth = FP.file_check(self.slideList[self.currentSlide]['imagePath'], FP.relative_project_path)
+            pth = FP.file_check(self.slideList[self.currentSlide].imagePath, FP.relative_project_path)
             print(f"First slide: {pth}")
             self.imageViewer.loadImage(pth)
 
@@ -647,13 +1010,89 @@ class SlideshowPlayer(tb.Frame):
         else:
             self.slideCounter.place(relx=0.95, rely=0.05, anchor="center")
 
-    def openProject(self):
-        file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
-        #If not file was selected, return. Effectively cancels.
-        if not file:
-            return
+    # def openProject(self):
+    #     file = filedialog.askopenfilenames(filetypes=[("SlideShow Files", "*.pyslide")], multiple=False)
+    #     #If not file was selected, return. Effectively cancels.
+    #     if not file:
+    #         return
         
-        #Clear FP.openFiles
+    #     #Clear FP.openFiles
+    #     for f in FP.openFiles.keys():
+    #         FP.openFiles[f].close()
+        
+    #     #Destroy every child widget
+    #     for widget in self.master.winfo_children():
+    #         widget.destroy()
+
+    #     if self.dummy:
+    #         self.dummy.destroy()
+
+    #     #Clear the ImageMap
+    #     self.ImageMap = {}
+    #     self.ImageList = {}
+    #     self.slideList = []
+    #     FP.openFiles = {}
+    #     self.playlist = FP.Playlist()
+    #     del self.slideshow
+    #     del self.slideList
+    #     del self.ImageMap
+    #     del self.ImageList
+    #     del self.playlist
+    #     del self.dummy
+        
+    #     #Stop any loops
+    #     try:
+    #         if self.slideChangeAfter:
+    #             self.after_cancel(self.slideChangeAfter)
+    #     except:
+    #         pass
+    #     try:
+    #         if self.progressBarUpdater:
+    #             self.after_cancel(self.progressBarUpdater)
+    #     except:
+    #         pass
+    #     try:
+    #         if self.transition_checker:
+    #             self.after_cancel(self.transition_checker)
+    #     except:
+    #         pass
+    #     try:
+    #         if self.mouse_after_id:
+    #             self.after_cancel(self.mouse_after_id)
+    #     except:
+    #         pass
+
+    #     self.pack_forget()
+    #     self.destroy()
+    #     self.update_idletasks()
+ 
+    #     self = SlideshowPlayer(self.master, projectPath=file[0])
+    #     self.pack(expand=True, fill="both")
+
+    def openProject(self):
+        #Yesno dialog to confirm opening a new project
+        if not Messagebox.yesno(title="Open Project", message="Are you sure you want to open a new project?"):
+            return
+
+        #deactivate fullscreen
+        self.deactivateFullScreen()
+
+        #Unbind all the keys
+        self.master.unbind("<Right>")
+        self.master.unbind("<Left>")
+        self.master.unbind("<space>")
+        self.master.unbind("<h>")
+        self.master.unbind("<t>")
+        self.master.unbind("<y>")
+        self.master.unbind("<r>")
+        self.master.unbind("<e>")
+        self.master.unbind("<Destroy>")
+        self.master.unbind("<Motion>")
+        self.master.unbind("<Escape>")
+        self.master.unbind("<F11>")
+        self.master.unbind("<Control-q>")
+        self.master.unbind("<Configure>")
+
         for f in FP.openFiles.keys():
             FP.openFiles[f].close()
         
@@ -703,8 +1142,9 @@ class SlideshowPlayer(tb.Frame):
         self.destroy()
         self.update_idletasks()
  
-        self = SlideshowPlayer(self.master, projectPath=file[0])
+        self = StartMenu(self.master)
         self.pack(expand=True, fill="both")
+
 
 
     def checkTransition(self, imagePath: str):
@@ -720,7 +1160,7 @@ class SlideshowPlayer(tb.Frame):
             self.END = time.time()
 
             #If the transition was default
-            if self.slideList[self.currentSlide]['transition'] == FP.transitionType.DEFAULT:
+            if self.slideList[self.currentSlide].transition == FP.transitionType.DEFAULT:
                 print(f"Transition took {(self.END - self.START) * 1000:.2f}ms and {self.imageViewer.frameCounter} frames.")
                 print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
             else:
@@ -728,7 +1168,7 @@ class SlideshowPlayer(tb.Frame):
                 print(f"Total transition time: {self.imageViewer.totalTransitionTime:.2f}ms")
                 print(f"Averge frame time: {self.imageViewer.totalTransitionTime / self.imageViewer.frameCounter:.2f}ms")
 
-            self.imageViewer.loadImagePIL(copy.deepcopy(self.ImageMap[self.slideList[self.currentSlide]['slideID']]))
+            self.imageViewer.loadImagePIL(copy.deepcopy(self.ImageMap[self.slideList[self.currentSlide].slideID]))
             self.automaticNext()
 
     def nextSlide(self):
@@ -737,7 +1177,7 @@ class SlideshowPlayer(tb.Frame):
         # self.event_generate("<Motion>")
         self.START = time.time()
         if self.imageViewer.transitioning:
-            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            self.imageViewer.loadImage(self.slideList[self.currentSlide].imagePath)
             return
         
         #Next slide is the slide we are going to. previous slide is the slide we are transitioning from (currently on)
@@ -755,12 +1195,12 @@ class SlideshowPlayer(tb.Frame):
 
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
-        transition = nextSlide['transition']
-        transitionSpeed = nextSlide['transitionSpeed'] * 1000
+        transition = nextSlide.transition
+        transitionSpeed = nextSlide.transitionSpeed * 1000
         # transitionSpeed = 10000
 
-        previous_ID = previousSlide['slideID']
-        next_ID = nextSlide['slideID']
+        previous_ID = previousSlide.slideID
+        next_ID = nextSlide.slideID
 
         #Load from memory using deepcopy
         previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
@@ -770,8 +1210,8 @@ class SlideshowPlayer(tb.Frame):
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
-        self.imageViewer.after(10, self.checkTransition, nextSlide['imagePath'])
-        print(f"Loaded {nextSlide['imagePath']} into viewer")
+        self.imageViewer.after(10, self.checkTransition, nextSlide.imagePath)
+        print(f"Loaded {nextSlide.imagePath} into viewer")
 
 
         #Update the slide counter
@@ -800,7 +1240,7 @@ class SlideshowPlayer(tb.Frame):
             #Automatic transitions
             if self.slideChangeAfter:
                 self.after_cancel(self.slideChangeAfter)
-            changeTime = self.slideList[self.currentSlide]['duration']
+            changeTime = self.slideList[self.currentSlide].duration
             #Clamp to range of 1-60 seconds
             if changeTime < 1:
                 changeTime = 1
@@ -819,7 +1259,7 @@ class SlideshowPlayer(tb.Frame):
         self.START = time.time()
         #If a transition is in progress, cancel it and just load the image before returning.
         if self.imageViewer.transitioning:
-            self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+            self.imageViewer.loadImage(self.slideList[self.currentSlide].imagePath)
             return
         
         #Next slide is the slide we are going to. previous slide is the slide we are transitioning from (currently on)
@@ -839,8 +1279,8 @@ class SlideshowPlayer(tb.Frame):
 
         #Gets the slide we're transitioning to and the previous slide.
         #Then gets the images and correctly sizes them.
-        transition = reverseTransitionDict[previousSlide['transition']]
-        transitionSpeed = nextSlide['transitionSpeed']
+        transition = reverseTransitionDict[previousSlide.transition]
+        transitionSpeed = nextSlide.transitionSpeed
         #Clamp to range of 0.5-10 seconds
         if transitionSpeed < 0.5:
             transitionSpeed = 0.5
@@ -848,8 +1288,8 @@ class SlideshowPlayer(tb.Frame):
             transitionSpeed = 10
         transitionSpeed = int(transitionSpeed * 1000)
 
-        previous_ID = previousSlide['slideID']
-        next_ID = nextSlide['slideID']
+        previous_ID = previousSlide.slideID
+        next_ID = nextSlide.slideID
         #Load from memory using deepcopy
         previousImage: Image = copy.deepcopy(self.ImageMap[previous_ID])
         nextImage: Image = copy.deepcopy(self.ImageMap[next_ID])
@@ -859,7 +1299,7 @@ class SlideshowPlayer(tb.Frame):
         #It will then execute the transition and do a constant check to see if the transition is complete.
         self.START = time.time()
         self.imageViewer.executeTransition(transition, transitionSpeed, endImg=nextImage, startImg=previousImage)
-        self.checkTransition(nextSlide['imagePath'])
+        self.checkTransition(nextSlide.imagePath)
 
         #Update the slide counter
         if not self.slideMeterBroken:
@@ -985,6 +1425,8 @@ class SlideshowPlayer(tb.Frame):
                 self.songLabel.config(text=song.name)
                 print(f"{song.name} loaded successfully")
 
+            #Set the progress bar to 0
+            self.progressBar["value"] = 0
 
             self.update_idletasks
             #If the slideshow is playing, play the song.
@@ -1019,6 +1461,10 @@ class SlideshowPlayer(tb.Frame):
             else:
                 self.songLabel.config(text=song.name)
                 print(f"{song.name} loaded successfully")
+
+
+            #Set the progress bar to 0
+            self.progressBar["value"] = 0
 
             self.update_idletasks()
             #If the slideshow is playing, play the song.
@@ -1126,7 +1572,7 @@ class SlideshowPlayer(tb.Frame):
         self.imageViewer.update_idletasks()
         self.renderImages()
         self.master.update()
-        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.imageViewer.loadImage(self.slideList[self.currentSlide].imagePath)
         self.master.update()
         self.hideOverlay()
         self.showOverlay()
@@ -1152,7 +1598,7 @@ class SlideshowPlayer(tb.Frame):
         self.master.geometry(temp_geometry )
         self.master.update()
         #Just load the image
-        self.imageViewer.loadImage(self.slideList[self.currentSlide]['imagePath'])
+        self.imageViewer.loadImage(self.slideList[self.currentSlide].imagePath)
         self.master.update()
         self.hideOverlay()
         self.showOverlay()
@@ -1184,7 +1630,8 @@ class DummyWindow(tb.Toplevel):
         self.update()
         self.destroy()
         if quit:
-            self.master.quit()
+            # self.master.quit()
+            self.master.destroy()
         return
 
 
@@ -1204,8 +1651,8 @@ if __name__ == "__main__":
     root.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
     #minimum size
     root.minsize(600, 500)
-    # app = SlideshowPlayer(root, projectPath=r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-    app = SlideshowPlayerStart(root)
+    # app = SlideshowPlayer(root, projectID=1)
+    app = StartMenu(root)
     app.pack(expand=True, fill="both")
 
     app.mainloop()

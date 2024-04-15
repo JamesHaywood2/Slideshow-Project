@@ -1,8 +1,7 @@
-import re
+from calendar import c
 from tkinter import filedialog
 import FileSupport as FP
 import os
-import sys
 import time
 import json
 import pprint
@@ -141,6 +140,16 @@ FOREIGN KEY('slideshow_id') REFERENCES 'Slideshows'('slideshow_ID')
     conn.close()
     return
 
+def checkNameExists(name:str) -> bool:
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+    c.execute("SELECT slideshow_name FROM Slideshows WHERE slideshow_name = ?", (name,))
+    result = c.fetchone()
+    conn.close()
+    if result == None:
+        return False
+    return True
+
 
 def renameSlideshow(slideshowID:int, newName:str) -> bool:
     print(f"Renaming slideshow: {slideshowID} to {newName}")
@@ -165,7 +174,7 @@ def renameSlideshow(slideshowID:int, newName:str) -> bool:
     conn.close()
     return True
 
-def saveSlideshow(slideshow, fromFile=False, toFile=False):
+def saveSlideshow(slideshow, fromFile=False, toFile=False, name=None):
     """Will take a slideshow object and then save it to the database."""
     #If the slideshow is a path to a slideshow file, load the slideshow from the file first.
     if isinstance(slideshow, str):
@@ -183,6 +192,11 @@ def saveSlideshow(slideshow, fromFile=False, toFile=False):
     elif not isinstance(slideshow, FP.Slideshow):
         print("Invalid slideshow object")
         return False
+    
+    if name != None and checkNameExists(name) == False:
+        slideshow.name = name
+    else:
+        name = slideshow.name
     
     tempSaveLocation = ""
     saveLocation = ""
@@ -592,6 +606,7 @@ def saveSlideshow(slideshow, fromFile=False, toFile=False):
 
     return True
 
+
 def getSlideshows():
     print("\nGetting slideshows from the database...")
     print("Slideshows in the database:")
@@ -608,8 +623,10 @@ def getSlideshows():
             "slideshowID": slideshow[0],
             "slideshowName": slideshow[1],
             "lastModified": slideshow[7],
-            "tags": slideshow[8]
+            "tags": getTags(slideshow[0])
         }
+
+        
         sd[slideshow[0]] = s
     
     # pprint.pprint(sd)
@@ -741,6 +758,7 @@ def deleteSlideshow(slideshowID):
     
     conn.commit()
     conn.close()
+    validateDatabase()
 
 def validateDatabase():
     conn = sqlite3.connect(databasePath)
@@ -839,6 +857,7 @@ def validateDatabase():
 
     conn.commit()
     conn.close()
+    
 
 def sqlProtector(string):
     if string == None:
@@ -945,18 +964,30 @@ def getAllTags():
     conn.close()
     return tags
 
+def updateLastModified(slideshowID):
+    conn = sqlite3.connect(databasePath)
+    c = conn.cursor()
+
+    #Get the current date
+    current_date = time.strftime('%Y-%m-%d %H:%M:%S')
+
+    #Update the last modified date
+    c.execute("UPDATE Slideshows SET LastModified = ? WHERE slideshow_ID = ?", (current_date, slideshowID))
+    conn.commit()
+    conn.close()
+
 
 createDatabase()
 validateDatabase()
 
-resetDatabase()
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-renameSlideshow(1, "Test1")
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+# resetDatabase()
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
+# renameSlideshow(1, "Test1")
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
+# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
 
 
 # Latop

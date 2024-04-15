@@ -1155,7 +1155,7 @@ class InfoFrame(tb.Frame):
             self.playlistTree.insert("", "end", values=(song_name, i+1, status))
 
         #Empty space to pad the bottom of grid
-        rowNumber += 7
+        rowNumber += 6
         tb.Label(self.projectInfoFrame.scrollable_frame, text="", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
 
         #Separator
@@ -1183,8 +1183,8 @@ class InfoFrame(tb.Frame):
 
         #TagBox scrollable frame
         rowNumber += 1
-        self.tagBoxFrame = ScrolledFrame(self.projectInfoFrame.scrollable_frame, autohide=True, width=450, height=300)
-        self.tagBoxFrame.grid(row=rowNumber, column=0, columnspan=8, sticky="w")
+        self.tagBoxFrame = ScrolledFrame(self.projectInfoFrame.scrollable_frame, autohide=True, width=450, height=150)
+        self.tagBoxFrame.grid(row=rowNumber, column=0, columnspan=5, sticky="w")
         self.tagBoxFrame.update_idletasks()
 
 
@@ -1193,10 +1193,10 @@ class InfoFrame(tb.Frame):
         self.tagBox.linkSlideshow(self.slideshow)
         self.tagBox.pack(expand=True, fill="both")
 
-        #Empty space to pad the bottom of grid
-        for i in range(7):
-            rowNumber += 1
-            tb.Label(self.projectInfoFrame.scrollable_frame, text=" ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
+        # #Empty space to pad the bottom of grid
+        # for i in range(2):
+        #     rowNumber += 1
+        #     tb.Label(self.projectInfoFrame.scrollable_frame, text=" ", font=("Arial", 12)).grid(row=rowNumber, column=0, columnspan=10, sticky="w")
 
         #Bind hitting enter in the combobox to adding the tag
         self.tagCombo.bind("<Return>", lambda event: self.addTag())
@@ -1427,10 +1427,10 @@ class InfoFrame(tb.Frame):
             self.notebook.tab(0, text="Image Info")
             #Button for adding image to the slideshow
             self.addSlideButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Add Slide", command=self.addSlide, takefocus=0, style="success.TButton")
-            self.addSlideButton.grid(row=rowNumber, column=0, sticky="w")
+            self.addSlideButton.grid(row=rowNumber, column=1, sticky="w", padx=10, pady=5)
             #Button to remove image from the project.
             self.removeImageButton = tb.Button(self.slideInfoFrame.scrollable_frame, text="Remove Image", command=self.removeImage, takefocus=0, style="danger.TButton")
-            self.removeImageButton.grid(row=rowNumber, column=1, sticky="w")
+            self.removeImageButton.grid(row=rowNumber, column=3, sticky="w", padx=10, pady=5)
             return
             
         icon: SlideIcon = self.__icon
@@ -2261,9 +2261,21 @@ class MediaBucket(tb.Frame):
             last = self.addStack.pop()
             if type(last) == str:
                 self.files.remove(last)
+                #Close the file
+                try:
+                    FP.openFiles[last].close()
+                    del FP.openFiles[last]
+                except:
+                    print(f"Error closing file: {last}")
             else:
                 for f in last:
                     self.files.remove(f)
+                    #Close the file
+                    try:
+                        FP.openFiles[f].close()
+                        del FP.openFiles[f]
+                    except:
+                        print(f"Error closing file: {f}")
         self.fillBucket()
         return
     
@@ -2381,7 +2393,6 @@ class ToolTipIcon(tk.Canvas):
         self.create_image(self.width//2, self.height//2, image=self.tkimage)
         return
     
-
 class TagBox(tb.Frame):
     """
     TagBox is a frame which will house several frames on top of each other.\n
@@ -2409,9 +2420,6 @@ class TagBox(tb.Frame):
         if tags != None:
             self.tags = tags
 
-        #Bind the resize event to the TagBox
-        self.bind("<Configure>", self.resizeEvent)
-
         #Create the style 'TagButton.TButton' for the TagButtons
         style = tb.Style()
         style.configure('TagButton.TButton', font=('Arial', 10))
@@ -2420,12 +2428,24 @@ class TagBox(tb.Frame):
         TagBox.xNormal = TagBox.draw_X(style.colors.get('primary'), 1)
         TagBox.xHover = TagBox.draw_X(style.colors.get('danger'), TagBox.fontSize)
 
+        self.after_id = None
+        #Bind the resize event to the TagBox
+        self.bind("<Configure>", self.afterEvent)
 
-    def resizeEvent(self, event):
+    def afterEvent(self, event):
+        if self.after_id:
+            self.after_cancel(self.after_id)
+        self.after_id = self.after(300, self.resizeEvent, event)
+        return
+
+    def resizeEvent(self, event=None):
         self.update_idletasks()
         self.width = self.winfo_width()
         #If the width has grown by atleast 30 pixels, refill the tagbox
-        if self.width > self.oldWidth + 30:
+        dif = abs(self.width - self.oldWidth)
+        if dif > 40 or self.initialResize:
+            self.initialResize = False
+            # print(f"Resizing TagBox: {self.width} > {self.oldWidth}")
             self.oldWidth = self.width
             self.fillTagBox()
 
@@ -2475,8 +2495,6 @@ class TagBox(tb.Frame):
         self.tagFrame = tb.Frame(self)
         self.tagFrame.pack(fill=X, expand=True, pady=2)
         self.tagFrames.append(self.tagFrame)
-        self.tagFrame.update_idletasks()
-        # print(f"TagFrame width: {self.tagFrame.winfo_width()}")
 
         self.spaceLeft = self.width - 2
 
@@ -2498,7 +2516,6 @@ class TagBox(tb.Frame):
                 self.tagFrame = tb.Frame(self)
                 self.tagFrame.pack(fill=X, expand=True, pady=2)
                 self.tagFrames.append(self.tagFrame)
-                self.tagFrame.update_idletasks()
                 self.spaceLeft = self.width - 2
 
             #Create a new TagButton
@@ -2511,6 +2528,11 @@ class TagBox(tb.Frame):
             self.spaceLeft -= buttonWidth
             # print(f"{tag} width: {buttonWidth} estimated: {tagWidth} spaceLeft: {self.spaceLeft} | sL-W: {self.spaceLeft - buttonWidth}")
 
+    def updateTags(self, tags):
+        self.tags = tags
+        print(f"Updating tags: {tags}")
+        self.fillTagBox()
+        return
 
     def estimateWidth(self, tag):
         font = tkFont.Font()
@@ -2556,3 +2578,60 @@ class TagBox(tb.Frame):
 
         def leave(self, event):
             self.config(image=TagBox.xNormal, compound=RIGHT)
+
+class SlideshowListDatabase(tk.Frame):
+    """
+    SlideshowListDatabase is a frame that contains a tableview from ttkbootstrap. It will display all the slideshows in the database.\n
+    """
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        with FP.supress_print():
+            SQ.validateDatabase()
+        self.slideshows = SQ.getSlideshows()
+
+        #Create a label frame
+        self.labelFrame = tb.LabelFrame(self, text="Slideshows", bootstyle="primary")
+        self.labelFrame.pack(expand=True, fill="both")
+
+        #Create a tableView
+        col_names = [
+            "ID",
+            {"text": "Name", "stretch": True},
+            {"text": "Date Modified", "stretch": True},
+            {"text": "Tags", "stretch": True}
+        ]
+
+        row_data = []
+        for s in self.slideshows.values():
+            id, name, date, tags, tagString = SlideshowListDatabase.slideshowInfo(s)
+            print(f"ID: {id}, Name: {name}, Date: {date}, Tags: {tags}, TagString: {tagString}")
+            row_data.append((id, name, date, tagString))
+        # tb.Style().configure('Treeview.Heading', font=(None, 12), rowheight=35)
+        # tb.Style().configure('Treeview', font=(None, 10), rowheight=30)
+        self.tableView = Tableview(master=self.labelFrame, 
+                                    coldata=col_names, 
+                                    rowdata=row_data, 
+                                    bootstyle=tb.PRIMARY,
+                                    searchable=True,
+                                    autofit=True,
+                                    autoalign=True,
+                                    height=15,
+                                    pagesize=15,
+                                    paginated=True)
+        self.tableView.pack(expand=True, fill="both", padx=1)
+
+        #Can get any info with slideshow['id']['key']
+
+        # pprint.pprint(slideshows)
+    
+    @staticmethod
+    def slideshowInfo(s):
+        id = int(s['slideshowID'])
+        name = s['slideshowName']
+        date = s['lastModified']
+        tags = s['tags']
+        tagString = ", ".join(tags)
+        return id, name, date, tags, tagString
+    
+
+        

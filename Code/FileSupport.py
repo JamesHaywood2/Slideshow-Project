@@ -15,8 +15,13 @@ import soundfile as sf
 from pygame import mixer
 from enum import Enum
 
-import pprint
 
+import contextlib
+@contextlib.contextmanager
+def supress_print():
+    with open(os.devnull, 'w') as f:
+        with contextlib.redirect_stdout(f):
+            yield
 
 def resource_path(relative_path):
     """Get the absolute path to the resource, works for PyInstaller."""
@@ -171,7 +176,7 @@ def updateSlideshowCacheList(slideshowPath:str):
         print("Error checking if slideshowPath exists.")
         
     if not file_exists:
-        print(f"{slideshowPath} does not exist.")
+        print(f"{slideshowPath} does not exist. from updateSlideshowCacheList()")
         return
     
     #Get the last modified time of the slideshow
@@ -658,19 +663,65 @@ class Slideshow:
                     print(f"Error copying {slide['imagePath']} to cache folder.")
 
 
-    def exportToFolder(self, folderPath:str):
+    # def exportToFolder(self, folderPath:str):
+    #     """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
+    #     self.save()
+    #     if not os.path.exists(folderPath):
+    #         #Create a folder in the project folder called exported_assets_{projectName}
+    #         projectFolder = os.path.dirname(self.__filePath)
+    #         exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+    #     else:
+    #         exportFolder = os.path.join(folderPath, f"exported_assets_{removeExtension(self.name)}")
+
+    #     #Get the current time
+    #     currentTime = time.strftime("_%Y-%m-%d_%H-%M-%S")
+    #     exportFolder += currentTime
+            
+    #     if not os.path.exists(exportFolder):
+    #         os.makedirs(exportFolder)
+        
+    #     #Export all the files in the project folder to the export folder
+    #     for file in self.filesInProject:
+    #         #Copy the file to the export folder
+    #         img = Image.open(file)
+    #         img.save(os.path.join(exportFolder, os.path.basename(file)))
+
+    #     #Export all the songs in the playlist to the export folder
+    #     for song in self.playlist.songs:
+    #         #Copy the song to the export folder
+    #         f = open(song.filePath, 'rb')
+    #         with open(os.path.join(exportFolder, os.path.basename(song.filePath)), 'wb') as c:
+    #             c.write(f.read())
+    #         f.close()
+
+    #     #Export all the slides in the slideshow to the export folder
+    #     for slide in self.slides:
+    #         #Copy the slide to the export folder
+    #         img = Image.open(slide['imagePath'])
+    #         img.save(os.path.join(exportFolder, os.path.basename(slide['imagePath'])))
+
+    #     #Finally, copy the slideshow file to the export folder
+    #     saveLoc = self.getSaveLocation()
+    #     newSaveLoc = os.path.join(exportFolder, os.path.basename(saveLoc))
+    #     self.setSaveLocation(newSaveLoc)
+    #     self.save()
+    #     self.setSaveLocation(saveLoc)
+
+    def exportToFolder(self, filePath:str):
         """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
-        self.save()
-        if not os.path.exists(folderPath):
+        if not os.path.exists(filePath):
             #Create a folder in the project folder called exported_assets_{projectName}
             projectFolder = os.path.dirname(self.__filePath)
-            exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
+            exportFolder = os.path.join(projectFolder, f"exported_project_{removeExtension(self.name)}")
         else:
-            exportFolder = os.path.join(folderPath, f"exported_assets_{removeExtension(self.name)}")
+            exportFolder = os.path.join(filePath, f"exported_project_{removeExtension(self.name)}")
 
         #Get the current time
         currentTime = time.strftime("_%Y-%m-%d_%H-%M-%S")
         exportFolder += currentTime
+
+        tempName = self.name
+        self.name = getBaseName([exportFolder])[0]
             
         if not os.path.exists(exportFolder):
             os.makedirs(exportFolder)
@@ -692,14 +743,19 @@ class Slideshow:
         #Export all the slides in the slideshow to the export folder
         for slide in self.slides:
             #Copy the slide to the export folder
-            img = Image.open(slide['imagePath'])
-            img.save(os.path.join(exportFolder, os.path.basename(slide['imagePath'])))
+            try:
+                path = slide['imagePath']
+            except:
+                path = slide.imagePath
+            img = Image.open(path)
+            img.save(os.path.join(exportFolder, os.path.basename(path)))
 
         #Finally, copy the slideshow file to the export folder
         saveLoc = self.getSaveLocation()
-        newSaveLoc = os.path.join(exportFolder, os.path.basename(saveLoc))
-        self.setSaveLocation(newSaveLoc)
+        newSaveLoc = os.path.join(exportFolder, self.name)
+        self.setSaveLocation(newSaveLoc + ".pyslide")
         self.save()
+        self.name = tempName
         self.setSaveLocation(saveLoc)
 
 
