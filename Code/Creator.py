@@ -35,7 +35,7 @@ class StartMenu(tb.Frame):
         self.label.place(relx=0.5, rely=0.1, anchor="s")
 
         self.slideshowList = SlideshowListDatabase(self)
-        self.slideshowList.place(anchor="nw", relx=0.505, rely=0.15, relwidth=0.48, relheight=0.82)
+        self.slideshowList.place(anchor="nw", relx=0.505, rely=0.1, relwidth=0.48, relheight=0.85)
 
         #Bind double clicking the recentSlideshowList to open the project
         # self.slideshowList.tableView.view.bind("<Double-1>", self.openProject)
@@ -48,15 +48,16 @@ class StartMenu(tb.Frame):
 
         #Labelframe for info
         self.infoFrame = tb.LabelFrame(self, text="Project Info", bootstyle="primary")
-        self.infoFrame.place(anchor="ne", relx=0.495, rely=0.15, relwidth=0.48, relheight=0.6105)
+        self.infoFrame.place(anchor="ne", relx=0.495, rely=0.1, relwidth=0.48, relheight=0.6)
 
         self.scrollFrame = ScrollableFrame(self.infoFrame, orient="both", autohide=True)
         # self.Frame = ScrolledFrame(self.infoFrame, autohide=False)
         self.Frame = self.scrollFrame.scrollable_frame
 
         #Set the ScrolledFrame style to be red
-        # tb.Style().configure("test.TFrame", background="red")
-        # self.Frame.config(style="test.TFrame")
+        tb.Style().configure("test.TFrame", background="red")
+        # self.infoFrame.config(style="test.TFrame")
+        # self.config(style="test.TFrame")
 
         # Create a custom style for the bold labels
         tb.Style().configure("Bold.TLabel", font=("Arial", 14, "bold"))
@@ -87,9 +88,11 @@ class StartMenu(tb.Frame):
         self.update()
         buttonHeight = self.nameLabel.winfo_height() * 3
 
+        #ScrollFrame houses the buttons
         self.scrollFrame.place(anchor="nw", relx=0, rely=0, relwidth=1, height=buttonHeight)
-        relHeight = 1 - (buttonHeight / self.infoFrame.winfo_height())
-        self.tagFrame.place(anchor="nw", relx=0, y=buttonHeight, relwidth=1, relheight=relHeight-0.01)
+        self.scrollFrame.update_idletasks()
+        relHeight = 1 - (self.scrollFrame.winfo_height() / (self.infoFrame.winfo_height()*0.9))
+        self.tagFrame.place(anchor="nw", relx=0, y=self.scrollFrame.winfo_height(), relwidth=1, relheight=relHeight)
 
 
         self.tagBox = TagBox(self.tagFrame, tags=[], justDisplay=True)
@@ -111,10 +114,11 @@ class StartMenu(tb.Frame):
         #new, open, rename, deleted, import, play
 
         #Convert a relative height of 0.205 to a pixel value
-        height = self.winfo_height() * 0.205
+        height = self.winfo_height() * 0.25
 
         self.actionsFrame = tb.LabelFrame(self, text="Actions", bootstyle="primary")
-        self.actionsFrame.place(anchor="ne", relx=0.495, rely=0.762, relwidth=0.48, height=height)
+        # self.actionsFrame.place(anchor="ne", relx=0.495, rely=0.7, relwidth=0.48, height=height)
+        self.actionsFrame.place(anchor="se", relx=0.495, rely=0.95, relwidth=0.48, height=height)
 
         self.topFrame = tb.Frame(self.actionsFrame)
         self.topFrame.pack(expand=True, fill="both")
@@ -123,29 +127,39 @@ class StartMenu(tb.Frame):
         self.topFrame.update_idletasks()
         self.bottomFrame.update_idletasks()
 
+        tb.Style().configure("Start.success.TButton", font=("Arial", 10))
+        tb.Style().configure("Start.danger.TButton", font=("Arial", 10))
+        tb.Style().configure("Start.info.TButton", font=("Arial", 10))
+        tb.Style().configure("Start.TButton", font=("Arial", 10))
+
         #Button for new project, open project, rename project, delete project
-        self.newProjectButton = tb.Button(self.topFrame, text="New Project", command=self.newProject, style="success.TButton")
-        self.openProjectButton = tb.Button(self.topFrame, text="Open Project", command=self.openProject)
-        self.renameProjectButton = tb.Button(self.topFrame, text="Rename Project", command=self.renameProject)
-        self.deleteProjectButton = tb.Button(self.topFrame, text="Delete Project", command=self.deleteProject, style="danger.TButton")
-        self.importButton = tb.Button(self.bottomFrame, text="Import", command=self.importFromFile)
-        self.playButton = tb.Button(self.bottomFrame, text="Play", command=self.openPlayer)
-        self.themesButton = tb.Button(self.bottomFrame, text="Themes", command=self.ThemeSelector, style="info.TButton")
+        self.newProjectButton = tb.Button(self.topFrame, text="New Project", command=self.newProject, style="Start.success.TButton")
+        self.openProjectButton = tb.Button(self.topFrame, text="Open Project", command=self.openProject, style="Start.TButton")
+        self.renameProjectButton = tb.Button(self.topFrame, text="Rename Project", command=self.renameProject, style="Start.TButton")
+        self.deleteProjectButton = tb.Button(self.topFrame, text="Delete Project", command=self.deleteProject, style="Start.danger.TButton")
+        self.importButton = tb.Button(self.bottomFrame, text="Import", command=self.importFromFile, style="Start.TButton")
+        self.playButton = tb.Button(self.bottomFrame, text="Play", command=self.openPlayer, style="Start.TButton")
+        self.themesButton = tb.Button(self.bottomFrame, text="Themes", command=self.ThemeSelector, style="Start.info.TButton")
         self.actionsFrame.update_idletasks()
 
-        self.newProjectButton.pack(side="left", padx=10, pady=10)
-        self.openProjectButton.pack(side="left", padx=10, pady=10)
-        self.renameProjectButton.pack(side="left", padx=10, pady=10)
-        self.deleteProjectButton.pack(side="left", padx=10, pady=10)
-        self.importButton.pack(side="left", padx=10, pady=10)
-        self.playButton.pack(side="left", padx=10, pady=10)
-        self.themesButton.pack(side="left", padx=10, pady=10)
+        xpad=5
+        self.newProjectButton.pack(side="left", padx=xpad, pady=10)
+        self.openProjectButton.pack(side="left", padx=xpad, pady=10)
+        self.renameProjectButton.pack(side="left", padx=xpad, pady=10)
+        self.deleteProjectButton.pack(side="left", padx=xpad, pady=10)
+        self.importButton.pack(side="left", padx=xpad, pady=10)
+        self.playButton.pack(side="left", padx=xpad, pady=10)
+        self.themesButton.pack(side="left", padx=xpad, pady=10)
 
         self.topFrame.update_idletasks()
         self.bottomFrame.update_idletasks()
 
         self.defaultDeleteWidth = self.deleteProjectButton.winfo_width()
         self.defaultDeleteX = self.deleteProjectButton.winfo_x()
+
+        #Scaled font size
+        self.fontSize = 10
+        self.resizeFont()
 
         #bind the configure event to the afterEvent function
         self.bind("<Configure>", lambda event: self.afterEvent(event, "<<Resize>>"))
@@ -166,11 +180,61 @@ class StartMenu(tb.Frame):
         except Exception as e:
             print(e)
         return
+    
+    def resizeFont(self):
+        root.update_idletasks()
+
+        #Get screen width and height
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        width = root.winfo_width()
+        height = root.winfo_height()
+
+        width_scale = width / screen_width
+        height_scale = height / screen_height
+
+        #Scale the font size
+        scaling_factor = width_scale
+        new_fontsize = int(24 * scaling_factor)
+        if new_fontsize < 10:
+            self.fontSize = 10
+            self.resizeButtons()
+        else:
+            self.fontSize = new_fontsize
+            self.resizeButtons()
+        # print(f"\nWidth Scale: {width_scale}, Height Scale: {height_scale}")
+        # print(f"Font Size: {self.fontSize}")
+        tb.Style().configure("Start.success.TButton", font=("Arial", self.fontSize))
+        tb.Style().configure("Start.danger.TButton", font=("Arial", self.fontSize))
+        tb.Style().configure("Start.info.TButton", font=("Arial", self.fontSize))
+        tb.Style().configure("Start.TButton", font=("Arial", self.fontSize))
             
+    def resizeButtons(self):
+        #Check if the buttons were cut off width wise
+        self.deleteProjectButton.update_idletasks()
+        self.actionsFrame.update_idletasks()
+        
+        defaultxval = self.defaultDeleteX + self.defaultDeleteWidth
+        #Action frame width
+        actionsFrameWidth = self.actionsFrame.winfo_width()
+
+        if defaultxval > actionsFrameWidth:
+            #Shorten to "del"
+            self.deleteProjectButton.config(text="Del")
+            self.newProjectButton.config(text="New")
+            self.openProjectButton.config(text="Open")
+            self.renameProjectButton.config(text="Rename")
+        else:
+            self.deleteProjectButton.config(text="Delete Project")
+            self.newProjectButton.config(text="New Project")
+            self.openProjectButton.config(text="Open Project")
+            self.renameProjectButton.config(text="Rename Project")
+
 
     def resizeEvent(self, event=None):
         self.after_id["<<Resize>>"] = None
         # print("Resizing")
+        self.resizeFont()
 
         self.update_idletasks()
         win_height = self.winfo_height()
@@ -181,46 +245,15 @@ class StartMenu(tb.Frame):
         height_available = slideshowList_height - actionsFrame_height
         rel_height = height_available / win_height
         self.infoFrame.place_configure(relheight=rel_height)
-        #Adjust actionsFrame rely to be slightly below the infoFrame
-        self.actionsFrame.place_configure(rely=0.15 + rel_height)
-
-        #Check if any of the buttons were cut off width wise
-        self.deleteProjectButton.update_idletasks()
-
-        defaultxval = self.defaultDeleteX + self.defaultDeleteWidth
-
-        #Action frame width
-        actionsFrameWidth = self.actionsFrame.winfo_width()
-
-        if defaultxval > actionsFrameWidth:
-            #Shorten to "del"
-            self.deleteProjectButton.config(text="Del")
-            self.newProjectButton.config(text="New")
-            self.openProjectButton.config(text="Open")
-            self.renameProjectButton.config(text="Rename")
-            #Slightly reduce padx
-            self.deleteProjectButton.pack_configure(padx=5)
-            self.newProjectButton.pack_configure(padx=5)
-            self.openProjectButton.pack_configure(padx=5)
-            self.renameProjectButton.pack_configure(padx=5)
-        else:
-            self.deleteProjectButton.config(text="Delete Project")
-            self.newProjectButton.config(text="New Project")
-            self.openProjectButton.config(text="Open Project")
-            self.renameProjectButton.config(text="Rename Project")
-            self.deleteProjectButton.pack_configure(padx=10)
-            self.newProjectButton.pack_configure(padx=10)
-            self.openProjectButton.pack_configure(padx=10)
-            self.renameProjectButton.pack_configure(padx=10)
-
 
         #Resize the infoFrame
         self.infoFrame.update_idletasks()
         buttonHeight = self.nameLabel.winfo_height() * 3
 
-        self.scrollFrame.place(anchor="nw", relx=0, rely=0, relwidth=1, height=buttonHeight)
-        relHeight = 1 - (buttonHeight / self.infoFrame.winfo_height())
-        self.tagFrame.place(anchor="nw", relx=0, y=buttonHeight, relwidth=1, relheight=relHeight-0.01)
+        # self.scrollFrame.place(anchor="nw", relx=0, rely=0, relwidth=1, height=buttonHeight)
+        self.scrollFrame.update_idletasks()
+        relHeight = 1 - (self.scrollFrame.winfo_height() / (self.infoFrame.winfo_height()*0.9))
+        self.tagFrame.place(anchor="nw", relx=0, y=self.scrollFrame.winfo_height(), relwidth=1, relheight=relHeight)
         
         return
 
@@ -305,12 +338,13 @@ class StartMenu(tb.Frame):
 
     def newProject(self):
         print("New Project")
-        name = self.nameProjectDialog()
-        if name == None:
-            return
-        print(f"Creating new project: {name}")
+        # name = self.nameProjectDialog()
+        # if name == None:
+        #     return
+        # print(f"Creating new project: {name}")
         self.destroy()
         self = SlideshowCreator(self.master, projectPath="New Project")
+        self.pack(expand=True, fill="both")
 
 
     def openProject(self, event=None, projectID=None):
@@ -821,16 +855,16 @@ class SlideshowCreator(tb.Frame):
         self.update_idletasks()
 
 
-
-        
-
     def save(self):
         print("Save")
         #Check if the project has a save location
         saveLocation = self.slideshow.getSaveLocation()
         if saveLocation == "New Project" or saveLocation == "Saved To Database":
             if self.slideshow.name == "New Project":
-                self.slideshow.name = self.nameProjectDialog()
+                name = self.nameProjectDialog()
+                if name == None:
+                    return
+                self.slideshow.name = name
             SQ.saveSlideshow(self.slideshow)
         else:
             print(f"Save Location: {saveLocation}")

@@ -622,7 +622,7 @@ class FileIcon(tk.Frame):
             self.name = "Error: Missing Image"
         nameCutoff: int = 20
         fn = self.name[:nameCutoff] + "..." if len(self.name) > nameCutoff else self.name
-        self.label = tb.Label(self, text=fn, font=("Arial", 12), bootstyle="default", justify="center", wraplength=90)
+        self.label = tb.Label(self, text=fn, font=("Arial", 10), bootstyle="default", justify="center", wraplength=90)
         self.label.pack(expand=False, fill="none", anchor="center")
 
         self.missing: bool = False
@@ -2312,7 +2312,7 @@ class RecentSlideshowList(tk.Frame):
         slideshows = FP.getRecentSlideshows()
         #Create a label frame
         self.labelFrame = tb.LabelFrame(self, text="Recent Slideshows", bootstyle="primary")
-        self.labelFrame.pack(expand=True, fill="both", padx=10, pady=10)
+        self.labelFrame.pack(expand=True, fill="both", padx=0, pady=0)
 
         #Create a tableView
         col_names = [

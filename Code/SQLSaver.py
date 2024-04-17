@@ -782,11 +782,14 @@ def validateDatabase():
     possible_slideshowIDs = slide_slideshowIDs + song_slideshowIDs
     possible_slideshowIDs = [int(slideshowID) for slideshowID in possible_slideshowIDs]
     
-    #If a possible_slideshowID is not in real_slideshowIDs then elements related to that slideshow are not being used and should be deleted.
-    for slideshowID in real_slideshowIDs:
-        if slideshowID not in possible_slideshowIDs:
-            print(f"Deleting dead slideshow: {slideshowID}")
-            deleteSlideshow(slideshowID)
+    #If a possible_slideshowID is not in real_slideshowIDs then slides or songs are being used in a slideshow that doesn't exist. Remove them.
+    for slideshowID in possible_slideshowIDs:
+        if slideshowID not in real_slideshowIDs:
+            print(f"Deleting slides and songs from non-existant slideshow: {slideshowID}")
+            c.execute("DELETE FROM Slide WHERE Slideshow_ID = ?", (slideshowID,))
+            c.execute("DELETE FROM Song WHERE Slideshow_ID = ?", (slideshowID,))
+            c.execute("DELETE FROM FileRecord WHERE slideshow_id = ?", (slideshowID,))
+            c.execute("DELETE FROM TagRecord WHERE slideshow_id = ?", (slideshowID,))
 
     conn.commit()
     #Delete unused files
