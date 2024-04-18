@@ -190,19 +190,24 @@ class StartMenu(tb.Frame):
         width = root.winfo_width()
         height = root.winfo_height()
 
-        width_scale = width / screen_width
+        action_width = self.actionsFrame.winfo_width()
+        action_height = self.actionsFrame.winfo_height()
+
+        width_scale = action_width / screen_width
         height_scale = height / screen_height
+
 
         #Scale the font size
         scaling_factor = width_scale
-        new_fontsize = int(24 * scaling_factor)
-        if new_fontsize < 10:
-            self.fontSize = 10
-            self.resizeButtons()
-        else:
-            self.fontSize = new_fontsize
-            self.resizeButtons()
-        # print(f"\nWidth Scale: {width_scale}, Height Scale: {height_scale}")
+        new_fontsize = int(32 * scaling_factor)
+        # print("\nNew Font Size: ", new_fontsize)
+        if new_fontsize < 8:
+            new_fontsize = 8
+
+        new_fontsize = min(12, new_fontsize)
+        self.fontSize = new_fontsize
+        self.resizeButtons()
+        # print(f"Width Scale: {width_scale}, Height Scale: {height_scale}")
         # print(f"Font Size: {self.fontSize}")
         tb.Style().configure("Start.success.TButton", font=("Arial", self.fontSize))
         tb.Style().configure("Start.danger.TButton", font=("Arial", self.fontSize))
@@ -403,6 +408,12 @@ class StartMenu(tb.Frame):
         print(f"Deleting project {name}")
         #Delete the project from the database
         SQ.deleteSlideshow(projectID)
+        #Delete the project from the list
+        self.slideshowList.slideshows.pop(projectID)
+        #Delete the project from the tableview
+        self.slideshowList.tableView.view.delete(item)
+        self.displayProjectInfo()
+        
         
     
     def nameProjectDialog(self, invalid=False, ErrorMessage:str="Invalid name. Please enter a name for the project"):
@@ -476,7 +487,7 @@ class SlideshowCreator(tb.Frame):
     redraw(): Redraws the ImageViewer, MediaBucket, and SlideReel. 
     """
     def __init__(self, master=None, projectPath: str="New Project", slideshowID:int = None, **kw):
-        master.geometry(f"{screen_width//2}x{screen_height//2}+{screen_width//4}+{screen_height//4}")
+        master.geometry(f"{int(screen_width//1.5)}x{int(screen_height//1.5)}+{screen_width//5}+{screen_height//5}")
         master.resizable(True, True)
         super().__init__(master, **kw)
         #Check if the projectPath even exists
@@ -712,8 +723,8 @@ class SlideshowCreator(tb.Frame):
             self.PanedWindow_Base.paneconfigure(self.PanedWindow_Bottom, height=win_height_start//10*3, minsize=170)
             self.PanedWindow_Top.paneconfigure(self.mediaFrame, width=win_width_start//10*6, minsize=130)
             self.PanedWindow_Top.paneconfigure(self.imageFrame, width=win_width_start//10*4, minsize=100)
-            self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4, minsize=300)
-            self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*6, minsize=200)
+            self.PanedWindow_Bottom.paneconfigure(self.slideInfoFrame, width=win_width_start//10*4.5, minsize=300)
+            self.PanedWindow_Bottom.paneconfigure(self.reelFrame, width=win_width_start//10*5.5, minsize=200)
 
             self.update_idletasks()
         elif layout == 2:

@@ -43,8 +43,6 @@ MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
 refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
 toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 
-
-
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
 

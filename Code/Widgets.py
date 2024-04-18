@@ -1097,7 +1097,7 @@ class InfoFrame(tb.Frame):
 
         rowNumber += 1
         self.tree_frame = tb.Frame(self.projectInfoFrame.scrollable_frame)
-        self.tree_frame.grid(row=rowNumber, column=1, columnspan=14, rowspan=7, sticky="w", pady=5)
+        self.tree_frame.grid(row=rowNumber, column=0, columnspan=14, rowspan=7, sticky="", pady=5)
 
         #Scrollbar for the treeview
         tree_scrollbar = tb.Scrollbar(self.tree_frame, orient="vertical")
@@ -1123,17 +1123,17 @@ class InfoFrame(tb.Frame):
         \nWarning: Only in Cache: File is only in the cache folder. Recommend moving or replacing the file.
         \nError: Missing: File is missing. Recommend replacing the file."""
         self.playlistTreeTooltip = ToolTipIcon(self.projectInfoFrame.scrollable_frame, text=treeToolTipText)
-        self.playlistTreeTooltip.grid(row=rowNumber+2, column=0, sticky="e", padx=5, pady=2)
+        self.playlistTreeTooltip.grid(row=rowNumber+2, column=0, sticky="w", padx=5, pady=2)
 
         #Buttons to move a song up, down, or remove it from the playlist
         self.moveUpButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="/\\", command=self.playListMoveUp, takefocus=0)
-        self.moveUpButton.grid(row=rowNumber+3, column=0, sticky="e", padx=5)
+        self.moveUpButton.grid(row=rowNumber+3, column=0, sticky="w", padx=5)
         self.addSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="+", command=self.playListAdd, takefocus=0, style="success.TButton")
-        self.addSongButton.grid(row=rowNumber+4, column=0, sticky="e", padx=5)
+        self.addSongButton.grid(row=rowNumber+4, column=0, sticky="w", padx=5)
         self.removeSongButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="X", command=self.playListRemove, takefocus=0, style="danger.TButton")
-        self.removeSongButton.grid(row=rowNumber+5, column=0, sticky="e", padx=5)
+        self.removeSongButton.grid(row=rowNumber+5, column=0, sticky="w", padx=5)
         self.moveDownButton = tb.Button(self.projectInfoFrame.scrollable_frame, text="\\/", command=self.playListMoveDown, takefocus=0)
-        self.moveDownButton.grid(row=rowNumber+6, column=0, sticky="e", padx=5)
+        self.moveDownButton.grid(row=rowNumber+6, column=0, sticky="w", padx=5)
 
         #Fill the treeview with the playlist
         for i in range(len(self.playlist.songs)):
@@ -1180,6 +1180,15 @@ class InfoFrame(tb.Frame):
         self.tagCombo.config(width=15)
         self.tagCombo['values'] = possibleTags
         self.tagCombo.grid(row=rowNumber, column=1, columnspan=3, sticky="ew")
+
+        #Tooltip for the tag combobox
+        tagToolTipText = """This is the tag system. You can add/remove tags to the slideshow to locate them easier.\n
+        To add a tag either select an existing tag from the drop down or type a new tag and click the green button.\n
+        To remove a tag hover over the tag and click.\n
+        You can search for a slideshow by tag in the start screen."""
+        self.tagToolTip = ToolTipIcon(self.projectInfoFrame.scrollable_frame, text=tagToolTipText)
+        self.tagToolTip.grid(row=rowNumber, column=0, sticky="w", padx=2)
+
 
         #TagBox scrollable frame
         rowNumber += 1
@@ -2615,9 +2624,8 @@ class SlideshowListDatabase(tk.Frame):
                                     searchable=True,
                                     autofit=True,
                                     autoalign=True,
-                                    height=15,
-                                    pagesize=15,
-                                    paginated=True)
+                                    height=10,
+                                    paginated=False)
         self.tableView.pack(expand=True, fill="both", padx=1)
 
         #Can get any info with slideshow['id']['key']

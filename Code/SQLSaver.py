@@ -208,7 +208,9 @@ def saveSlideshow(slideshow, fromFile=False, toFile=False, name=None):
             return False
         
     #Get the slideshow information
-    slideshowPath = slideshow.getSaveLocation()
+    # slideshowPath = slideshow.getSaveLocation()
+    slideshowPath = "Saved To Database"
+    slideshow.setSaveLocation("Saved To Database")
     slideshowName = slideshow.name
     loopSetting = slideshow.loopSettings
     manualControls = slideshow.manual
@@ -979,25 +981,6 @@ def updateLastModified(slideshowID):
     conn.commit()
     conn.close()
 
-
+FP.initializeCache()
 createDatabase()
 validateDatabase()
-
-# resetDatabase()
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-# renameSlideshow(1, "Test1")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-# saveSlideshow(r"C:\Users\JamesH\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-
-
-# Latop
-# saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\OneSlide.pyslide")
-# saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\TestImages3\Kitty.pyslide")
-# saveSlideshow(r"C:\Users\flami\OneDrive - uah.edu\CS499\exported_assets_test1_2024-04-09_20-45-57\test1.pyslide")
-
-# deleteSlideshow(1)
-
-# clearDatabase()

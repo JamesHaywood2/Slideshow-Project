@@ -1,5 +1,4 @@
 import tkinter as tk
-from matplotlib.pylab import f
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from ttkbootstrap.dialogs import *
@@ -190,23 +189,29 @@ class StartMenu(tb.Frame):
         width = root.winfo_width()
         height = root.winfo_height()
 
-        width_scale = width / screen_width
+        action_width = self.actionsFrame.winfo_width()
+        action_height = self.actionsFrame.winfo_height()
+
+        width_scale = action_width / screen_width
         height_scale = height / screen_height
+
 
         #Scale the font size
         scaling_factor = width_scale
-        new_fontsize = int(24 * scaling_factor)
+        new_fontsize = int(32 * scaling_factor)
+        # print("\nNew Font Size: ", new_fontsize)
         if new_fontsize < 10:
-            self.fontSize = 10
-            self.resizeButtons()
-        else:
-            self.fontSize = new_fontsize
-            self.resizeButtons()
-        # print(f"\nWidth Scale: {width_scale}, Height Scale: {height_scale}")
+            new_fontsize = 10
+
+        new_fontsize = min(12, new_fontsize)
+        self.fontSize = new_fontsize
+        self.resizeButtons()
+        # print(f"Width Scale: {width_scale}, Height Scale: {height_scale}")
         # print(f"Font Size: {self.fontSize}")
         tb.Style().configure("Start.success.TButton", font=("Arial", self.fontSize))
         tb.Style().configure("Start.danger.TButton", font=("Arial", self.fontSize))
         tb.Style().configure("Start.TButton", font=("Arial", self.fontSize))
+        tb.Style().configure("Start.info.TButton", font=("Arial", self.fontSize))
             
     def resizeButtons(self):
         #Check if the buttons were cut off width wise
@@ -412,10 +417,13 @@ class StartMenu(tb.Frame):
         print(f"Deleting project {name}")
         #Delete the project from the database
         SQ.deleteSlideshow(projectID)
-        #Update the rowdata
+        #Delete the project from the list
+        self.slideshowList.slideshows.pop(projectID)
+        #Delete the project from the tableview
         self.slideshowList.tableView.view.delete(item)
         #Update the infoFrame
         self.displayProjectInfo()
+        
        
 
     def nameProjectDialog(self, invalid=False, ErrorMessage:str="Invalid name. Please enter a name for the project"):
@@ -1499,7 +1507,10 @@ class SlideshowPlayer(tb.Frame):
             return
         print("\nQuitting Player...\n")
         self.quiting = True
-        self.audioPlayer.stop()
+        try:
+            self.audioPlayer.stop()
+        except:
+            pass
 
         #Stop any loops
         try:
@@ -1523,7 +1534,10 @@ class SlideshowPlayer(tb.Frame):
         except:
             pass
 
-        self.dummy.close(False)
+        try:
+            self.dummy.close(False)
+        except:
+            pass
         self.master.destroy()
         self.update()
         return
@@ -1533,7 +1547,10 @@ class SlideshowPlayer(tb.Frame):
             return
         print("\nClosing...\n")
         self.closing = True
-        self.audioPlayer.stop()
+        try:
+            self.audioPlayer.stop()
+        except:
+            pass
         #Close all open files
         for f in FP.openFiles.values():
             f.close()
@@ -1560,7 +1577,10 @@ class SlideshowPlayer(tb.Frame):
         except:
             pass
 
-        self.dummy.close(False)
+        try:
+            self.dummy.close(False)
+        except:
+            pass
         self.update()
         self.destroy()
         return
