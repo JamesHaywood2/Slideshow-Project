@@ -660,51 +660,6 @@ class Slideshow:
                 except:
                     print(f"Error copying {slide['imagePath']} to cache folder.")
 
-
-    # def exportToFolder(self, folderPath:str):
-    #     """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
-    #     self.save()
-    #     if not os.path.exists(folderPath):
-    #         #Create a folder in the project folder called exported_assets_{projectName}
-    #         projectFolder = os.path.dirname(self.__filePath)
-    #         exportFolder = os.path.join(projectFolder, f"exported_assets_{removeExtension(self.name)}")
-    #     else:
-    #         exportFolder = os.path.join(folderPath, f"exported_assets_{removeExtension(self.name)}")
-
-    #     #Get the current time
-    #     currentTime = time.strftime("_%Y-%m-%d_%H-%M-%S")
-    #     exportFolder += currentTime
-            
-    #     if not os.path.exists(exportFolder):
-    #         os.makedirs(exportFolder)
-        
-    #     #Export all the files in the project folder to the export folder
-    #     for file in self.filesInProject:
-    #         #Copy the file to the export folder
-    #         img = Image.open(file)
-    #         img.save(os.path.join(exportFolder, os.path.basename(file)))
-
-    #     #Export all the songs in the playlist to the export folder
-    #     for song in self.playlist.songs:
-    #         #Copy the song to the export folder
-    #         f = open(song.filePath, 'rb')
-    #         with open(os.path.join(exportFolder, os.path.basename(song.filePath)), 'wb') as c:
-    #             c.write(f.read())
-    #         f.close()
-
-    #     #Export all the slides in the slideshow to the export folder
-    #     for slide in self.slides:
-    #         #Copy the slide to the export folder
-    #         img = Image.open(slide['imagePath'])
-    #         img.save(os.path.join(exportFolder, os.path.basename(slide['imagePath'])))
-
-    #     #Finally, copy the slideshow file to the export folder
-    #     saveLoc = self.getSaveLocation()
-    #     newSaveLoc = os.path.join(exportFolder, os.path.basename(saveLoc))
-    #     self.setSaveLocation(newSaveLoc)
-    #     self.save()
-    #     self.setSaveLocation(saveLoc)
-
     def exportToFolder(self, filePath:str):
         """Export all project files to a folder named exported_assets_{projectName} to the project folder."""
         if not os.path.exists(filePath):
@@ -765,7 +720,6 @@ class Song:
         self.name: str = None
         self.duration: int = 0
         self.fileType: str = None
-        self.duration: int = 0
 
         self.songDB_ID: int = None
 
@@ -1114,7 +1068,6 @@ class AudioPlayer:
             self.progress = 0
         return self.progress
             
-        
         
 def file_check(file_path:str, project_path:str=None):
     """Check if a file exists in the project folder, cache folder, or the file path.\n

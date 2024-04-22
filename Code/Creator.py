@@ -201,8 +201,8 @@ class StartMenu(tb.Frame):
         scaling_factor = width_scale
         new_fontsize = int(32 * scaling_factor)
         # print("\nNew Font Size: ", new_fontsize)
-        if new_fontsize < 8:
-            new_fontsize = 8
+        if new_fontsize < 10:
+            new_fontsize = 10
 
         new_fontsize = min(12, new_fontsize)
         self.fontSize = new_fontsize
