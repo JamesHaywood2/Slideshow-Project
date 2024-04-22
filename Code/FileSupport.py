@@ -35,13 +35,15 @@ def resource_path(relative_path):
 
 # ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
 
-# MissingImage = resource_path(r"MissingImage.png")
-# refreshIcon  = resource_path(r"refreshIcon.png")
-# toolTipIcon  = resource_path(r"tooltip.png")
-
-MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
-refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
-toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
+build = 1
+if build == 0:
+    MissingImage = resource_path(r"MissingImage.png")
+    refreshIcon  = resource_path(r"refreshIcon.png")
+    toolTipIcon  = resource_path(r"tooltip.png")
+else:
+    MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+    refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+    toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 
 relative_project_path = ""
 # FP.file_check(path, FP.reltaive_project_path)
