@@ -11,11 +11,11 @@ To install download one of the three versions. If Windows Defender gets triggere
 ### Directory:
 Directory is the built executable, but it comes in a directory of necessary files.  
 Install whatever exe you want to use AND _internals. Place both _internals and the exe in the same directory.  
-[Download Directory](https://www.dropbox.com/scl/fo/t0anc8bdu2pk58pj93tc8/AGkEwcjXAtyVZXyPLYttxJQ?rlkey=g8arxxus40o3p2dszvn5ujaqm&st=924aoj6s&dl=1)
+[Download Directory](https://www.dropbox.com/scl/fi/3vrl25fj6obpzifo0164i/PySlide_Capstone.zip?rlkey=rbd64jir3cb4w3sy561spjcjt&st=bd77zp6b&dl=1)
 
 ### One File
 One file is the entire program built into a single executable. This has a higher chance of triggering Windows Defender.
-[Download Onefile](https://www.dropbox.com/scl/fo/2ha1z0upqnwqm90inwtcq/AI7d3_7WTzLzKrraGlfaDpg?rlkey=2vjxhwz2lm0p9rx7li8xmztwp&st=i5wt5dp8&dl=1)
+[Download Onefile](https://www.dropbox.com/scl/fi/8aiqf59yawy110ks4fvy0/Single-Files.zip?rlkey=cg4fv6phofrqwnmd01sra9fnu&st=kqh693f2&dl=1)
 
 ### Raw Code
 Basically the contents of the code folder. If you want to install it this way make sure you have Python 11 and just do:  
