@@ -27,14 +27,20 @@ def resource_path(relative_path):
 
 # ProgramIcon = resource_path(r"../Slideshow-Project/assets/icon.ico")
 
-# MissingImage = resource_path(r"MissingImage.png")
-# refreshIcon  = resource_path(r"refreshIcon.png")
-# toolTipIcon  = resource_path(r"tooltip.png")
+MissingImage = resource_path(r"MissingImage.png")
+refreshIcon  = resource_path(r"refreshIcon.png")
+toolTipIcon  = resource_path(r"tooltip.png")
 
-MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
-refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
-toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
+# MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+# refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+# toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 
+#Check if MissingImage exists
+if not os.path.exists(MissingImage):
+    print(f"MissingImage.png not found in {MissingImage}.")
+    MissingImage = resource_path(r"../Slideshow-Project/assets/MissingImage.png")
+    refreshIcon  = resource_path(r"../Slideshow-Project/assets/refreshIcon.png")
+    toolTipIcon  = resource_path(r"../Slideshow-Project/assets/tooltip.png")
 
 
 relative_project_path = ""
