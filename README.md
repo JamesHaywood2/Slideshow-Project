@@ -3,6 +3,7 @@ Slideshow project for CS499 Senior Design
 Base by: James Haywood, Emma Fuller, and Jackie Newland.  
 
 ## Installation
+Intended for use on a Windows 10 or newer machine.
 Install Python 11, clone the repository, and install required Python libraries with ```pip install -r requirements.txt```.  
 Run Creator.py to create slideshows.  
 Run Player.py to play the created slideshows.
