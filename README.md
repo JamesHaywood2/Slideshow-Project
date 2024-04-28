@@ -1,12 +1,13 @@
 # Slideshow-Project
 Slideshow project for CS499 Senior Design  
-Base by: James Haywood, Emma Fuller, and Jackie Newland.  
+By: James Haywood, Emma Fuller, and Jackie Newland.  
 
 ## Installation
 Install Python 11, clone the repository, and install required Python libraries with ```pip install -r requirements.txt```.  
 Run Creator.py to create slideshows.  
 Run Player.py to play the created slideshows.
 
+Slide counter may be bugged. To fix please edit your ttkbootstrap installation ttkboostrap/widgets.py line 856 and change CUBIC to BICUBIC to get it to work.
 
 
 ## Uninstall
